@@ -1,0 +1,26 @@
+{
+  "name": "jsondb",
+  "version": "1.0.0",
+  "description": "DynamoDB abstraction layer to let you work easily and efficiently with giant virtual objects",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sosaysthecaptain/jsondb.git"
+  },
+  "keywords": [
+    "dynamo",
+    "db",
+    "json",
+    "nosql",
+    "object"
+  ],
+  "author": "Marc Auger",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sosaysthecaptain/jsondb/issues"
+  },
+  "homepage": "https://github.com/sosaysthecaptain/jsondb#readme"
+}
