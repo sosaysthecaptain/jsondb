@@ -3,40 +3,76 @@ More convenient handle on aws-sdk
 */
 
 let AWS = require('aws-sdk')
+let DOC = require('dynamodb-doc')
 
 
 class DynamoClient {
-    constructor(region, accessKeyId, secretAccessKey) {
+    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion}) {
         AWS.config.update({
-            region: region,
-            accessKeyId: accessKeyId,
-            secretAccessKey: accessKeyId
+            accessKeyId: awsAccessKeyId,
+            secretAccessKey: awsSecretAccessKey,
+            region: awsRegion
         })
 
-        this.documentClient = new AWS.DynamoDB.DocumentClient()
+        this.doc = require('dynamodb-doc');
+        this.dynamo = new this.doc.DynamoDB();
+
+
+        this.doc_client = new AWS.DynamoDB.DocumentClient()
+        
+        var params = { }
+        params.TableName = "user_dev_v2";
+        var key = { "id": "demo_object_3" };
+        params.Key = key;
+
+        // this.dynamo.getItem(params, function(err, data) {
+        //     if (err) {
+        //         debugger
+        //         console.log(err);
+        //     }
+        //     else {
+        //         debugger
+        //         console.log(data)
+        //     }
+        // });
+
+
     }
 
     async get({tableName, key, attributes}) {
         let params = {
             TableName: tableName,
-            Key: key,
-            ReturnValues: 'All_OLD'
+            Key: key
+            // ReturnValues: 'All_OLD'
         }
 
         if (attributes) {
             params.AttributesToGet = attributes
         }
-    
-        let data = await this.documentClient.get(params).promise().catch((err) => {
-            throw(err)
-        })
 
-        return data.Item
+        this.dynamo.getItem(params, function(err, data) {
+            if (err) {
+                debugger
+                console.log(err);
+            }
+            else {
+                return data.Item
+                debugger
+                console.log(data)
+            }
+        });
+    
+        // let data = await this.doc_client.get(params).promise().catch((err) => {
+        //     debugger
+        //     throw(err)
+        // })
+        // debugger
+
+        // return data.Item
     }
 
     async update({tableName, key, attributes, doNotOverwrite}) {
-        // maybe do this properly?
-        if (do_not_overwrite) {
+        if (doNotOverwrite) {
             if (this.checkExists({tableName, key})) {
                 throw new Error('Object already exists at specified key')
             }
@@ -51,6 +87,7 @@ class DynamoClient {
             updateExpression = updateExpression.slice(0, -2)  // trailing comma
             return updateExpression
         }
+
         let constructExpressionAttributeValues = () => {
             let expressionAttributeValues = {}
 
@@ -68,14 +105,19 @@ class DynamoClient {
             ExpressionAttributeValues: constructExpressionAttributeValues(),
             ReturnValues: 'ALL_NEW'
         }
-
-        debugger
         
-        let data = await this.documentClient.update(params).promise().catch((err) => {
+        let data = await this.dynamo.updateItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.update')
             throw(err)
         })
-        debugger
-        return data
+        return data.Attributes
+          
+
+
+        // let data = await this.dynamo.updateItem(params).promise().catch((err) => {
+        //     debugger
+        //     throw(err)
+        // })
     }
 
     async delete({tableName, key}) {
