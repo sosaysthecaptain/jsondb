@@ -40,31 +40,6 @@ let dynamoClientTestAsyncWrapper = (async () => {
         }
     }
 
-    // let testUpdate = async () => {
-
-    //     let original_attributes = {
-    //         key1: {
-    //             subkey1: "please don't change me",
-    //             subkey2: 'but do change me'
-    //         },
-    //         key2: ['asdsad', 'dfdfdsfsdfd', 42, 34]
-    //     }
-
-    //     let new_attributes = {
-            
-    //     }
-      
-    //     let data = await dynamo_client.update({
-    //         tableName: 'jsondb_test',
-    //         key: {
-    //             id: 'nested_object'
-    //         },
-    //         attributes: original_attributes,
-    //         doNotOverwrite: false
-    //     })
-    //     console.log(data)
-    // }
-
     let testUpdate = async () => {
 
         let original_attributes = {
@@ -111,13 +86,26 @@ let dynamoClientTestAsyncWrapper = (async () => {
         })
     }
 
+    let testBatchGet = async () => {
+        let data = await dynamo_client.batchGet({
+            tableName: 'jsondb_test',
+            keys: [
+                {id: 'demo_object'},
+                {id: 'nested_object'}
+            ],
+        })
+
+        console.log(data)
+    }
+
 
 
     // CALL TEST FUNCTIONS HERE
     try {
         // await testGet()
         // await testUpdate()
-        await testDelete()
+        // await testDelete()
+        await testBatchGet()
 
 
 

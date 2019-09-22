@@ -94,6 +94,7 @@ class DynamoClient {
             ReturnValues: 'ALL_OLD'
         }
         let data = await this.dynamo.deleteItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.delete')
             throw(err)
         })
         return data
@@ -114,7 +115,8 @@ class DynamoClient {
             params.RequestItems[table_name].ProjectionExpression = projectionExpressionsString
         }
     
-        let data = await this.documentClient.batchGet(params).promise().catch((err) => {
+        let data = await this.dynamo.batchGetItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.batchGet')
             throw(err)
         })
         let items = data.Responses[tableName]
