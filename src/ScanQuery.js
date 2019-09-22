@@ -5,7 +5,7 @@ let scan_query = new db.ScanQuery('User')
 scan_query.add_param('is_lawyer', true, '=')
 scan_query.add_param('expertises', 'auto accidents', 'contains', 'AND')
 scan_query.add_param('states', 'California', 'contains', 'AND')
-let params_object = scan_query.get_params_object()
+let paramsObject = scan_query.getParamsObject()
 
 An example query:
     params = {
@@ -17,11 +17,16 @@ An example query:
         },
         FilterExpression: "is_lawyer = :key_0 AND (contains (expertises, :key_1)) AND (contains (states, :key_2))"
     }
+
+TODO: replace 'message' with dynamo concept of comparison operator such as 
+EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
+https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Condition.html
 */
+
 
 class ScanQuery {
     constructor(table_name) {
-        this.params_object = {
+        this.paramsObject = {
             TableName: table_name,
             FilterExpression: '',
             ExpressionAttributeValues: {}
@@ -37,23 +42,23 @@ class ScanQuery {
         operator: 'AND'
     */
     addParam({param, value, message, operator}) {
-        this.params_object.ExpressionAttributeValues[`:key_${this.index}`] = value
+        this.paramsObject.ExpressionAttributeValues[`:key_${this.index}`] = value
         
-        let filter_expression_component
+        let filterExpressionComponent
         if (message === '=') {
-            filter_expression_component = `(${param} = :key_${this.index})`
+            filterExpressionComponent = `(${param} = :key_${this.index})`
         } else if (message === 'contains') {
-            filter_expression_component = `(contains (${param}, :key_${this.index}))`
+            filterExpressionComponent = `(contains (${param}, :key_${this.index}))`
         }
         if (this.index !== 0) {
-            filter_expression_component = ` ${operator} ${filter_expression_component}`
+            filterExpressionComponent = ` ${operator} ${filterExpressionComponent}`
         }
-        this.params_object.FilterExpression += filter_expression_component
+        this.paramsObject.FilterExpression += filterExpressionComponent
         this.index += 1
     }
 
     getParamsObject() {
-        return this.params_object
+        return this.paramsObject
     }
 }
 
