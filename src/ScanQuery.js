@@ -33,10 +33,10 @@ class ScanQuery {
     For example
         param: 'expertises'
         value: 'automobile accidents'
-        message: 'contains'
+        message: 'contains'             // '=' for strings, 'contains' for arrays
         operator: 'AND'
     */
-    add_param(param, value, message, operator) {
+    addParam({param, value, message, operator}) {
         this.params_object.ExpressionAttributeValues[`:key_${this.index}`] = value
         
         let filter_expression_component
@@ -52,7 +52,7 @@ class ScanQuery {
         this.index += 1
     }
 
-    get_params_object() {
+    getParamsObject() {
         return this.params_object
     }
 }

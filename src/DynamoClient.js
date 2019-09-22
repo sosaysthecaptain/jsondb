@@ -123,8 +123,10 @@ class DynamoClient {
         return items
     }
 
-    async scan(params) {
-        const data = await this.documentClient.scan(params).promise().catch((err) => {
+    // See ScanQuery.js for details on params API
+    async scan(scanQueryInstance) {
+        let params = scanQueryInstance.getParamsObject()
+        const data = await this.dynamo.scan(params).promise().catch((err) => {
             throw(err)
         })
         return data.Items

@@ -97,6 +97,21 @@ let dynamoClientTestAsyncWrapper = (async () => {
 
         console.log(data)
     }
+    
+    let testScan = async () => {
+
+        let query = new ScanQuery('jsondb_test')
+        query.addParam({
+            param: 'key1',
+            value: 'this is being added', 
+            message: '='
+        })
+
+
+        let data = await dynamo_client.scan(query)
+
+        console.log(data)
+    }
 
 
 
@@ -105,7 +120,8 @@ let dynamoClientTestAsyncWrapper = (async () => {
         // await testGet()
         // await testUpdate()
         // await testDelete()
-        await testBatchGet()
+        // await testBatchGet()
+        await testScan()
 
 
 
