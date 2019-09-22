@@ -18,6 +18,7 @@ class DynamoClient {
         this.dynamo = new this.doc.DynamoDB();
     }
 
+    // Gets single object by id
     async get({tableName, key, attributes}) {
         let params = {
             TableName: tableName,
@@ -29,12 +30,90 @@ class DynamoClient {
             params.AttributesToGet = attributes
         }
 
-        let data = await this.dynamo.getItem(params).promise()
+        let data = await this.dynamo.getItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.get')
+            throw(err)
+        })
+        console.log(data)
         return data.Item
     }
 
+    // Gets a list by array of ids
+    async batchGet({tableName, keys, attributes}) {
+        let params = {RequestItems: {}}
+        params.RequestItems[tableName] = {
+            Keys: keys,
+        }
+    
+        if (attributes) {
+            let projectionExpressionsString = ''
+            attributes.forEach((attribute) => {
+                projectionExpressionsString += attribute + ', '
+            })
+            projectionExpressionsString = projectionExpressionsString.slice(0, -2)
+            params.RequestItems[table_name].ProjectionExpression = projectionExpressionsString
+        }
+    
+        let data = await this.dynamo.batchGetItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.batchGet')
+            throw(err)
+        })
+        let items = data.Responses[tableName]
+        return items
+    }
+
+    // Gets all for pk with sk in specified range, ordered only
+    async getRange({tableName, pk, skStart, skEnd, ascending}) {
+        let params = {
+            TableName: tableName,
+            ExpressionAttributeValues: {
+                ':0': pk,
+                ':1': skStart,
+                ':2' : skEnd,
+            },
+            KeyConditionExpression: 'id = :0 AND ts BETWEEN :1 AND :2',
+            ScanIndexForward: ascending,
+        }
+
+        let data = await this.dynamo.query(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.getRange')
+            throw(err)
+        })
+        return data.Items
+    }
+    
+    // Gets pagewise for pk, starting at exclusiveFirstSk, limited, in specified order
+    async getPagewise({tableName, pk, limit, exclusiveFirstSk, ascending}) {
+        limit = limit || 100
+        
+        let KeyConditionExpression = 'id = :0 AND ts < :1'
+        if (ascending) {
+            exclusiveFirstSk = exclusiveFirstSk || 0
+            KeyConditionExpression = 'id = :0 AND ts > :1'
+        } else {
+            exclusiveFirstSk = exclusiveFirstSk || 999999999999999
+        }
+
+        let params = {
+            TableName: tableName,
+            ExpressionAttributeValues: {
+                ':0': pk,
+                ':1': exclusiveFirstSk
+            },
+            KeyConditionExpression: KeyConditionExpression,
+            ScanIndexForward: ascending,
+            Limit: limit
+        }
+                
+        let data = await this.dynamo.query(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.getPagewise')
+            throw(err)
+        })
+        return data.Items
+    }
+
     /*
-    Can put or update. Attributes may set keys at any level of nesting:
+    Can put or update, ordered or unordered. Attributes may set keys at any level of nesting:
 
         attributes = {
             email: 'user@gmail.com'
@@ -98,29 +177,6 @@ class DynamoClient {
             throw(err)
         })
         return data
-    }
-
-    async batchGet({tableName, keys, attributes}) {
-        let params = {RequestItems: {}}
-        params.RequestItems[tableName] = {
-            Keys: keys,
-        }
-    
-        if (attributes) {
-            let projectionExpressionsString = ''
-            attributes.forEach((attribute) => {
-                projectionExpressionsString += attribute + ', '
-            })
-            projectionExpressionsString = projectionExpressionsString.slice(0, -2)
-            params.RequestItems[table_name].ProjectionExpression = projectionExpressionsString
-        }
-    
-        let data = await this.dynamo.batchGetItem(params).promise().catch((err) => {
-            console.log('failure in DynamoClient.batchGet')
-            throw(err)
-        })
-        let items = data.Responses[tableName]
-        return items
     }
 
     // See ScanQuery.js for details on params API

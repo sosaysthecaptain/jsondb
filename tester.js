@@ -7,16 +7,6 @@ let ScanQuery = require('./src/ScanQuery')
 let DynamoClient = require('./src/DynamoClient')
 let config = require('./config')
 
-// let myDBObjectHandler = new jsondb.DBObjectHandler({
-//     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
-//     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-//     awsRegion: config.AWS_REGION,
-//     tableName: 'object_dev_v2'
-// })
-
-
-
-
 let dynamoClientTestAsyncWrapper = (async () => {
     let dynamo_client = new DynamoClient({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
@@ -29,9 +19,43 @@ let dynamoClientTestAsyncWrapper = (async () => {
             let data = await dynamo_client.get({
                 tableName: 'jsondb_test',
                 key: {
-                    id: 'id_from_tester'
+                    id: 'series_1'
                 },
                 // attributes: ['key1']
+            })
+            console.log(data)
+        } catch(err) {
+            console.error('Something bad')
+            console.error(err)
+        }
+    }
+    
+    let testGetRange = async () => {
+        try {
+            let data = await dynamo_client.getRange({
+                tableName: 'jsondb_test_2',
+                pk: 'series_1',
+                skStart: 0,
+                skEnd: 200,
+                ascending: false
+                
+                // attributes: ['key1']
+            })
+            console.log(data)
+        } catch(err) {
+            console.error('Something bad')
+            console.error(err)
+        }
+    }
+    
+    let testGetPagewise = async () => {
+        try {
+            let data = await dynamo_client.getPagewise({
+                tableName: 'jsondb_test_2',
+                pk: 'series_1',
+                exclusiveFirstSk: 124,
+                limit: 2,
+                ascending: true
             })
             console.log(data)
         } catch(err) {
@@ -60,6 +84,23 @@ let dynamoClientTestAsyncWrapper = (async () => {
             },
             // attributes: original_attributes,
             attributes: new_attributes,
+            doNotOverwrite: false
+        })
+        console.log(data)
+    }
+
+    let testUpdateOrdered = async () => {
+        let data = await dynamo_client.update({
+            tableName: 'jsondb_test_ordered',
+            key: {
+                id: 'series_1',
+                timestamp: Date.now()
+                // timestamp: 0
+            },
+            // attributes: original_attributes,
+            attributes: {
+                message: 'ordered object payload'
+            },
             doNotOverwrite: false
         })
         console.log(data)
@@ -118,16 +159,40 @@ let dynamoClientTestAsyncWrapper = (async () => {
     // CALL TEST FUNCTIONS HERE
     try {
         // await testGet()
+        // await testGetRange()
+        // await testGetPagewise()
         // await testUpdate()
+        // await testUpdateOrdered()
         // await testDelete()
         // await testBatchGet()
-        await testScan()
-
-
-
+        // await testScan()
     } catch(err) {
         console.error(err)
     }    
 
 })()
     
+let dbObjectTestAsyncWrapper = (async () => {
+    // let dynamo_client = new DynamoClient({
+    //     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+    //     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+    //     awsRegion: config.AWS_REGION
+    // })
+
+    let myDBObjectHandler = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: 'object_dev_v2'
+    })
+    
+    
+
+    // CALL TEST FUNCTIONS HERE
+    try {
+        console.log(' ')
+    } catch(err) {
+        console.error(err)
+    }    
+
+})()
