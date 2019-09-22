@@ -50,27 +50,31 @@ class DynamoClient {
             params.AttributesToGet = attributes
         }
 
-        this.dynamo.getItem(params, function(err, data) {
-            if (err) {
-                debugger
-                console.log(err);
-            }
-            else {
-                return data.Item
-                debugger
-                console.log(data)
-            }
-        });
-    
-        // let data = await this.doc_client.get(params).promise().catch((err) => {
-        //     debugger
-        //     throw(err)
-        // })
-        // debugger
-
-        // return data.Item
+        let data = await this.dynamo.getItem(params).promise()
+        return data.Item
     }
 
+    /*
+    Can put or update. Attributes may set keys at any level of nesting:
+
+        attributes = {
+            email: 'user@gmail.com'
+            key1.subkey2.subsubkey13 = 'something deeply nested'
+        }
+
+    Builds a params object that looks like this:
+        params = {
+            TableName: 'jsondb_test',
+            Key: {
+                id: 'nested_object'
+            },
+            UpdateExpression: 'set email = :0, key1.subkey2 = :1',
+            ExpressionAttributeValues: {
+                ':0': 'user@gmail.com',
+                ':1': 'something deeply nested'
+            }
+        }
+    */
     async update({tableName, key, attributes, doNotOverwrite}) {
         if (doNotOverwrite) {
             if (this.checkExists({tableName, key})) {
@@ -78,31 +82,21 @@ class DynamoClient {
             }
         }
 
-        let constructUpdateExpression = () => {
-            let updateExpression = 'set '
-            Object.keys(attributes).forEach((attributeKey) => {
-                let addition = `${attributeKey} = :${attributeKey}, `
-                updateExpression += addition
-            })
-            updateExpression = updateExpression.slice(0, -2)  // trailing comma
-            return updateExpression
-        }
-
-        let constructExpressionAttributeValues = () => {
-            let expressionAttributeValues = {}
-
-            Object.keys(attributes).forEach((attribute_key) => {
-                let key_string = ':' + attribute_key
-                expressionAttributeValues[key_string] = attributes[attribute_key]
-            })
-            return expressionAttributeValues
-        }
+        let ExpressionAttributeValues = {}
+        let UpdateExpression = 'set '
+        let index = 0
+        Object.keys(attributes).forEach((attributeKey) => {
+            let newValueKey = `:${index}`
+            UpdateExpression += `${attributeKey} = ${newValueKey}, `
+            ExpressionAttributeValues[newValueKey] = attributes[attributeKey]
+        })
+        UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
         let params = {
             TableName: tableName,
             Key: key,
-            UpdateExpression: constructUpdateExpression(),
-            ExpressionAttributeValues: constructExpressionAttributeValues(),
+            UpdateExpression: UpdateExpression,
+            ExpressionAttributeValues: ExpressionAttributeValues,
             ReturnValues: 'ALL_NEW'
         }
         
@@ -111,13 +105,6 @@ class DynamoClient {
             throw(err)
         })
         return data.Attributes
-          
-
-
-        // let data = await this.dynamo.updateItem(params).promise().catch((err) => {
-        //     debugger
-        //     throw(err)
-        // })
     }
 
     async delete({tableName, key}) {
