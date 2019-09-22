@@ -68,7 +68,7 @@ class DynamoClient {
             Key: {
                 id: 'nested_object'
             },
-            UpdateExpression: 'set email = :0, key1.subkey2 = :1',
+            UpdateExpression: 'set email = :0, key1.subkey2.subsubkey13 = :1',
             ExpressionAttributeValues: {
                 ':0': 'user@gmail.com',
                 ':1': 'something deeply nested'
@@ -89,6 +89,7 @@ class DynamoClient {
             let newValueKey = `:${index}`
             UpdateExpression += `${attributeKey} = ${newValueKey}, `
             ExpressionAttributeValues[newValueKey] = attributes[attributeKey]
+            index += 1
         })
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
