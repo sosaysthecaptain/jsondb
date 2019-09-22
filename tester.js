@@ -78,7 +78,6 @@ let dynamoClientTestAsyncWrapper = (async () => {
         let new_attributes = {
             'key1.subkey2': 'changed automatically a second time'
         }
-      
         let data = await dynamo_client.update({
             tableName: 'jsondb_test',
             key: {
@@ -91,12 +90,34 @@ let dynamoClientTestAsyncWrapper = (async () => {
         console.log(data)
     }
 
+    let testDelete = async () => {
+        // First, create something
+        await dynamo_client.update({
+            tableName: 'jsondb_test',
+            key: {
+                id: 'come_delete_me'
+            },
+            attributes: {
+                key1: 'stuff about to be deleted'
+            }
+        })
+
+        // Then delete it
+        await dynamo_client.delete({
+            tableName: 'jsondb_test',
+            key: {
+                id: 'come_delete_me'
+            }
+        })
+    }
+
 
 
     // CALL TEST FUNCTIONS HERE
     try {
         // await testGet()
-        await testUpdate()
+        // await testUpdate()
+        await testDelete()
 
 
 

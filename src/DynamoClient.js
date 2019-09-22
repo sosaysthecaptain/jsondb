@@ -16,27 +16,6 @@ class DynamoClient {
 
         this.doc = require('dynamodb-doc');
         this.dynamo = new this.doc.DynamoDB();
-
-
-        this.doc_client = new AWS.DynamoDB.DocumentClient()
-        
-        var params = { }
-        params.TableName = "user_dev_v2";
-        var key = { "id": "demo_object_3" };
-        params.Key = key;
-
-        // this.dynamo.getItem(params, function(err, data) {
-        //     if (err) {
-        //         debugger
-        //         console.log(err);
-        //     }
-        //     else {
-        //         debugger
-        //         console.log(data)
-        //     }
-        // });
-
-
     }
 
     async get({tableName, key, attributes}) {
@@ -114,7 +93,7 @@ class DynamoClient {
             Key: key,
             ReturnValues: 'ALL_OLD'
         }
-        let data = await this.documentClient.delete(params).promise().catch((err) => {
+        let data = await this.dynamo.deleteItem(params).promise().catch((err) => {
             throw(err)
         })
         return data
