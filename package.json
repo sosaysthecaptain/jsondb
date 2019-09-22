@@ -22,5 +22,9 @@
   "bugs": {
     "url": "https://github.com/sosaysthecaptain/jsondb/issues"
   },
-  "homepage": "https://github.com/sosaysthecaptain/jsondb#readme"
+  "homepage": "https://github.com/sosaysthecaptain/jsondb#readme",
+  "dependencies": {
+    "aws-sdk": "^2.533.0",
+    "uuid": "^3.3.3"
+  }
 }
