@@ -66,15 +66,14 @@ class DBObject {
     // Creates a new object in the database
     async create(initialData) {
         initialData = initialData || {}
-        let initialRaw = {}
-        initialRaw['d'] = initialData
-        initialRaw['c'] = []
-        initialRaw['l'] = null
-        initialRaw['p'] = this.permissionLevel
+        // initialRaw['d'] = initialData
+        // initialRaw['c'] = []
+        // initialRaw['l'] = null
+        // initialRaw['p'] = this.permissionLevel
         
-        let formattedContent = this._format(initialRaw)
-        formattedContent['s'] = dynoItemSize(initialRaw)
-        this._write(initialRaw, true)
+        let formattedContent = this._formatNode(initialData)
+        debugger
+        this._write(formattedContent, true)
         
         // this.size = formattedContent.s
         this.exists = true
@@ -92,28 +91,39 @@ class DBObject {
 
     }
 
-    // RESUME: DEBUG ME
-    // Creates metadata at each level of hierarchy, only as much as is necessary
-    _format(nodeData) {
+    /*  INTERNAL METHODS */
+    
+    // Recursively walks a given object, formatting correctly and updating size metadata
+    _formatNode(obj) {
+        if (obj && typeof obj === 'object') {
+            let allKeys = Object.keys(obj)
+            for(let i = 0; i < allKeys.length; i++) {
+                let parent = obj
+                let key = allKeys[i]
+                let value = obj[key]
 
-        // If key isn't a meta field, make it one
-        u.deepTransformKeys(rawNodeData, (key, value, parent) => {
-            if (key.length > 1) {
-                return {
-                    d: value
+                // If not a single-letter key, this is data that needs to go in d
+                if (key.length > 1) {
+                    obj['d'] = value
+                    delete obj[key]
+                }
+                
+                // If we have an obj.d and it has children, whether or not we just created it, 
+                // we need to recursively walk its children and apply this transform
+                if (typeof obj.d === 'object') {
+                    applyFormatToProperty(obj.d)
+                }
+                
+                // If we have obj.d at all, we need to calculate the size of this entire node, including 
+                // d's metadata siblings
+                if (obj.d) {
+                    obj['s'] = dynoItemSize(obj)
                 }
             }
-            return value
-        })
-        
-        // Walk object again, updating sizes
-        u.deepTransformKeys(rawNodeData, (key, value, parent) => {
-            if (key === d) {
-                parent.s = dynoItemSize(parent)
-            }
-            return value
-        })
-        return nodeData
+        }
+
+
+        return obj
     }
     
     
@@ -165,6 +175,15 @@ class DBObject {
     }
 
     /*  **************************************************    */
+
+
+
+
+
+
+
+
+
 
 
 

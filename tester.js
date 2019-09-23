@@ -202,10 +202,8 @@ let dbObjectTestAsyncWrapper = (async () => {
 
     // CALL TEST FUNCTIONS HERE
     try {
-        dbobject.create('asdasdasdasdasasdasdasdasdasdasdsdfdsfsdfsdfsdfsdfsd')
         let garbage = u.getStringOfSize(390 * 1024)
-        console.log(garbage.length)
-        dbobject._write({
+        dbobject.create({
             voluminous_junk: garbage
         })
         
