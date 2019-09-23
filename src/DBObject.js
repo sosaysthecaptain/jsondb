@@ -1,5 +1,7 @@
 /*
-Represents a virtual object in memory, as stored in dynamo. Begins as a single node, splits itself up as necessary.
+Represents a virtual object in memory, as stored in dynamo. Begins as a single node, splits itself up 
+as necessary. Each DBObject in reality represents an individual node, except that top level nodes 
+are designated as such upon instantiation, and keep a cache, while child nodes don't.
 
 Structure:
     internal_id_of_example_node = {
@@ -30,10 +32,15 @@ Public methods:
     - sizeOf()
 */
 
+let dynoItemSize = require('dyno-item-size');
+
 let DynamoClient = require('./DynamoClient')
+let u = require('./u')
 
 class DBObject {
-    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize}) {
+
+    // A DBObject must be instantiated with ID. Size is tracked and determined by dead reckoning
+    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize, isTopLevel, doesNotExistYet, size}) {
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
@@ -42,51 +49,122 @@ class DBObject {
             ts: id.split('-')[1] || 0
         },
         this.permissionLevel = permissionLevel
-        this.cache = {}
         this.maximumCacheSize = maximumCacheSize || 50 * 1024 * 1024
+        this.isTopLevel = isTopLevel
+        
+        // We know for sure at this point if we exist in the db, but if we've just been instantiated we 
+        // don't know our size
+        this.exists = !doesNotExistYet
+        this.size = size || 0
+
+        this.hardLimitNodeSize = 400 * 1024 * 1024
+        this.maxNodeSize = 300 * 1024 * 1024
+        this.idealNodeSize = 200 * 1024 * 1024
+        this.cache = {}
     }
 
     // Creates a new object in the database
     async create(initialData) {
         initialData = initialData || {}
-        let initialRaw = {
-            d: initialData,
-            c: [],
-            l: null,
-            p: this.permissionLevel
-        }
-
-        await this.dynamoClient.update({
-            tableName: this.tableName,
-            key: this.key,
-            attributes: initialRaw,
-            doNotOverwrite: true
-        }).catch((err) => {
-            console.log('failure in DBObject.create')
-            console.error(err)
-        })
+        let initialRaw = {}
+        initialRaw['d'] = initialData
+        initialRaw['c'] = []
+        initialRaw['l'] = null
+        initialRaw['p'] = this.permissionLevel
+        
+        let formattedContent = this._format(initialRaw)
+        formattedContent['s'] = dynoItemSize(initialRaw)
+        this._write(initialRaw, true)
+        
+        // this.size = formattedContent.s
+        this.exists = true
     }
     
-    get(path) {
+    async get(path) {
 
     }
 
-    set() {
+    async set() {
 
     }
 
-    modify() {
+    async modify() {
 
     }
 
+    // RESUME: DEBUG ME
+    // Creates metadata at each level of hierarchy, only as much as is necessary
+    _format(nodeData) {
+
+        // If key isn't a meta field, make it one
+        u.deepTransformKeys(rawNodeData, (key, value, parent) => {
+            if (key.length > 1) {
+                return {
+                    d: value
+                }
+            }
+            return value
+        })
+        
+        // Walk object again, updating sizes
+        u.deepTransformKeys(rawNodeData, (key, value, parent) => {
+            if (key === d) {
+                parent.s = dynoItemSize(parent)
+            }
+            return value
+        })
+        return nodeData
+    }
+    
+    
+    // Writes to this node only, assuming this is appropriate
+    async _write(attributes, doNotOverwrite) {
+        
+        
+        let data = await this.dynamoClient.update({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: attributes,
+            doNotOverwrite: doNotOverwrite
+        }).catch((err) => {
+            console.log('failure in DBObject._write')
+            console.error(err)
+        })
+        
+        let sizeDelta = dynoItemSize(data)
+        
+        this.exists = true
+    }
+    
+    
+   
 
 
+    _isThisTooBigToWrite(data) {
+        let dataSize = dynoItemSize(data)
 
+        let nodeSize = this.size()
+        if (nodeSize > this.maxNodeSize)  {
+            return true
+        }
 
+        // If we don't know, we err on the conservative side
+        if (estimatedSize === null) {
+            
+        } 
+    }
 
+    
 
+    exists() {
+        return this.exists
+    }
+    
+    size() {
+        return this.size
+    }
 
-
+    /*  **************************************************    */
 
 
 

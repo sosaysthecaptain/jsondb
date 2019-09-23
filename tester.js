@@ -6,6 +6,7 @@ let jsondb = require('./index')
 let ScanQuery = require('./src/ScanQuery')
 let DynamoClient = require('./src/DynamoClient')
 let config = require('./config')
+let u = require('./src/u')
 
 let dynamoClientTestAsyncWrapper = (async () => {
     let dynamo_client = new DynamoClient({
@@ -191,14 +192,22 @@ let dbObjectTestAsyncWrapper = (async () => {
         id: 'aBcDeFG',
         dynamoClient: dynamoClient,
         tableName: 'jsondb_test_3',
-        permissionLevel: null
+        permissionLevel: null,
+        isTopLevel: true,
+        doesNotExistYet: true,
+        size: 0
     })
     
     
 
     // CALL TEST FUNCTIONS HERE
     try {
-        dbobject.create()
+        dbobject.create('asdasdasdasdasasdasdasdasdasdasdsdfdsfsdfsdfsdfsdfsd')
+        let garbage = u.getStringOfSize(390 * 1024)
+        console.log(garbage.length)
+        dbobject._write({
+            voluminous_junk: garbage
+        })
         
 
 

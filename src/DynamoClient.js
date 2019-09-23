@@ -157,7 +157,7 @@ class DynamoClient {
             Key: key,
             UpdateExpression: UpdateExpression,
             ExpressionAttributeValues: ExpressionAttributeValues,
-            ReturnValues: 'ALL_NEW'
+            ReturnValues: 'ALL_NEW',
         }
         
         let data = await this.dynamo.updateItem(params).promise().catch((err) => {
