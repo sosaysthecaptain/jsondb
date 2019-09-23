@@ -34,7 +34,7 @@ let dynamoClientTestAsyncWrapper = (async () => {
         try {
             let data = await dynamo_client.getRange({
                 tableName: 'jsondb_test_2',
-                pk: 'series_1',
+                uid: 'series_1',
                 skStart: 0,
                 skEnd: 200,
                 ascending: false
@@ -52,7 +52,7 @@ let dynamoClientTestAsyncWrapper = (async () => {
         try {
             let data = await dynamo_client.getPagewise({
                 tableName: 'jsondb_test_2',
-                pk: 'series_1',
+                uid: 'series_1',
                 exclusiveFirstSk: 124,
                 limit: 2,
                 ascending: true
@@ -172,25 +172,36 @@ let dynamoClientTestAsyncWrapper = (async () => {
 
 })()
     
-let dbObjectTestAsyncWrapper = (async () => {
-    // let dynamo_client = new DynamoClient({
-    //     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
-    //     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-    //     awsRegion: config.AWS_REGION
-    // })
 
-    let myDBObjectHandler = new jsondb.DBObjectHandler({
+
+let dbObjectTestAsyncWrapper = (async () => {
+    let dynamoClient = new DynamoClient({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-        awsRegion: config.AWS_REGION,
-        tableName: 'object_dev_v2'
+        awsRegion: config.AWS_REGION
+    })
+
+    // let myDBObjectHandler = new jsondb.DBObjectHandler({
+    //     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+    //     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+    //     awsRegion: config.AWS_REGION,
+    //     tableName: 'object_dev_v2'
+    // })
+    let dbobject = new jsondb.DBObject({
+        id: 'aBcDeFG',
+        dynamoClient: dynamoClient,
+        tableName: 'jsondb_test_3',
+        permissionLevel: null
     })
     
     
 
     // CALL TEST FUNCTIONS HERE
     try {
-        console.log(' ')
+        dbobject.create()
+        
+
+
     } catch(err) {
         console.error(err)
     }    

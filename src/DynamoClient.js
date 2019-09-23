@@ -34,11 +34,10 @@ class DynamoClient {
             console.log('failure in DynamoClient.get')
             throw(err)
         })
-        console.log(data)
         return data.Item
     }
 
-    // Gets a list by array of ids
+    // Gets a list by array of keys
     async batchGet({tableName, keys, attributes}) {
         let params = {RequestItems: {}}
         params.RequestItems[tableName] = {
@@ -62,16 +61,17 @@ class DynamoClient {
         return items
     }
 
-    // Gets all for pk with sk in specified range, ordered only
-    async getRange({tableName, pk, skStart, skEnd, ascending}) {
+    // Gets all for uid with ts in specified range, ordered only
+    // ASSUMES STANDARD uid/ts
+    async getRange({tableName, uid, tsStart, tsEnd, ascending}) {
         let params = {
             TableName: tableName,
             ExpressionAttributeValues: {
-                ':0': pk,
+                ':0': uid,
                 ':1': skStart,
                 ':2' : skEnd,
             },
-            KeyConditionExpression: 'id = :0 AND ts BETWEEN :1 AND :2',
+            KeyConditionExpression: 'uid = :0 AND ts BETWEEN :1 AND :2',
             ScanIndexForward: ascending,
         }
 
@@ -82,14 +82,15 @@ class DynamoClient {
         return data.Items
     }
     
-    // Gets pagewise for pk, starting at exclusiveFirstSk, limited, in specified order
-    async getPagewise({tableName, pk, limit, exclusiveFirstSk, ascending}) {
+    // Gets pagewise for uid, starting at exclusiveFirstSk, limited, in specified order
+    // ASSUMES STANDARD uid/ts
+    async getPagewise({tableName, uid, limit, exclusiveFirstSk, ascending}) {
         limit = limit || 100
         
-        let KeyConditionExpression = 'id = :0 AND ts < :1'
+        let KeyConditionExpression = 'uid = :0 AND ts < :1'
         if (ascending) {
             exclusiveFirstSk = exclusiveFirstSk || 0
-            KeyConditionExpression = 'id = :0 AND ts > :1'
+            KeyConditionExpression = 'uid = :0 AND ts > :1'
         } else {
             exclusiveFirstSk = exclusiveFirstSk || 999999999999999
         }
@@ -97,7 +98,7 @@ class DynamoClient {
         let params = {
             TableName: tableName,
             ExpressionAttributeValues: {
-                ':0': pk,
+                ':0': uid,
                 ':1': exclusiveFirstSk
             },
             KeyConditionExpression: KeyConditionExpression,
@@ -124,7 +125,7 @@ class DynamoClient {
         params = {
             TableName: 'jsondb_test',
             Key: {
-                id: 'nested_object'
+                uid: 'nested_object'
             },
             UpdateExpression: 'set email = :0, key1.subkey2.subsubkey13 = :1',
             ExpressionAttributeValues: {
@@ -135,7 +136,7 @@ class DynamoClient {
     */
     async update({tableName, key, attributes, doNotOverwrite}) {
         if (doNotOverwrite) {
-            if (this.checkExists({tableName, key})) {
+            if (await this.checkExists({tableName, key})) {
                 throw new Error('Object already exists at specified key')
             }
         }
@@ -190,6 +191,7 @@ class DynamoClient {
 
     async checkExists({tableName, key}) {
         let item = await this.get({tableName, key})
+        debugger
         if (item) {
             return true
         }

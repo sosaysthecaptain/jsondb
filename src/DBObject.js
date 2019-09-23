@@ -1,14 +1,85 @@
+/*
+Represents a virtual object in memory, as stored in dynamo. Begins as a single node, splits itself up as necessary.
+
+Structure:
+    internal_id_of_example_node = {
+        d: {
+            key_1: {
+                d: 'some example data',
+                c: null,
+            key_2: {
+                d: {<multiple keys in here>}
+                c: [key_1_direct_child_1_id, key_1_direct_child_2_id]
+            },
+            key_3: {d: ['these', 'can', 'be', 'arrays', 'too']},
+            key_4: {d: {another_key: 'or objects'},
+            key_5: {d: 123456789},
+            key_6: {d: false}
+        },
+        l: id_of_lateral_spillover_node,
+        c: [id_of_direct_child, another_id_of_direct_child],
+        p: permission_level_of_this_node
+    }
+
+Public methods:
+    - get('path.to.key') - returns data at specified path, omit path to get all, can be array
+    - set({
+        key: value,
+        path.to.deeper.key: anotherValue
+    }) 
+    - sizeOf()
+*/
+
 let DynamoClient = require('./DynamoClient')
 
 class DBObject {
-    constructor(params) {
-        this.type = params.type
-        this.TableName = params.TableName
-        this.Key = params.Key
-        
-        // Can instantiate with data
-        this.data = params.data
+    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize}) {
+        this.id = id,
+        this.dynamoClient = dynamoClient,
+        this.tableName = tableName
+        this.key = {
+            uid: id.split('-')[0],
+            ts: id.split('-')[1] || 0
+        },
+        this.permissionLevel = permissionLevel
+        this.cache = {}
+        this.maximumCacheSize = maximumCacheSize || 50 * 1024 * 1024
     }
+
+    // Creates a new object in the database
+    async create(initialData) {
+        initialData = initialData || {}
+        let initialRaw = {
+            d: initialData,
+            c: [],
+            l: null,
+            p: this.permissionLevel
+        }
+
+        await this.dynamoClient.update({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: initialRaw,
+            doNotOverwrite: true
+        }).catch((err) => {
+            console.log('failure in DBObject.create')
+            console.error(err)
+        })
+    }
+    
+    get(path) {
+
+    }
+
+    set() {
+
+    }
+
+    modify() {
+
+    }
+
+
 
 
 
