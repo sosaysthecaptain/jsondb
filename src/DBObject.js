@@ -92,18 +92,25 @@ class DBObject {
     }
 
     /*  INTERNAL METHODS */
-    
+
     // Recursively walks a given object, formatting correctly and updating size metadata
-    _formatNode(obj) {
+    _formatNode(obj, pathToTop) {
+        
         if (obj && typeof obj === 'object') {
             let allKeys = Object.keys(obj)
             for(let i = 0; i < allKeys.length; i++) {
-                let parent = obj
                 let key = allKeys[i]
                 let value = obj[key]
+                pathToTop = pathToTop || key + '.'
+
+                console.log ('formatting ' + key + ', pathToTop: ' + pathToTop)
 
                 // If not a single-letter key, this is data that needs to go in d
-                if (key.length > 1) {
+                let directParentKey = pathToTop.split('.').slice(0, -1).pop()
+
+                // If this is a real data node
+                if ((key === 'd') && (directParentKey !== 'd')) {
+                    console.log('    treating this as a data node')
                     obj['d'] = value
                     delete obj[key]
                 }
@@ -111,7 +118,9 @@ class DBObject {
                 // If we have an obj.d and it has children, whether or not we just created it, 
                 // we need to recursively walk its children and apply this transform
                 if (typeof obj.d === 'object') {
-                    applyFormatToProperty(obj.d)
+                    console.log('    recursively walking children')
+
+                    this._formatNode(obj.d, parentWasMetadata)
                 }
                 
                 // If we have obj.d at all, we need to calculate the size of this entire node, including 

@@ -202,9 +202,23 @@ let dbObjectTestAsyncWrapper = (async () => {
 
     // CALL TEST FUNCTIONS HERE
     try {
-        let garbage = u.getStringOfSize(390 * 1024)
+        // let garbage = u.getStringOfSize(390 * 1024)
         dbobject.create({
-            voluminous_junk: garbage
+            key1: {
+                subkey1: 'this is key1.subkey1',
+                subkey2: 'this is key1.subkey2',
+                subkey3: 'this is key1.subkey3',
+            },
+            key2: {
+                subkey1: 'this is key2.subkey1',
+                subkey2: 'this is key2.subkey2',
+                subkey3: 'this is key2.subkey3',
+            },
+            key3: {
+                subkey1: 'this is key3.subkey1',
+                subkey2: 'this is key3.subkey2',
+                subkey3: 'this is key3.subkey3',
+            }
         })
         
 
