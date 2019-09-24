@@ -79,9 +79,10 @@ let dynamoClientTestAsyncWrapper = (async () => {
             'key1.subkey2': 'changed automatically a second time'
         }
         let data = await dynamo_client.update({
-            tableName: 'jsondb_test',
+            tableName: 'jsondb_test_3',
             key: {
-                id: 'nested_object'
+                uid: 'tues_850',
+                ts: 0
             },
             // attributes: original_attributes,
             attributes: new_attributes,

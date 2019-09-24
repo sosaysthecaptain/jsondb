@@ -4,24 +4,43 @@ as necessary. Each DBObject in reality represents an individual node, except tha
 are designated as such upon instantiation, and keep a cache, while child nodes don't.
 
 Structure:
-    internal_id_of_example_node = {
-        d: {
-            key_1: {
-                d: 'some example data',
-                c: null,
-            key_2: {
-                d: {<multiple keys in here>}
-                c: [key_1_direct_child_1_id, key_1_direct_child_2_id]
+    dbobject = {
+        data: {}
+        index: {
+            s: 42345
+            key1Name: {
+                s: 425,
+                c: [],
+                p: '5',
+                l: '',
+                subKey1Name: {d: null, s: 235}, // null data just means terminal
+                subKey2Name: {d: null, s: 190}
             },
-            key_3: {d: ['these', 'can', 'be', 'arrays', 'too']},
-            key_4: {d: {another_key: 'or objects'},
-            key_5: {d: 123456789},
-            key_6: {d: false}
-        },
-        l: id_of_lateral_spillover_node,
-        c: [id_of_direct_child, another_id_of_direct_child],
-        p: permission_level_of_this_node
+            key2Name: {
+                subKey1Name: {...},
+                subKey2Name: {...}
+            },
+        }
     }
+
+    // internal_id_of_example_node = {
+    //     d: {
+    //         key_1: {
+    //             d: 'some example data',
+    //             c: null,
+    //         key_2: {
+    //             d: {<multiple keys in here>}
+    //             c: [key_1_direct_child_1_id, key_1_direct_child_2_id]
+    //         },
+    //         key_3: {d: ['these', 'can', 'be', 'arrays', 'too']},
+    //         key_4: {d: {another_key: 'or objects'},
+    //         key_5: {d: 123456789},
+    //         key_6: {d: false}
+    //     },
+    //     l: id_of_lateral_spillover_node,
+    //     c: [id_of_direct_child, another_id_of_direct_child],
+    //     p: permission_level_of_this_node
+    // }
 
 Public methods:
     - get('path.to.key') - returns data at specified path, omit path to get all, can be array
@@ -37,10 +56,14 @@ let dynoItemSize = require('dyno-item-size');
 let DynamoClient = require('./DynamoClient')
 let u = require('./u')
 
+const HARD_LIMIT_NODE_SIZE = 400 * 1024 * 1024
+const MAX_NODE_SIZE = 300 * 1024 * 1024
+const IDEAL_NODE_SIZE = 200 * 1024 * 1024
+
 class DBObject {
 
     // A DBObject must be instantiated with ID. Size is tracked and determined by dead reckoning
-    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize, isTopLevel, doesNotExistYet, size}) {
+    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize, isTopLevel, doesNotExistYet, index}) {
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
@@ -52,28 +75,20 @@ class DBObject {
         this.maximumCacheSize = maximumCacheSize || 50 * 1024 * 1024
         this.isTopLevel = isTopLevel
         
-        // We know for sure at this point if we exist in the db, but if we've just been instantiated we 
-        // don't know our size
+        // We either have our index or else know that we don't exist yet
         this.exists = !doesNotExistYet
-        this.size = size || 0
-
-        this.hardLimitNodeSize = 400 * 1024 * 1024
-        this.maxNodeSize = 300 * 1024 * 1024
-        this.idealNodeSize = 200 * 1024 * 1024
+        this.index = index
+        // this.size = size || 0
+        
+        // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
         this.cache = {}
+
     }
 
     // Creates a new object in the database
     async create(initialData) {
-        initialData = initialData || {}
-        // initialRaw['d'] = initialData
-        // initialRaw['c'] = []
-        // initialRaw['l'] = null
-        // initialRaw['p'] = this.permissionLevel
-        
-        let formattedContent = this._formatNode(initialData)
-        debugger
-        this._write(formattedContent, true)
+
+        this._write(initialData)
         
         // this.size = formattedContent.s
         this.exists = true
@@ -92,6 +107,99 @@ class DBObject {
     }
 
     /*  INTERNAL METHODS */
+
+    // // Writes to this node only, assuming this is appropriate
+    // async _write(attributes, doNotOverwrite) {
+        
+        
+    //     let data = await this.dynamoClient.update({
+    //         tableName: this.tableName,
+    //         key: this.key,
+    //         attributes: attributes,
+    //         doNotOverwrite: doNotOverwrite
+    //     }).catch((err) => {
+    //         console.log('failure in DBObject._write')
+    //         console.error(err)
+    //     })
+        
+    //     let sizeDelta = dynoItemSize(data)
+        
+    //     this.exists = true
+    // }
+
+
+    /* 
+    Updates this.index and returns the passed attributes as updated with necessary changes to the index
+
+    propertiesToUpdate = {
+        key1: 'value1',
+        key2.subkey3.subsubkey2: 'value at this path',
+        key6: {
+            subkey1: {},
+            subkey2: {}
+        }
+    }
+    */  
+    async _write(attributes, pathToTop) {
+        
+        // Reset local cache of changes to the index
+        this.currentWriteIndexChanges = {}
+
+        let recursiveUpdateIndexForProperty = (obj, pathToTop) => {
+            pathToTop = pathToTop || []
+            console.log(pathToTop.join('.'))
+            
+            
+        
+            if (obj && typeof obj === 'object') {
+                let allKeys = Object.keys(obj)
+                for(let i = 0; i < allKeys.length; i++) {
+                    let key = allKeys[i]
+                    let value = obj[key]
+                    let childPathToTop = JSON.parse(JSON.stringify(pathToTop))
+                    childPathToTop.push(key)
+
+                    // Build index object for this node, updating this DBObject's cached index
+                    this.__buildIndexEntryForNode(value, childPathToTop)
+
+                    // Walk children
+                    recursiveUpdateIndexForProperty(value, childPathToTop, i)
+                }
+            }
+        }
+
+        // For each top-level attribute, recursively update index for all its KV pairs
+        recursiveUpdateIndexForProperty(attributes)
+        
+
+        // attributes now contains index updates as well as original data to be written. Do the write.
+        console.log('reached end of experiment')
+        console.log(attributes)
+        console.log('\n')
+        console.log(this.index)
+        return
+
+        let data = await this.dynamoClient.update({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: attributes,
+            doNotOverwrite: doNotOverwrite
+        }).catch((err) => {
+            console.log('failure in DBObject._write')
+            console.error(err)
+        })
+    }
+
+    __buildIndexEntryForNode(pathToProperty, property) {
+
+    }
+
+    // Updates sizes throughout this DBObject node on the basis of changes to this one object
+    // _updateIndexSizesBasedOnProperty(pathToProperty, property) {
+
+    // }
+
+
 
     // Recursively walks a given object, formatting correctly and updating size metadata
     _formatNode(obj, pathToTop) {
@@ -135,35 +243,13 @@ class DBObject {
         return obj
     }
     
-    
-    // Writes to this node only, assuming this is appropriate
-    async _write(attributes, doNotOverwrite) {
-        
-        
-        let data = await this.dynamoClient.update({
-            tableName: this.tableName,
-            key: this.key,
-            attributes: attributes,
-            doNotOverwrite: doNotOverwrite
-        }).catch((err) => {
-            console.log('failure in DBObject._write')
-            console.error(err)
-        })
-        
-        let sizeDelta = dynoItemSize(data)
-        
-        this.exists = true
-    }
-    
-    
-   
 
-
+// no
     _isThisTooBigToWrite(data) {
         let dataSize = dynoItemSize(data)
 
         let nodeSize = this.size()
-        if (nodeSize > this.maxNodeSize)  {
+        if (nodeSize > MAX_NODE_SIZE)  {
             return true
         }
 
@@ -174,7 +260,7 @@ class DBObject {
     }
 
     
-
+/* MINOR GETTERS */
     exists() {
         return this.exists
     }
