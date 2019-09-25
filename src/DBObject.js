@@ -51,7 +51,7 @@ Public methods:
     - sizeOf()
 */
 
-let dynoItemSize = require('dyno-item-size');
+let dynoItemSize = require('dyno-item-size')
 
 let DynamoClient = require('./DynamoClient')
 let u = require('./u')
@@ -77,8 +77,7 @@ class DBObject {
         
         // We either have our index or else know that we don't exist yet
         this.exists = !doesNotExistYet
-        this.index = index
-        // this.size = size || 0
+        this.index = index || {s: 0, p: 0}
         
         // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
         this.cache = {}
@@ -146,24 +145,23 @@ class DBObject {
         this.currentWriteIndexChanges = {}
 
         let recursiveUpdateIndexForProperty = (obj, pathToTop) => {
-            pathToTop = pathToTop || []
-            console.log(pathToTop.join('.'))
-            
-            
-        
+            pathToTop = pathToTop || []        
             if (obj && typeof obj === 'object') {
                 let allKeys = Object.keys(obj)
                 for(let i = 0; i < allKeys.length; i++) {
                     let key = allKeys[i]
                     let value = obj[key]
-                    let childPathToTop = JSON.parse(JSON.stringify(pathToTop))
+                    let childPathToTop = u.copy(pathToTop)
                     childPathToTop.push(key)
 
                     // Build index object for this node, updating this DBObject's cached index
                     this.__buildIndexEntryForNode(value, childPathToTop)
+                    
+                    console.log('END')
+                    debugger
 
                     // Walk children
-                    recursiveUpdateIndexForProperty(value, childPathToTop, i)
+                    recursiveUpdateIndexForProperty(value, childPathToTop)
                 }
             }
         }
@@ -173,8 +171,8 @@ class DBObject {
         
 
         // attributes now contains index updates as well as original data to be written. Do the write.
-        console.log('reached end of experiment')
-        console.log(attributes)
+        console.log('\n\nreached end of experiment')
+        
         console.log('\n')
         console.log(this.index)
         return
@@ -190,9 +188,64 @@ class DBObject {
         })
     }
 
-    __buildIndexEntryForNode(pathToProperty, property) {
+    // Every terminal object has its own entry
+    __buildIndexEntryForNode(value, pathToTop) {
+        let originalPathToTop = u.copy(pathToTop)
 
+        let recursiveFillNodes = (path) => {
+            
+            // Fill up from the bottom, finding the next level on the way that doesn't exist
+            let nextPathThatDoesntExist = u.findLowestLevelDNE(path)
+            u.setAttribute({
+                obj: this.index, 
+                path: nextPathThatDoesntExist, 
+                property: 'p',
+                value: 0,
+            })
+            u.setAttribute({
+                obj: this.index, 
+                path: nextPathThatDoesntExist, 
+                property: 's',
+                value: u.getSize(value),
+            })
+            
+            // If the current level exists, we're done, otherwise do it again
+            if (!u.pathExists(originalPathToTop)) {
+                return
+                // pathToTop.pop()
+            }
+            recursiveFillNodes(path)
+
+        }
+        
+        // Fill in any nodes that don't exist yet under this one
+        recursiveFillNodes(pathToTop)
+
+        // if (this.index.d[pathToTop]) {
+
+        // } else {
+            
+        // }
+
+        // // let sizeOfNode = dynoItemSize(value)
+        // let indexValue = {
+        //     // s: sizeOfNode
+        // }
+        // console.log(this.__isValueTerminal(value))
+        // console.log(pathToTop.join('.'))
+        // console.log(indexValue)
+
+        // // Create index entry if it doesn't already exist
+        // this.index[indexKey] = indexValue
+
+        // Set size
+
+        // We leave off node permission unless explicitly specified. Similarly pointers by a separate
     }
+
+
+
+
 
     // Updates sizes throughout this DBObject node on the basis of changes to this one object
     // _updateIndexSizesBasedOnProperty(pathToProperty, property) {
@@ -202,46 +255,46 @@ class DBObject {
 
 
     // Recursively walks a given object, formatting correctly and updating size metadata
-    _formatNode(obj, pathToTop) {
+    // _formatNode(obj, pathToTop) {
         
-        if (obj && typeof obj === 'object') {
-            let allKeys = Object.keys(obj)
-            for(let i = 0; i < allKeys.length; i++) {
-                let key = allKeys[i]
-                let value = obj[key]
-                pathToTop = pathToTop || key + '.'
+    //     if (obj && typeof obj === 'object') {
+    //         let allKeys = Object.keys(obj)
+    //         for(let i = 0; i < allKeys.length; i++) {
+    //             let key = allKeys[i]
+    //             let value = obj[key]
+    //             pathToTop = pathToTop || key + '.'
 
-                console.log ('formatting ' + key + ', pathToTop: ' + pathToTop)
+    //             console.log ('formatting ' + key + ', pathToTop: ' + pathToTop)
 
-                // If not a single-letter key, this is data that needs to go in d
-                let directParentKey = pathToTop.split('.').slice(0, -1).pop()
+    //             // If not a single-letter key, this is data that needs to go in d
+    //             let directParentKey = pathToTop.split('.').slice(0, -1).pop()
 
-                // If this is a real data node
-                if ((key === 'd') && (directParentKey !== 'd')) {
-                    console.log('    treating this as a data node')
-                    obj['d'] = value
-                    delete obj[key]
-                }
+    //             // If this is a real data node
+    //             if ((key === 'd') && (directParentKey !== 'd')) {
+    //                 console.log('    treating this as a data node')
+    //                 obj['d'] = value
+    //                 delete obj[key]
+    //             }
                 
-                // If we have an obj.d and it has children, whether or not we just created it, 
-                // we need to recursively walk its children and apply this transform
-                if (typeof obj.d === 'object') {
-                    console.log('    recursively walking children')
+    //             // If we have an obj.d and it has children, whether or not we just created it, 
+    //             // we need to recursively walk its children and apply this transform
+    //             if (typeof obj.d === 'object') {
+    //                 console.log('    recursively walking children')
 
-                    this._formatNode(obj.d, parentWasMetadata)
-                }
+    //                 this._formatNode(obj.d, parentWasMetadata)
+    //             }
                 
-                // If we have obj.d at all, we need to calculate the size of this entire node, including 
-                // d's metadata siblings
-                if (obj.d) {
-                    obj['s'] = dynoItemSize(obj)
-                }
-            }
-        }
+    //             // If we have obj.d at all, we need to calculate the size of this entire node, including 
+    //             // d's metadata siblings
+    //             if (obj.d) {
+    //                 obj['s'] = dynoItemSize(obj)
+    //             }
+    //         }
+    //     }
 
 
-        return obj
-    }
+    //     return obj
+    // }
     
 
 // no
@@ -266,7 +319,7 @@ class DBObject {
     }
     
     size() {
-        return this.size
+        return this.index.s
     }
 
     /*  **************************************************    */

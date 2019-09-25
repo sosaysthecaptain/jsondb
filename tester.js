@@ -208,7 +208,11 @@ let dbObjectTestAsyncWrapper = (async () => {
             key1: {
                 subkey1: 'this is key1.subkey1',
                 subkey2: 'this is key1.subkey2',
-                subkey3: 'this is key1.subkey3',
+                subkey3: {
+                    subsubkey1: 8882,
+                    subsubkey2: 'asd',
+                    subsubkey3: null,
+                },
             },
             key2: {
                 subkey1: 'this is key2.subkey1',
