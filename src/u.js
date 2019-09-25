@@ -1,8 +1,33 @@
+let LOGGING_ON = false
+let LOG_METRICS = false
+
 let dynoItemSize = require('dyno-item-size')
 
 let u = {}
 
 module.exports = u
+
+u.log = (message, {data}, type) => {
+    if (LOGGING_ON) {
+        console.log(message)
+        console.log(data)
+    }
+    
+    if (data.time && LOG_METRICS) {
+        console.log(`time of ${message}: ${data.time}`)
+    }
+}
+
+let timedOperations = {}
+u.startTime = (operation) => {
+    timedOperations[operation] = Date.now()
+}
+
+u.stopTime = (operation) => {
+    let time = Date.now() - timedOperations[operation]
+    delete timedOperations[operation]
+    u.log(operation, {time})
+}
 
 u.getStringOfSize = (size) => {
     str = ''
@@ -17,34 +42,32 @@ u.copy = (obj) => {
 }
 
 // Where path is array of props
-u.setAttribute = ({obj, path, value, property}) => {
-    debugger
-    let p = u.copy
-    if (property) {
-        p.push(property)
-    }
+u.setAttribute = ({obj, path, value}) => {
+    let p = path
     try {
         if (p.length === 0) {
             obj = value
         } else if (p.length === 1) {
-            obj[p[0]][p[1]] = value
+            obj[p[0]] = value
         } else if (p.length === 2) {
-            obj[p[0]][p[1]][p[2]] = value
+            obj[p[0]][p[1]] = value
         } else if (p.length === 3) {
-            obj[p[0]][p[1]][p[2]][p[3]] = value
+            obj[p[0]][p[1]][p[2]] = value
         } else if (p.length === 4) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]] = value
+            obj[p[0]][p[1]][p[2]][p[3]] = value
         } else if (p.length === 5) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]] = value
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]] = value
         } else if (p.length === 6) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]] = value
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]] = value
         } else if (p.length === 7) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]] = value
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]] = value
         } else if (p.length === 8) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]] = value
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]] = value
         } else if (p.length === 9) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]] = value
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]] = value
         } else if (p.length === 10) {
+            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]] = value
+        } else if (p.length === 11) {
             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]][p[10]] = value
         }
     } catch(err) {
@@ -58,24 +81,26 @@ u.getAttribute = (obj, p) => {
         if (p.length === 0) {
             return obj
         } else if (p.length === 1) {
-            return obj[p[0]][p[1]]
+            return obj[p[0]]
         } else if (p.length === 2) {
-            return obj[p[0]][p[1]][p[2]]
+            return obj[p[0]][p[1]]
         } else if (p.length === 3) {
-            return obj[p[0]][p[1]][p[2]][p[3]]
+            return obj[p[0]][p[1]][p[2]]
         } else if (p.length === 4) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]]
+            return obj[p[0]][p[1]][p[2]][p[3]]
         } else if (p.length === 5) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]]
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]]
         } else if (p.length === 6) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]]
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]]
         } else if (p.length === 7) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]]
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]]
         } else if (p.length === 8) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]]
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]]
         } else if (p.length === 9) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]]
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]]
         } else if (p.length === 10) {
+            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]]
+        } else if (p.length === 11) {
             return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]][p[10]]
         }
     } catch (err) {
@@ -97,11 +122,11 @@ u.isValueTerminal = (value) => {
 }
 
 // True in all cases except undefined
-u.pathExists = (path) => {
+u.pathExists = (path, obj) => {
     if (!path.length) {
         return false
     }
-    let topmost = u.copy(this.index)
+    let topmost = u.copy(obj)
         
     let _path = u.copy(path)
     for (let i = 0; i < path.length; i++) {
@@ -116,12 +141,12 @@ u.pathExists = (path) => {
 }
 
 // Iterates through path until we find the first one that exists, then return the one before that
-u.findLowestLevelDNE = (path) => {
+u.findLowestLevelDNE = (path, obj) => {
     for (let i = 0; i < path.length; i++) {
         // let pathToHere = JSON.parse(JSON.stringify(path)).slice(0, i+1)
         let pathToHere = path.slice(0, i+1)
         console.log(pathToHere)
-        if (!this._pathExists(pathToHere)) {
+        if (!u.pathExists(pathToHere, obj)) {
             debugger
             return pathToHere
         }

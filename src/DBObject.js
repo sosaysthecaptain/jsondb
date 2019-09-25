@@ -194,25 +194,34 @@ class DBObject {
 
         let recursiveFillNodes = (path) => {
             
-            // Fill up from the bottom, finding the next level on the way that doesn't exist
-            let nextPathThatDoesntExist = u.findLowestLevelDNE(path)
+            // Fill up from the bottom, finding the next level on the way that doesn't exist.
+            // First, create key = {}, then add subkeys
+            let nextPathThatDoesntExist = u.findLowestLevelDNE(path, this.index)
             u.setAttribute({
                 obj: this.index, 
                 path: nextPathThatDoesntExist, 
-                property: 'p',
+                value: {},
+            })
+            let propertiesPath = u.copy(nextPathThatDoesntExist)
+            propertiesPath.push('p')
+            u.setAttribute({
+                obj: this.index, 
+                path: propertiesPath,
                 value: 0,
             })
+            let sizePath = u.copy(nextPathThatDoesntExist)
+            sizePath.push('s')
             u.setAttribute({
                 obj: this.index, 
-                path: nextPathThatDoesntExist, 
-                property: 's',
+                path: sizePath, 
                 value: u.getSize(value),
             })
+
+            debugger
             
             // If the current level exists, we're done, otherwise do it again
-            if (!u.pathExists(originalPathToTop)) {
+            if (u.pathExists(originalPathToTop, this.index)) {
                 return
-                // pathToTop.pop()
             }
             recursiveFillNodes(path)
 
