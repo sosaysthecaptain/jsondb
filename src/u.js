@@ -147,7 +147,6 @@ u.findLowestLevelDNE = (path, obj) => {
         let pathToHere = path.slice(0, i+1)
         console.log(pathToHere)
         if (!u.pathExists(pathToHere, obj)) {
-            debugger
             return pathToHere
         }
     }

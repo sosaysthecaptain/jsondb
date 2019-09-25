@@ -157,9 +157,6 @@ class DBObject {
                     // Build index object for this node, updating this DBObject's cached index
                     this.__buildIndexEntryForNode(value, childPathToTop)
                     
-                    console.log('END')
-                    debugger
-
                     // Walk children
                     recursiveUpdateIndexForProperty(value, childPathToTop)
                 }
@@ -169,9 +166,10 @@ class DBObject {
         // For each top-level attribute, recursively update index for all its KV pairs
         recursiveUpdateIndexForProperty(attributes)
         
-
+        
         // attributes now contains index updates as well as original data to be written. Do the write.
         console.log('\n\nreached end of experiment')
+        debugger
         
         console.log('\n')
         console.log(this.index)
@@ -216,8 +214,6 @@ class DBObject {
                 path: sizePath, 
                 value: u.getSize(value),
             })
-
-            debugger
             
             // If the current level exists, we're done, otherwise do it again
             if (u.pathExists(originalPathToTop, this.index)) {
