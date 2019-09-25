@@ -51,10 +51,12 @@ Public methods:
     - sizeOf()
 */
 
-let dynoItemSize = require('dyno-item-size')
+const dynoItemSize = require('dyno-item-size')
+const flatten = require('flat')
+const unflatten = require('flat').unflatten
 
-let DynamoClient = require('./DynamoClient')
-let u = require('./u')
+const DynamoClient = require('./DynamoClient')
+const u = require('./u')
 
 const HARD_LIMIT_NODE_SIZE = 400 * 1024 * 1024
 const MAX_NODE_SIZE = 300 * 1024 * 1024
@@ -155,7 +157,7 @@ class DBObject {
                     childPathToTop.push(key)
 
                     // Build index object for this node, updating this DBObject's cached index
-                    this.__buildIndexEntryForNode(value, childPathToTop)
+                    this._buildIndexEntryForNode(value, childPathToTop)
                     
                     // Walk children
                     recursiveUpdateIndexForProperty(value, childPathToTop)
@@ -165,6 +167,9 @@ class DBObject {
 
         // For each top-level attribute, recursively update index for all its KV pairs
         recursiveUpdateIndexForProperty(attributes)
+
+        // Make sure each node's size index accurately represents the sum of all its subkeys' sizes
+        this._updateSizeIndices()
         
         
         // attributes now contains index updates as well as original data to be written. Do the write.
@@ -187,7 +192,7 @@ class DBObject {
     }
 
     // Every terminal object has its own entry
-    __buildIndexEntryForNode(value, pathToTop) {
+    _buildIndexEntryForNode(value, pathToTop) {
         let originalPathToTop = u.copy(pathToTop)
 
         let recursiveFillNodes = (path) => {
@@ -205,7 +210,7 @@ class DBObject {
             u.setAttribute({
                 obj: this.index, 
                 path: propertiesPath,
-                value: 0,
+                value: 0,                                   // marc-todo
             })
             let sizePath = u.copy(nextPathThatDoesntExist)
             sizePath.push('s')
@@ -219,88 +224,38 @@ class DBObject {
             if (u.pathExists(originalPathToTop, this.index)) {
                 return
             }
-            recursiveFillNodes(path)
-
+            recursiveFillNodes(path)   
         }
-        
+
         // Fill in any nodes that don't exist yet under this one
         recursiveFillNodes(pathToTop)
+    }
 
-        // if (this.index.d[pathToTop]) {
+    _updateSizeIndices() {
+        let updateAllParents = (path) => {
 
-        // } else {
-            
-        // }
+        }
 
-        // // let sizeOfNode = dynoItemSize(value)
-        // let indexValue = {
-        //     // s: sizeOfNode
-        // }
-        // console.log(this.__isValueTerminal(value))
-        // console.log(pathToTop.join('.'))
-        // console.log(indexValue)
+        let deepestFirst = u.getKeysByDepth(this.index, true)
 
-        // // Create index entry if it doesn't already exist
-        // this.index[indexKey] = indexValue
+        // RESUME: strip meta keys (probably add functionality to getKeysByDepth), then:
+        //  for each path:
+        //      set size
+        //      updateAllParents
+        debugger
 
-        // Set size
-
-        // We leave off node permission unless explicitly specified. Similarly pointers by a separate
+        
+        debugger
+        // let demo = 'key1'
+        // let subkeys = u.listAllSubkeys(demo, this.index)
+        // let flattenedIndex = flatten(this.index)
+        // let unflattenedIndex = unflatten(flattenedIndex)
+        // debugger
     }
 
 
 
 
-
-    // Updates sizes throughout this DBObject node on the basis of changes to this one object
-    // _updateIndexSizesBasedOnProperty(pathToProperty, property) {
-
-    // }
-
-
-
-    // Recursively walks a given object, formatting correctly and updating size metadata
-    // _formatNode(obj, pathToTop) {
-        
-    //     if (obj && typeof obj === 'object') {
-    //         let allKeys = Object.keys(obj)
-    //         for(let i = 0; i < allKeys.length; i++) {
-    //             let key = allKeys[i]
-    //             let value = obj[key]
-    //             pathToTop = pathToTop || key + '.'
-
-    //             console.log ('formatting ' + key + ', pathToTop: ' + pathToTop)
-
-    //             // If not a single-letter key, this is data that needs to go in d
-    //             let directParentKey = pathToTop.split('.').slice(0, -1).pop()
-
-    //             // If this is a real data node
-    //             if ((key === 'd') && (directParentKey !== 'd')) {
-    //                 console.log('    treating this as a data node')
-    //                 obj['d'] = value
-    //                 delete obj[key]
-    //             }
-                
-    //             // If we have an obj.d and it has children, whether or not we just created it, 
-    //             // we need to recursively walk its children and apply this transform
-    //             if (typeof obj.d === 'object') {
-    //                 console.log('    recursively walking children')
-
-    //                 this._formatNode(obj.d, parentWasMetadata)
-    //             }
-                
-    //             // If we have obj.d at all, we need to calculate the size of this entire node, including 
-    //             // d's metadata siblings
-    //             if (obj.d) {
-    //                 obj['s'] = dynoItemSize(obj)
-    //             }
-    //         }
-    //     }
-
-
-    //     return obj
-    // }
-    
 
 // no
     _isThisTooBigToWrite(data) {

@@ -1,9 +1,11 @@
-let LOGGING_ON = false
-let LOG_METRICS = false
+const LOGGING_ON = false
+const LOG_METRICS = false
 
-let dynoItemSize = require('dyno-item-size')
+const dynoItemSize = require('dyno-item-size')
+const flatten = require('flat')
+const unflatten = require('flat').unflatten
 
-let u = {}
+const u = {}
 
 module.exports = u
 
@@ -145,10 +147,47 @@ u.findLowestLevelDNE = (path, obj) => {
     for (let i = 0; i < path.length; i++) {
         // let pathToHere = JSON.parse(JSON.stringify(path)).slice(0, i+1)
         let pathToHere = path.slice(0, i+1)
-        console.log(pathToHere)
         if (!u.pathExists(pathToHere, obj)) {
             return pathToHere
         }
+    }
+}
+
+u.listAllSubkeys = (dotSeparatedPath, obj) => {
+    let flattened = flatten(obj)
+    let subkeys = []
+    Object.keys(flattened).forEach((key) => {
+        if (key.includes(dotSeparatedPath)) {
+            subkeys.push(key)
+        }
+    })
+    return subkeys
+}
+
+u.getKeysByDepth = (obj, deepestFirst) => {
+    let flattened = flatten(obj)
+    let sortable = []
+    Object.keys(flattened).forEach((key) => {
+        sortable.push([key, key.split('.').length])
+    })
+    sortable.sort((a, b) => {
+        return (a[1] > b[1])
+    })
+    if (deepestFirst) {
+        sortable.reverse()
+    }
+    let sorted = []
+    sortable.forEach((a) => {
+        if (u.validateKey(a[0])) {
+            sorted.push(a[0])
+        }
+    })
+    return sorted
+}
+
+u.validateKey = (key) => {
+    if (key.length > 1) {
+        return true
     }
 }
 

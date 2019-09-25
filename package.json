@@ -27,6 +27,7 @@
     "aws-sdk": "^2.533.0",
     "dynamodb-doc": "^1.0.0",
     "dyno-item-size": "^0.3.1",
+    "flat": "^4.1.0",
     "uuid": "^3.3.3"
   },
   "devDependencies": {}
