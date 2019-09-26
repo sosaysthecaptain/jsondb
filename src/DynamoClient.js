@@ -191,7 +191,6 @@ class DynamoClient {
 
     async checkExists({tableName, key}) {
         let item = await this.get({tableName, key})
-        debugger
         if (item) {
             return true
         }

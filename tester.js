@@ -199,12 +199,12 @@ let dbObjectTestAsyncWrapper = (async () => {
         size: 0
     })
     
+    let ind = {"s":637,"p":0,"key1":{"subkey1":{"d":true,"p":0,"s":50},"subkey2":{"d":true,"p":0,"s":50},"subkey3":{"subsubkey3":{"s":0,"p":0,"d":true},"subsubkey2":{"s":6,"p":0,"d":true},"subsubkey1":{"s":0,"p":0,"d":true}}},"key3":{"subkey3":{"p":0,"d":true,"s":50},"subkey2":{"s":50,"p":0,"d":true},"subkey1":{"s":50,"p":0,"d":true}},"key2":{"subkey3":{"s":50,"d":true,"p":0},"subkey1":{"p":0,"s":50,"d":true},"subkey2":{"d":true,"p":0,"s":50}},"k":{"uid":"aBcDeFG","ts":0}}
     
 
     // CALL TEST FUNCTIONS HERE
     try {
-        // let garbage = u.getStringOfSize(390 * 1024)
-        dbobject.create({
+        let demoObj1 = {
             key1: {
                 subkey1: 'this is key1.subkey1',
                 subkey2: 'this is key1.subkey2',
@@ -224,7 +224,36 @@ let dbObjectTestAsyncWrapper = (async () => {
                 subkey2: 'this is key3.subkey2',
                 subkey3: 'this is key3.subkey3',
             }
+        }
+
+        let demoObj2 = {
+            first: {
+                sub1: u.getStringOfSize(100),
+                sub2: u.getStringOfSize(60),
+                sub3: u.getStringOfSize(1000),
+                sub4: u.getStringOfSize(830)
+            },
+            second: {
+                second_sub: u.getStringOfSize(200)
+            }, 
+            third: {
+                third_sub: {
+                    third_sub_sub: u.getStringOfSize(2000)
+                }
+            }
+        }
+
+        // let garbage = u.getStringOfSize(390 * 1024)
+        await dbobject.create(demoObj1)
+        
+        
+        debugger
+        
+        let res = await dbobject.set({
+            'key1.subkey1': 'I was just set'
         })
+
+        debugger
         
 
 

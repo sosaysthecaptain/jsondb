@@ -33,8 +33,8 @@ u.stopTime = (operation) => {
 
 u.getStringOfSize = (size) => {
     str = ''
-    for (let i = 0; i < (size/10); i++) {
-        str += 'abcdefghij'
+    for (let i = 0; i < (size/20); i++) {
+        str += Math.random() + '  '
     }
     return str
 }
