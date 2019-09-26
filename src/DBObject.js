@@ -232,25 +232,34 @@ class DBObject {
     }
 
     _updateSizeIndices() {
-        let updateAllParents = (path) => {
-
+        let updateAllParents = (path, index) => {
+            if (path.slice(-2, -1) === '.') {
+                path = path.slice(0, -2)
+            }
+            let getSizeOfNode = (path) => {
+                let arrPath = u.stringPathToArrPath(path)
+                let node = u.getAttribute(this.index, arrPath)
+                let size = u.getSize(node)
+                u.setAttribute({
+                    obj: this.index,
+                    path: arrPath.push('s'),
+                    value: size
+                })
+            }
+            getSizeOfNode(path)
+            if (path === '') {
+                return
+            }
+            path = path.split('.').slice(0, -1).join('.')
+            updateAllParents(path, index)
         }
 
-        let deepestFirst = u.getKeysByDepth(this.index, true)
-
-        // RESUME: strip meta keys (probably add functionality to getKeysByDepth), then:
-        //  for each path:
-        //      set size
-        //      updateAllParents
-        debugger
-
-        
-        debugger
-        // let demo = 'key1'
-        // let subkeys = u.listAllSubkeys(demo, this.index)
-        // let flattenedIndex = flatten(this.index)
-        // let unflattenedIndex = unflatten(flattenedIndex)
-        // debugger
+        // For each index, most deeply nested first, update everything above it
+        let index = flatten(this.index)
+        let allPaths = u.getKeysByDepth(this.index, true)
+        allPaths.forEach((path) => {
+            updateAllParents(path, index)
+        })
     }
 
 

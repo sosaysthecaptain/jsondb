@@ -191,6 +191,36 @@ u.validateKey = (key) => {
     }
 }
 
+u.stringPathToArrPath = (strPath) => {
+    if (strPath === '') {
+        return []
+    } else {
+        return strPath.split('.')
+    }
+}
+
+u.arrayPathToStringPath = (arrPath) => {
+    return arrPath.join('.')
+}
+
+// u.sortObj = (obj, fn, reverse) => {
+//     let sortable = []
+//     Object.keys(obj).forEach((key) => {
+//         sortable.push([key, obj[key]])
+//     })
+//     sortable.sort(fn)
+//     if (reverse) {
+//         sortable.reverse()
+//     }
+//     let sorted = {}
+//     sortable.forEach((a) => {
+//         let key = a[0]
+//         let value = obj[a[0]]
+//         sorted[key] = value
+//     })
+//     return sorted
+// }
+
 
 
 // // Recursively walks object, 
