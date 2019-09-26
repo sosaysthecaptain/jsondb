@@ -169,7 +169,8 @@ class DBObject {
         recursiveUpdateIndexForProperty(attributes)
 
         // Make sure each node's size index accurately represents the sum of all its subkeys' sizes
-        this._updateSizeIndices()
+        attributes = flatten(attributes)
+        this._updateSizeIndices(attributes)
         
         
         // attributes now contains index updates as well as original data to be written. Do the write.
@@ -198,7 +199,6 @@ class DBObject {
         let recursiveFillNodes = (path) => {
             
             // Fill up from the bottom, finding the next level on the way that doesn't exist.
-            // First, create key = {}, then add subkeys
             let nextPathThatDoesntExist = u.findLowestLevelDNE(path, this.index)
             u.setAttribute({
                 obj: this.index, 
@@ -231,35 +231,64 @@ class DBObject {
         recursiveFillNodes(pathToTop)
     }
 
-    _updateSizeIndices() {
-        let updateAllParents = (path, index) => {
-            if (path.slice(-2, -1) === '.') {
-                path = path.slice(0, -2)
-            }
-            let getSizeOfNode = (path) => {
+    // Updates existing index with size of new attributes
+    _updateSizeIndices(attributes) {
+        
+        // Add sizes of all the child nodes, set it as the size of this node
+        let updateAllParents = (path) => {
+            let correctSizeOfNode = (path) => {
                 let arrPath = u.stringPathToArrPath(path)
-                let node = u.getAttribute(this.index, arrPath)
-                let size = u.getSize(node)
+                let indexNode = u.getAttribute(this.index, arrPath)
+                let size = 0
+                Object.keys(indexNode).forEach((key) => {
+                    if (u.validateKey(key)) {
+                        if (indexNode[key] && indexNode[key].s) {
+                            size += indexNode[key].s
+                        }
+                    }
+                })
+                arrPath.push('s')
+
+                // resume here
+                if (size === 0) {
+                    debugger
+                }
+
+
                 u.setAttribute({
                     obj: this.index,
-                    path: arrPath.push('s'),
+                    path: arrPath,
                     value: size
                 })
             }
-            getSizeOfNode(path)
+            correctSizeOfNode(path)
+            
+            // Only stop once we've already run with empty path
             if (path === '') {
                 return
+            } else {
+                path = path.split('.').slice(0, -1).join('.')
+                updateAllParents(path)
             }
-            path = path.split('.').slice(0, -1).join('.')
-            updateAllParents(path, index)
         }
 
-        // For each index, most deeply nested first, update everything above it
-        let index = flatten(this.index)
-        let allPaths = u.getKeysByDepth(this.index, true)
-        allPaths.forEach((path) => {
-            updateAllParents(path, index)
+        // For each attribute, update the size of that node and then all the nodes above it
+        let attributePaths = u.getKeysByDepth(attributes, true)
+        attributePaths.forEach((path) => {
+            let attributeValue = attributes[path]
+            let size = u.getSize(attributeValue)
+            console.log(path + ': ' + size)
+            let arrPath = u.stringPathToArrPath(path)
+            u.setAttribute({obj: this.index, path: arrPath, value: size})
+            arrPath = arrPath.slice(0, -1)
+            path = u.arrayPathToStringPath(arrPath)
+            updateAllParents(path)
         })
+
+        // Finally, add the size of the index itself to the overall size
+        let indexSize = u.getSize(this.index)
+        debugger
+        this.index.s = this.index.s + indexSize
     }
 
 

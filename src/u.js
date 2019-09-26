@@ -191,16 +191,22 @@ u.validateKey = (key) => {
     }
 }
 
-u.stringPathToArrPath = (strPath) => {
-    if (strPath === '') {
+u.stringPathToArrPath = (path) => {
+    if (typeof path === 'object') {
+        return path
+    }
+    if (path === '') {
         return []
     } else {
-        return strPath.split('.')
+        return path.split('.')
     }
 }
 
-u.arrayPathToStringPath = (arrPath) => {
-    return arrPath.join('.')
+u.arrayPathToStringPath = (path) => {
+    if (typeof path === 'string') {
+        return path
+    }
+    return path.join('.')
 }
 
 // u.sortObj = (obj, fn, reverse) => {
