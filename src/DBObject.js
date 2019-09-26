@@ -116,14 +116,6 @@ class DBObject {
         attributes = flatten(attributes)
         let changedKeys = Object.keys(attributes)
 
-        // REMOVE THIS
-        originalIndex = {
-            'key1.subkey1.first': 'getting deleted',
-            'key1.subkey1.second': 'also getting deleted',
-            'key43': 'surviving'
-        }
-        index = u.copy(originalIndex)
-
         // If new attributes have displaced existing attributes, we first remove those from the index
         changedKeys.forEach((attributePath) => {  
             let children = u.getChildren(attributePath, originalIndex)
@@ -134,7 +126,6 @@ class DBObject {
 
         // Add new keys to index, write new
         changedKeys.forEach((attributePath) => {
-            // index[attributePath + '.d'] = 'terminal'
             index[attributePath + '.d'] = true
             index[attributePath + '.p'] = 0
             index[attributePath + '.s'] = u.getSize(attributes[attributePath])
@@ -145,7 +136,9 @@ class DBObject {
         this.index.s = u.getSizeOfNodeAtPath('', index)
         this.index.s += u.getSize(this.index)
         attributes['i'] = this.index
+        attributes = unflatten(attributes)
         
+        debugger
         // Write to dynamo
         let data = await this.dynamoClient.update({
             tableName: this.tableName,
@@ -156,11 +149,7 @@ class DBObject {
             console.log('failure in DBObject._write')
             console.error(err)
         })
-
-        debugger
-        // RESUME: done, except ValidationException: The document path provided in the update expression is invalid for update
         return data
-
     }
 
 
