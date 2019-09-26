@@ -170,7 +170,7 @@ class DBObject {
 
         // Make sure each node's size index accurately represents the sum of all its subkeys' sizes
         attributes = flatten(attributes)
-        this._updateSizeIndices(attributes)
+        this._updateIndex(attributes)
         
         
         // attributes now contains index updates as well as original data to be written. Do the write.
@@ -217,7 +217,8 @@ class DBObject {
             u.setAttribute({
                 obj: this.index, 
                 path: sizePath, 
-                value: u.getSize(value),
+                // value: u.getSize(value),
+                value: 0,
             })
             
             // If the current level exists, we're done, otherwise do it again
@@ -231,65 +232,136 @@ class DBObject {
         recursiveFillNodes(pathToTop)
     }
 
-    // Updates existing index with size of new attributes
-    _updateSizeIndices(attributes) {
+    // // Updates existing index with size of new attributes
+    // _updateSizeIndices(attributes) {
         
-        // Add sizes of all the child nodes, set it as the size of this node
-        let updateAllParents = (path) => {
-            let correctSizeOfNode = (path) => {
-                let arrPath = u.stringPathToArrPath(path)
-                let indexNode = u.getAttribute(this.index, arrPath)
-                let size = 0
-                Object.keys(indexNode).forEach((key) => {
-                    if (u.validateKey(key)) {
-                        if (indexNode[key] && indexNode[key].s) {
-                            size += indexNode[key].s
-                        }
-                    }
-                })
-                arrPath.push('s')
+    //     // Add sizes of all the child nodes, set it as the size of this node
+    //     let updateAllParents = (path) => {
 
-                // resume here
-                if (size === 0) {
-                    debugger
-                }
+    //         let correctSizeOfNode = (path) => {
+                
+                
+    //             let arrPath = u.stringPathToArrPath(path)
+    //             let indexNode = u.getAttribute(this.index, arrPath)
+    //             let sizesOfChildren = []
+    //             Object.keys(indexNode).forEach((key) => {
 
+    //                 if (u.validateKey(key)) {
+    //                     if (indexNode[key] && indexNode[key].s) {
+    //                         sizesOfChildren.push(indexNode[key].s)
+    //                     }
+    //                 }
+    //             })
+    //             arrPath.push('s')
 
-                u.setAttribute({
-                    obj: this.index,
-                    path: arrPath,
-                    value: size
-                })
-            }
-            correctSizeOfNode(path)
+                
+    //             let size = 0
+    //             sizesOfChildren.forEach((childSize) => {
+    //                 size += (childSize || 0)
+    //             })
+                
+                
+                
+                
+    //             // resume here
+                
+    //             let existingSize = u.getAttribute(arrPath)  || 0
+    //             console.log('correcting size of ' + path + `to ${existingSize} + ${size} = ${existingSize + size}`)
+    //             size = size + existingSize
+    //             u.setAttribute({
+    //                 obj: this.index,
+    //                 path: arrPath,
+    //                 value: size
+    //             })
+    //             if (path === '.s') {
+    //                 console.log('setting top level size to ' + size)
+                    
+    //             }
+    //         }
+    //         correctSizeOfNode(path)
             
-            // Only stop once we've already run with empty path
-            if (path === '') {
-                return
-            } else {
-                path = path.split('.').slice(0, -1).join('.')
-                updateAllParents(path)
-            }
+    //         // Only stop once we've already run with empty path
+    //         if (path === '') {
+    //             return
+    //         } else {
+    //             path = path.split('.').slice(0, -1).join('.')
+    //             updateAllParents(path)
+    //         }
+    //     }
+
+    //     // For each attribute, update the size of that node and then all the nodes above it
+    //     let attributePaths = u.getKeysByDepth(attributes, true)
+    //     attributePaths.forEach((path) => {
+    //         let attributeValue = attributes[path]
+    //         let size = u.getSize(attributeValue)
+    //         let arrPath = u.stringPathToArrPath(path)
+    //         u.setAttribute({obj: this.index, path: arrPath, value: size})
+    //         arrPath = arrPath.slice(0, -1)
+    //         path = u.arrayPathToStringPath(arrPath)
+
+    //         console.log('\n\nSTART, ' + path)
+    //         updateAllParents(path)
+    //         console.log('  END, total: ' + this.index.s)
+    //         debugger
+    //     })
+
+    //     // Finally, add the size of the index itself to the overall size
+    //     let indexSize = u.getSize(this.index)
+    //     debugger
+    //     this.index.s = this.index.s + indexSize
+    // }
+
+// Returns an object of nodes that either have new sizes or have been deleted
+_updateIndex(attributes) {   
+     
+    // Get existing attribute sizes
+    let flattenedIndex = flatten(this.index)
+    let indexKeys = u.getKeysByDepth(this.index, true)
+    let indexKeysStripped = []
+    indexKeys.forEach((key) => {
+        if (key.slice(-2, -1) === '.') {
+            key = key.slice(0, -2)
         }
+        if (!indexKeysStripped.includes(key)) {
+            indexKeysStripped.push(key)
+        }
+    })
+    let indexSizes = {}
+    indexKeysStripped.forEach((key) => {
+        let nodeSize = flattenedIndex[key + '.s']
+        indexSizes[key] = nodeSize
+    })
+    let oldIndexSizes = u.copy(indexSizes)
+    
+    // Get new node sizes, assuming attributes is already flat
+    let attributeKeys = u.getKeysByDepth(attributes, true)
+    let newAttributeSizes = {}
+    attributeKeys.forEach((key) => {
+        let attributeNode = attributes[key]
+        let nodeSize = u.getSize(attributeNode)
+        newAttributeSizes[key] = nodeSize
+    })
 
-        // For each attribute, update the size of that node and then all the nodes above it
-        let attributePaths = u.getKeysByDepth(attributes, true)
-        attributePaths.forEach((path) => {
-            let attributeValue = attributes[path]
-            let size = u.getSize(attributeValue)
-            console.log(path + ': ' + size)
-            let arrPath = u.stringPathToArrPath(path)
-            u.setAttribute({obj: this.index, path: arrPath, value: size})
-            arrPath = arrPath.slice(0, -1)
-            path = u.arrayPathToStringPath(arrPath)
-            updateAllParents(path)
-        })
+    // RESUME: USING NEW DATA STRUCTURES
+    
+    // Now indexSizes accounts for new terminal node sizes, but has not reconciled these up the tree
+    let updatedIndexSizes = {}
+    indexKeysStripped.forEach((key) => {
+        let oldSize = indexSizes[key]
+        // indexSizes[key] = getReconciledSize(key)
 
-        // Finally, add the size of the index itself to the overall size
-        let indexSize = u.getSize(this.index)
-        debugger
-        this.index.s = this.index.s + indexSize
-    }
+        // If the value has changed, note this both in the array of changes to update in the DB and the local index
+        if (indexSizes[key] !== oldSize) {
+            updatedIndexSizes[key] = indexSizes[key]
+            flattenedIndex[key + '.s'] = indexSizes[key]
+        }
+    })
+
+
+    let exhaustiveIndex = u.getKeysByOrder(this.index)
+
+    return updatedIndexSizes
+}
 
 
 

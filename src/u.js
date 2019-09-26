@@ -191,6 +191,13 @@ u.validateKey = (key) => {
     }
 }
 
+u.stripMeta = (key) => {
+    if (key.slice(-2, -1) === '.') {
+        key = key.slice(0, -2)
+    }
+    return key
+}
+
 u.stringPathToArrPath = (path) => {
     if (typeof path === 'object') {
         return path
@@ -207,6 +214,38 @@ u.arrayPathToStringPath = (path) => {
         return path
     }
     return path.join('.')
+}
+
+u.getPathDepth = (path) => {
+    let arrPath = u.stringPathToArrPath(path)
+    return arrPath.length
+}
+
+u.getKeysByOrder = (obj) => {
+    let keys = u.getKeysByDepth(obj, true)
+    let sortedByOrder = {}
+    keys.forEach((path) => {
+        path = u.stripMeta(path)
+        let depth = u.getPathDepth(path)
+
+        if (!sortedByOrder[depth]) {
+            sortedByOrder[depth] = []
+        }
+        sortedByOrder[depth].push(path)
+    })
+    return sortedByOrder
+}
+
+u.buildExhaustiveTree = (obj) => {
+
+}
+
+u.getAncestors = (key, parentObj) => {
+
+}
+
+u.getChildren = (key, parentObj) => {
+
 }
 
 // u.sortObj = (obj, fn, reverse) => {
