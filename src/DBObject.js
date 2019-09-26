@@ -88,8 +88,7 @@ class DBObject {
 
     // Creates a new object in the database
     async create(initialData) {
-
-        this._write(initialData)
+        this._write(initialData, true)
         
         // this.size = formattedContent.s
         this.exists = true
@@ -99,7 +98,28 @@ class DBObject {
 
     }
 
-    async set() {
+    async set(attributes) {
+        
+        // Will this fit?
+        let sizeSoFar = this.size()
+        let sizeToAdd = u.getSize(attributes)
+        
+        // Handle the split
+        if (this.size() + u.getSize(attributes) > MAX_NODE_SIZE) {
+
+            // Get all key sizes
+
+            /*
+            Scenarios:
+                - lots of little stuff
+                - one massive incoming piece
+                - one massive incoming blob
+                - mismatched things, some bigger 
+            */
+
+        } else {
+            this._write(attributes)
+        }
 
     }
 
@@ -110,7 +130,7 @@ class DBObject {
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node
-    async _write(attributes) {
+    async _write(attributes, doNotOverwrite) {
         let originalIndex = flatten(this.index)
         let index = u.copy(originalIndex)
         attributes = flatten(attributes)
@@ -125,9 +145,10 @@ class DBObject {
         })
 
         // Add new keys to index, write new
+        // TODO: permissions, check that we can write deep attributes that exist
         changedKeys.forEach((attributePath) => {
             index[attributePath + '.d'] = true
-            index[attributePath + '.p'] = 0
+            index[attributePath + '.p'] = 0                                         // TODO
             index[attributePath + '.s'] = u.getSize(attributes[attributePath])
         })
 
@@ -144,7 +165,7 @@ class DBObject {
             tableName: this.tableName,
             key: this.key,
             attributes: attributes,
-            doNotOverwrite: false
+            doNotOverwrite: doNotOverwrite
         }).catch((err) => {
             console.log('failure in DBObject._write')
             console.error(err)
@@ -167,273 +188,6 @@ class DBObject {
 
 
     
-    /* 
-    Updates this.index and returns the passed attributes as updated with necessary changes to the index
-
-    propertiesToUpdate = {
-        key1: 'value1',
-        key2.subkey3.subsubkey2: 'value at this path',
-        key6: {
-            subkey1: {},
-            subkey2: {}
-        }
-    }
-    */  
-    async _writeOLD(attributes, pathToTop) {
-        
-        // Reset local cache of changes to the index
-        this.currentWriteIndexChanges = {}
-
-        let recursiveUpdateIndexForProperty = (obj, pathToTop) => {
-            pathToTop = pathToTop || []        
-            if (obj && typeof obj === 'object') {
-                let allKeys = Object.keys(obj)
-                for(let i = 0; i < allKeys.length; i++) {
-                    let key = allKeys[i]
-                    let value = obj[key]
-                    let childPathToTop = u.copy(pathToTop)
-                    childPathToTop.push(key)
-
-                    // Build index object for this node, updating this DBObject's cached index
-                    this._buildIndexEntryForNode(value, childPathToTop)
-                    
-                    // Walk children
-                    recursiveUpdateIndexForProperty(value, childPathToTop)
-                }
-            }
-        }
-
-        // Make a record of the original index
-        let originalIndex = u.copy(this.index)
-
-        // 
-
-
-        // After copying the original index, build out the new index structure
-        recursiveUpdateIndexForProperty(attributes)
-
-        // Make sure each node's size index accurately represents the sum of all its subkeys' sizes
-        attributes = flatten(attributes)
-        this._updateIndex(attributes)
-        
-        
-        // attributes now contains index updates as well as original data to be written. Do the write.
-        console.log('\n\nreached end of experiment')
-        debugger
-        
-        console.log('\n')
-        console.log(this.index)
-        return
-
-        let data = await this.dynamoClient.update({
-            tableName: this.tableName,
-            key: this.key,
-            attributes: attributes,
-            doNotOverwrite: doNotOverwrite
-        }).catch((err) => {
-            console.log('failure in DBObject._write')
-            console.error(err)
-        })
-    }
-
-    // Every terminal object has its own entry
-    _buildIndexEntryForNode(value, pathToTop) {
-        let originalPathToTop = u.copy(pathToTop)
-
-        // If a node doesn't exist at the path, adds it and calls self again for the next level up
-        let recursiveFillNodes = (path) => {
-            
-            // Fill up from the bottom, finding the next level on the way that doesn't exist.
-            let nextPathThatDoesntExist = u.findLowestLevelDNE(path, this.index)
-            u.setAttribute({
-                obj: this.index, 
-                path: nextPathThatDoesntExist, 
-                value: {},
-            })
-            let propertiesPath = u.copy(nextPathThatDoesntExist)
-            propertiesPath.push('p')
-            u.setAttribute({
-                obj: this.index, 
-                path: propertiesPath,
-                value: 0,                                   // marc-todo
-            })
-            let sizePath = u.copy(nextPathThatDoesntExist)
-            sizePath.push('s')
-            u.setAttribute({
-                obj: this.index, 
-                path: sizePath, 
-                // value: u.getSize(value),
-                value: 0,
-            })
-            
-            // If the current level exists, we're done, otherwise do it again
-            if (u.pathExists(originalPathToTop, this.index)) {
-                return
-            }
-            recursiveFillNodes(path)   
-        }
-
-        // Fill in any nodes that don't exist yet under this one
-        recursiveFillNodes(pathToTop)
-    }
-
-    // // Updates existing index with size of new attributes
-    // _updateSizeIndices(attributes) {
-        
-    //     // Add sizes of all the child nodes, set it as the size of this node
-    //     let updateAllParents = (path) => {
-
-    //         let correctSizeOfNode = (path) => {
-                
-                
-    //             let arrPath = u.stringPathToArrPath(path)
-    //             let indexNode = u.getAttribute(this.index, arrPath)
-    //             let sizesOfChildren = []
-    //             Object.keys(indexNode).forEach((key) => {
-
-    //                 if (u.validateKey(key)) {
-    //                     if (indexNode[key] && indexNode[key].s) {
-    //                         sizesOfChildren.push(indexNode[key].s)
-    //                     }
-    //                 }
-    //             })
-    //             arrPath.push('s')
-
-                
-    //             let size = 0
-    //             sizesOfChildren.forEach((childSize) => {
-    //                 size += (childSize || 0)
-    //             })
-                
-                
-                
-                
-    //             // resume here
-                
-    //             let existingSize = u.getAttribute(arrPath)  || 0
-    //             console.log('correcting size of ' + path + `to ${existingSize} + ${size} = ${existingSize + size}`)
-    //             size = size + existingSize
-    //             u.setAttribute({
-    //                 obj: this.index,
-    //                 path: arrPath,
-    //                 value: size
-    //             })
-    //             if (path === '.s') {
-    //                 console.log('setting top level size to ' + size)
-                    
-    //             }
-    //         }
-    //         correctSizeOfNode(path)
-            
-    //         // Only stop once we've already run with empty path
-    //         if (path === '') {
-    //             return
-    //         } else {
-    //             path = path.split('.').slice(0, -1).join('.')
-    //             updateAllParents(path)
-    //         }
-    //     }
-
-    //     // For each attribute, update the size of that node and then all the nodes above it
-    //     let attributePaths = u.getKeysByDepth(attributes, true)
-    //     attributePaths.forEach((path) => {
-    //         let attributeValue = attributes[path]
-    //         let size = u.getSize(attributeValue)
-    //         let arrPath = u.stringPathToArrPath(path)
-    //         u.setAttribute({obj: this.index, path: arrPath, value: size})
-    //         arrPath = arrPath.slice(0, -1)
-    //         path = u.arrayPathToStringPath(arrPath)
-
-    //         console.log('\n\nSTART, ' + path)
-    //         updateAllParents(path)
-    //         console.log('  END, total: ' + this.index.s)
-    //         debugger
-    //     })
-
-    //     // Finally, add the size of the index itself to the overall size
-    //     let indexSize = u.getSize(this.index)
-    //     debugger
-    //     this.index.s = this.index.s + indexSize
-    // }
-
-// Returns an object of nodes that either have new sizes or have been deleted
-_updateIndex(attributes) {   
-     
-    // Get existing attribute sizes
-    let flattenedIndex = flatten(this.index)
-    let indexKeys = u.getKeysByDepth(this.index, true)
-    let indexKeysStripped = []
-    indexKeys.forEach((key) => {
-        if (key.slice(-2, -1) === '.') {
-            key = key.slice(0, -2)
-        }
-        if (!indexKeysStripped.includes(key)) {
-            indexKeysStripped.push(key)
-        }
-    })
-    let indexSizes = {}
-    indexKeysStripped.forEach((key) => {
-        let nodeSize = flattenedIndex[key + '.s']
-        indexSizes[key] = nodeSize
-    })
-    let oldIndexSizes = u.copy(indexSizes)
-    
-    // Get new node sizes, assuming attributes is already flat
-    let attributeKeys = u.getKeysByDepth(attributes, true)
-    let newAttributeSizes = {}
-    attributeKeys.forEach((key) => {
-        let attributeNode = attributes[key]
-        let nodeSize = u.getSize(attributeNode)
-        newAttributeSizes[key] = nodeSize
-    })
-
-    // Remove from index any nodes no longer present
-
-    /* get newly
-        - get newly updated node sizes - DONE
-        - get newly deleted node sizes
-        
-    */
-    // Now indexSizes accounts for new terminal node sizes, but has not reconciled these up the tree
-    let updatedIndexSizes = {}
-    indexKeysStripped.forEach((key) => {
-        let oldSize = indexSizes[key]
-        // indexSizes[key] = getReconciledSize(key)
-
-        // If the value has changed, note this both in the array of changes to update in the DB and the local index
-        if (indexSizes[key] !== oldSize) {
-            updatedIndexSizes[key] = indexSizes[key]
-            flattenedIndex[key + '.s'] = indexSizes[key]
-        }
-    })
-
-
-
-
-    let exhaustiveIndex = u.getKeysByOrder(this.index)
-    debugger
-
-    return updatedIndexSizes
-}
-
-
-
-
-
-// no
-    _isThisTooBigToWrite(data) {
-        let dataSize = dynoItemSize(data)
-
-        let nodeSize = this.size()
-        if (nodeSize > MAX_NODE_SIZE)  {
-            return true
-        }
-
-        // If we don't know, we err on the conservative side
-        if (estimatedSize === null) {
-            
-        } 
-    }
 
     
 /* MINOR GETTERS */
