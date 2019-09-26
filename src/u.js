@@ -244,9 +244,45 @@ u.getAncestors = (key, parentObj) => {
 
 }
 
-u.getChildren = (key, parentObj) => {
+u.getChildren = (attributePath, parentObj) => {
+    let childKeys = []
+    if (attributePath === '') {
+        return Object.keys(parentObj)
+    }
+
+    Object.keys(parentObj).forEach((key) => {
+        if (key.includes(attributePath) && (key !== attributePath)) {
+            childKeys.push(key)
+        }
+    })
+    return childKeys
+}
+
+// Requires flattened, sums all '.s' nodes inside
+u.getSizeOfNodeAtPath = (attributePath, index) => {
+    let nodePaths = u.getChildren(attributePath, index)
+    let size = 0
+    nodePaths.forEach((path) => {
+        if (path.slice(-1) === 's') {
+            size += index[path]
+        }
+    })
+    return size
+}
+
+u.updateIndexStructure = (attributes, index) => {
 
 }
+
+
+
+
+
+
+
+
+
+
 
 // u.sortObj = (obj, fn, reverse) => {
 //     let sortable = []

@@ -109,26 +109,75 @@ class DBObject {
 
     /*  INTERNAL METHODS */
 
-    // // Writes to this node only, assuming this is appropriate
-    // async _write(attributes, doNotOverwrite) {
+    // Writes given attributes to this specific node
+    async _write(attributes) {
+        let originalIndex = flatten(this.index)
+        let index = u.copy(originalIndex)
+        attributes = flatten(attributes)
+        let changedKeys = Object.keys(attributes)
+
+        // REMOVE THIS
+        originalIndex = {
+            'key1.subkey1.first': 'getting deleted',
+            'key1.subkey1.second': 'also getting deleted',
+            'key43': 'surviving'
+        }
+        index = u.copy(originalIndex)
+
+        // If new attributes have displaced existing attributes, we first remove those from the index
+        changedKeys.forEach((attributePath) => {  
+            let children = u.getChildren(attributePath, originalIndex)
+            children.forEach((childPath) => {
+                delete index[childPath]
+            })
+        })
+
+        // Add new keys to index, write new
+        changedKeys.forEach((attributePath) => {
+            // index[attributePath + '.d'] = 'terminal'
+            index[attributePath + '.d'] = true
+            index[attributePath + '.p'] = 0
+            index[attributePath + '.s'] = u.getSize(attributes[attributePath])
+        })
+
+        // Add the new index, with its updated size, to the data to be written
+        this.index = unflatten(index)
+        this.index.s = u.getSizeOfNodeAtPath('', index)
+        this.index.s += u.getSize(this.index)
+        attributes['i'] = this.index
         
-        
-    //     let data = await this.dynamoClient.update({
-    //         tableName: this.tableName,
-    //         key: this.key,
-    //         attributes: attributes,
-    //         doNotOverwrite: doNotOverwrite
-    //     }).catch((err) => {
-    //         console.log('failure in DBObject._write')
-    //         console.error(err)
-    //     })
-        
-    //     let sizeDelta = dynoItemSize(data)
-        
-    //     this.exists = true
-    // }
+        // Write to dynamo
+        let data = await this.dynamoClient.update({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: attributes,
+            doNotOverwrite: false
+        }).catch((err) => {
+            console.log('failure in DBObject._write')
+            console.error(err)
+        })
+
+        debugger
+        // RESUME: done, except ValidationException: The document path provided in the update expression is invalid for update
+        return data
+
+    }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     /* 
     Updates this.index and returns the passed attributes as updated with necessary changes to the index
 
@@ -141,7 +190,7 @@ class DBObject {
         }
     }
     */  
-    async _write(attributes, pathToTop) {
+    async _writeOLD(attributes, pathToTop) {
         
         // Reset local cache of changes to the index
         this.currentWriteIndexChanges = {}
@@ -165,7 +214,13 @@ class DBObject {
             }
         }
 
-        // For each top-level attribute, recursively update index for all its KV pairs
+        // Make a record of the original index
+        let originalIndex = u.copy(this.index)
+
+        // 
+
+
+        // After copying the original index, build out the new index structure
         recursiveUpdateIndexForProperty(attributes)
 
         // Make sure each node's size index accurately represents the sum of all its subkeys' sizes
@@ -196,6 +251,7 @@ class DBObject {
     _buildIndexEntryForNode(value, pathToTop) {
         let originalPathToTop = u.copy(pathToTop)
 
+        // If a node doesn't exist at the path, adds it and calls self again for the next level up
         let recursiveFillNodes = (path) => {
             
             // Fill up from the bottom, finding the next level on the way that doesn't exist.
@@ -342,8 +398,13 @@ _updateIndex(attributes) {
         newAttributeSizes[key] = nodeSize
     })
 
-    // RESUME: USING NEW DATA STRUCTURES
-    
+    // Remove from index any nodes no longer present
+
+    /* get newly
+        - get newly updated node sizes - DONE
+        - get newly deleted node sizes
+        
+    */
     // Now indexSizes accounts for new terminal node sizes, but has not reconciled these up the tree
     let updatedIndexSizes = {}
     indexKeysStripped.forEach((key) => {
@@ -358,7 +419,10 @@ _updateIndex(attributes) {
     })
 
 
+
+
     let exhaustiveIndex = u.getKeysByOrder(this.index)
+    debugger
 
     return updatedIndexSizes
 }
