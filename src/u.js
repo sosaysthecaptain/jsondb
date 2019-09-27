@@ -22,13 +22,17 @@ u.log = (message, {data}, type) => {
 
 let timedOperations = {}
 u.startTime = (operation) => {
-    timedOperations[operation] = Date.now()
+    if (LOG_METRICS) {
+        timedOperations[operation] = Date.now()
+    }
 }
 
 u.stopTime = (operation) => {
-    let time = Date.now() - timedOperations[operation]
-    delete timedOperations[operation]
-    u.log(operation, {time})
+    if (LOG_METRICS) {
+        let time = Date.now() - timedOperations[operation]
+        delete timedOperations[operation]
+        u.log(operation, {time})
+    }
 }
 
 u.getStringOfSize = (size) => {
@@ -178,17 +182,28 @@ u.getKeysByDepth = (obj, deepestFirst) => {
     }
     let sorted = []
     sortable.forEach((a) => {
-        if (u.validateKey(a[0])) {
+        if (u.isKeyValid(a[0])) {
             sorted.push(a[0])
         }
     })
     return sorted
 }
 
-u.validateKey = (key) => {
+u.isKeyValid = (key) => {
     if (key.length > 1) {
         return true
     }
+}
+
+u.validateKeys = (attributes) => {
+    Object.keys(attributes).forEach((path) => {
+        let parts = path.split('.')
+        parts.forEach((part) => {
+            if (part.length === 1) {
+                throw new Error(`Disallowed key: ${path} -- single letter keys are reserved for system use`)
+            }
+        })
+    })
 }
 
 u.stripMeta = (key) => {

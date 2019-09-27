@@ -88,54 +88,60 @@ class DBObject {
 
     // Creates a new object in the database
     async create(initialData) {
-        let data = await this._write(initialData, true)
+        u.validateKeys(initialData)
+        let data = await this.set(initialData, true)
+        // let data = await this._write(initialData, true)
         
         // this.size = formattedContent.s
         this.exists = true
         return data
     }
     
+    // TODO: since this is async, maybe the one-at-a-time API isn't great?
     async get(path) {
 
     }
 
-    async set(attributes) {
-        let hypotheticalSize = this._getHypotheticalSize(attributes)
-        
-        let manualIndex = this._getNewIndex(attributes)
+    async set(attributes, doNotOverwrite) {        
+        u.validateKeys(attributes)
+        let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        if (hypotheticalSize > MAX_NODE_SIZE) {
-            
-            // Get all key sizes
-            
-            /*
-            Scenarios:
-            - lots of little stuff
-            - one massive incoming piece
-            - one massive incoming blob
-            - mismatched things, some bigger 
-            */
-           
+        debugger
+        if (newIndex.s > MAX_NODE_SIZE) {
+            await this._handleSplit()
         } else {
-            debugger
-            let res = await this._write(attributes)
+            let res = await this._write(attributes, doNotOverwrite)
             return res
         }
+    }
+
+    async modify(path, fn) {
+        u.startTime('modify ' + path)
+        let obj = await this.get(path)
+        fn(obj)
+        let res = this.set({path: obj})
+        u.stopTime('modify ' + path)
+        return res
+    }
+
+    async getMultiple(paths) {
 
     }
 
-    async modify() {
-
-    }
 
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node
-    async _write(attributes, doNotOverwrite) {
+    async _write(attributes, doNotOverwrite, newIndex) {
+        this._convertAttributesToExistingPaths(attributes)
+
+        // EXPERIMENT
+        // attributes = unflatten(attributes)   
         
-        // Get new, updated index
-        this.index = this._getNewIndex(attributes)
+        // Get new & updated index, if not already supplied
+        newIndex = newIndex || this._getNewIndex(attributes)
+        this.index = newIndex
         attributes['i'] = this.index
         
         // Write to dynamo
@@ -222,11 +228,104 @@ class DBObject {
         return hypotheticalIndex.s - currentIndexSize + newIndexSize
     }
 
+    // If attribute has a parent and that parent doesn,t exist, reformat as: 
+    // keyThatExists.firstNew = {firstThatDoesnt:{secondThatDoesnt:{deeplyNestedThing: 'value'}}}
+    _convertAttributesToExistingPaths(attributes) {
+        
+        // A path is invalid if it has no parent in either the index or the other attributes
+        let isPathInvalid = (path) => {
+            let parentPath = u.stringPathToArrPath(path)
+            parentPath.pop()
+
+            // We assume the index to be valid, so if parent key is in index, we're fine
+            if (u.pathExists(parentPath, this.index)) {
+                return false
+            } else if (u.pathExists(parentPath, attributes)) {
+                return false
+            }
+            return true
+        }
+
+        // 'one.two.three': 'and four' -> one:{two:{three:'and four'}}
+        let reformatAttribute = (oldKey) => {
+
+            // Find the closest parent
+            let value = attributes[oldKey]
+            let arrPath = u.stringPathToArrPath(oldKey)
+            let closestParent = u.findLowestLevelDNE(arrPath, this.index)
+            let candidate2 = u.findLowestLevelDNE(arrPath, attributes)
+            if (candidate2.length > closestParent.length) {
+                closestParent = candidate2
+            }
+
+            // Create a new key and value based on this new parent
+            let newKey = u.arrayPathToStringPath(closestParent)
+            let pathOnTopOfParent = oldKey.slice(newKey.length + 1)
+            let newFlatAttribute = {}
+            newFlatAttribute[pathOnTopOfParent] = value
+            let newValue = unflatten(newFlatAttribute)
+            
+            // Replace
+            delete attributes[oldKey]
+            attributes[newKey] = newValue
+        }
+
+        // If path is invalid, restructure this attribute to build out objects under it
+        let flatAttributes = flatten(attributes)
+        Object.keys(flatAttributes).forEach((attributePath) => {
+            if (isPathInvalid(attributePath)) {
+                reformatAttribute(attributePath)
+            }
+        })
+    }
+
+
+    /*
+    Scenarios:
+    - lots of little stuff
+    - one massive incoming piece
+    - one massive incoming blob
+    - mismatched things, some bigger 
+    */
+    _handleSplit() {
+
+    }
+
+    _splitVertical(newNodeID, attributes) {
+
+    }
+
+    _splitLateral(newNodeID, buffer) {
+
+    }
+
 
 
     // IMPLEMENT ME
     _cache(attributes) {
-        
+        let currentCacheSize = this._cacheSize()
+
+        Object.keys(attributes).forEach((attributeKey) => {
+            let size = u.getSize(attributes[attributeKey])
+            if ((currentCacheSize + size) < this.maximumCacheSize) {
+                this.cache[attributeKey] = attributes[attributeKey]
+            }
+            currentCacheSize += size
+        })
+
+        // TODO: priority and booting mechanism
+
+    }
+
+    _cacheSize() {
+        return u.getSize(this._cache)
+    }
+
+    _cacheGet(path) {
+        if (this.cache[path]) {
+            return this.cache[path]
+        }
+        return undefined
     }
 
 

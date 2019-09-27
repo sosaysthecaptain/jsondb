@@ -226,34 +226,62 @@ let dbObjectTestAsyncWrapper = (async () => {
             }
         }
 
-        let demoObj2 = {
-            first: {
-                sub1: u.getStringOfSize(100),
-                sub2: u.getStringOfSize(60),
-                sub3: u.getStringOfSize(1000),
-                sub4: u.getStringOfSize(830)
-            },
-            second: {
-                second_sub: u.getStringOfSize(200)
-            }, 
-            third: {
-                third_sub: {
-                    third_sub_sub: u.getStringOfSize(2000)
+        let requiresRestructuring = {
+            'one.two.three' : 'and four'
+        }
+
+        getDemo2 = () => {
+            return {
+                one: {
+                    sub1: u.getStringOfSize(100),
+                    sub2: u.getStringOfSize(60),
+                    sub3: u.getStringOfSize(1000),
+                    sub4: u.getStringOfSize(830)
+                },
+                two: {
+                    second_sub: u.getStringOfSize(200)
+                }, 
+                three: {
+                    third_sub: {
+                        third_sub_sub: u.getStringOfSize(2000)
+                    }
                 }
             }
         }
 
-        // let garbage = u.getStringOfSize(390 * 1024)
-        await dbobject.create(demoObj1)
+        getTooBig1 = () => {
+            return {
+                one: {
+                    sub1: u.getStringOfSize(100000),
+                    sub2: u.getStringOfSize(100000),
+                    sub3: u.getStringOfSize(100000),
+                    sub4: u.getStringOfSize(100000)
+                },
+                two: {
+                    second_sub: u.getStringOfSize(50000)
+                }, 
+                three: {
+                    third_sub: {
+                        third_sub_sub: u.getStringOfSize(500),
+                        fourth_sub_sub: u.getStringOfSize(100),
+                        fifth_sub_sub: u.getStringOfSize(1800)
+                    }
+                }
+            }
+        }
         
-        
-        debugger
-        
-        let res = await dbobject.set({
-            'key1.subkey1': 'I was just set'
-        })
+        getTooBig2 = () => {
+            
+        }
 
+        // Fri 530, objective 1: build out up to three
+        await dbobject.create({'one.two.three' : 'and four'})
         debugger
+        
+        // Fri 530, objective 2: add 'otherone' as a key to 'two', instead of replacing two
+        let res1 = await dbobject.set({'one.two.otherone': 'did I stomp on three?'})
+        debugger
+        
         
 
 
