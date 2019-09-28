@@ -68,7 +68,7 @@ class DBObject {
     
     Note that id must always be specified from the outside
     */
-    constructor({id, tableName, dynamoClient, isTopLevel, permissionLevel, maximumCacheSize, isNew, index}) {
+    constructor({id, tableName, dynamoClient, isTopLevel, isNew, isLateral, permissionLevel, maximumCacheSize}) {
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
@@ -79,6 +79,7 @@ class DBObject {
         this.permissionLevel = permissionLevel || u.DEFAULT_PERMISSION_LEVEL
         this.maximumCacheSize = maximumCacheSize || u.MAXIMUM_CACHE_SIZE
         this.isTopLevel = isTopLevel
+        this.isLateral = isLateral
         
         // We either have our index or else know that we don't exist yet
         this.exists = !isNew
@@ -196,7 +197,7 @@ class DBObject {
         let indexSize = u.getSize(index)
 
         index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX].isLateral = false
+        index[u.INDEX_PREFIX].isLateral = isNew, isLateral              // true if it is itself lateral
         index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
         index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
 
@@ -280,13 +281,11 @@ class DBObject {
         // First, deal with anything that requires lateral splitting
         Object.keys(newIndex).forEach((path) => {
 
-            if (newIndex[path].s > u.HARD_LIMIT_NODE_SIZE) {
-                let lateralID = u.generateNewID()
+            if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
                 let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-                let buffer = new Buffer.from(value)
-                newIndex[path].l = lateralID
-                newIndex[path].s = u.getSize(lateralID)
-                await this._splitLateral(lateralID, buffer)
+                newIndex[path][u.CHILDREN_PREFIX] = await this._splitLateral(value)
+                newIndex[key][u.SIZE_PREFIX] = 0
+                delete newAttributes[key]
             }
         })
         
@@ -331,23 +330,52 @@ class DBObject {
             return newNode
         }
 
-        
         // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
-            await this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
+            let newNodeIndex = await this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
+            let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
+            this.cachedIndices[newNodeID] = newNodeIndex
         }
         await this.set(newAttributes)
     }
 
-    async _splitVertical(newNodeID, attributes) {
-        console.log('VERTICAL SPLIT: ' + newNodeID + ', size: ' + u.getSize(attributes))
-        console.log(Object.keys(attributes))
+    // Given appropriately sized chunk of attributes, returns index of new node
+    async _splitVertical(attributes) {
+        let newNodeID = u.generateNewID()
+        let childNode = new DBObject({
+            id: newNodeID, 
+            isNew: true,
+            isTopLevel: false,
+            isLateral: false
+        })
+        await childNode.create(attributes)
+        return childNode.index
     }
 
-    async _splitLateral(newNodeID, buffer) {
-        console.log('LATERAL SPLIT: ' + newNodeID)
-        console.log(buffer.length)
+    // Given an oversize load, returns ordered array of IDs of all the children splitting it up
+    async _splitLateral(payload) {
+
+        debugger
+        let childIDs = []
+        let buffer = new Buffer.from(payload)
+        while (buffer) {
+            let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
+            let buffer = buffer.slice(u.MAX_NODE_SIZE)
+            let newNodeID = u.generateNewID()
+            let siblingNode = new DBObject({
+                id: newNodeID, 
+                isNew: true,
+                isTopLevel: false,
+                isLateral: true
+            })
+            
+            await siblingNode.create({
+                buffer: bufferAttribute
+            })
+            childIDs.push(siblingNode.index.id)
+        }
+        return childIDs
     }
 
   
