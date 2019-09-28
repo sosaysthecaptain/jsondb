@@ -11,6 +11,18 @@ const u = {}
 
 module.exports = u
 
+u.HARD_LIMIT_NODE_SIZE = 395 * 1024
+u.MAX_NODE_SIZE = 300 * 1024
+u.IDEAL_NODE_SIZE = 200 * 1024
+u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
+u.DEFAULT_PERMISSION_LEVEL = 0
+
+u.INDEX_PREFIX = 'i'
+u.SIZE_PREFIX = 's'
+u.LATERAL_PREFIX = 'l'
+u.CHILREDN_PREFIX = 'c'
+u.PERMISSION_PREFIX = 'p'
+
 u.log = (message, {data}, type) => {
     if (LOGGING_ON) {
         console.log(message)
@@ -38,11 +50,16 @@ u.stopTime = (operation) => {
 }
 
 u.getStringOfSize = (size) => {
-    str = ''
-    for (let i = 0; i < (size/20); i++) {
-        str += Math.random() + '  '
+    let str = ''
+    let strSize = 0
+    while(strSize < size) {
+        for (let i = 0; i < 100; i++) {
+            str += Math.random() + ' '
+        }
+        strSize = u.getSize(str)
     }
-    return str
+    let lastIndex = str.length - (str.length * ((strSize / size) % 1))
+    return str.slice(0, lastIndex)
 }
 
 u.copy = (obj) => {
@@ -251,7 +268,6 @@ u.getPathDepth = (path) => {
     return arrPath.length
 }
 
-// UP NEXT
 u.getKeysByOrder = (obj) => {
     let keys = u.getKeysByDepth(obj, true)
     let sortedByOrder = {}
@@ -306,7 +322,7 @@ u.getSizeOfNodeAtPath = (attributePath, index) => {
     let size = 0
     nodePaths.forEach((path) => {
         if (index[path].s) {
-            size += index[path].s
+            size += index[path][u.SIZE_PREFIX]
         }
     })
     return size
@@ -321,35 +337,6 @@ u.generateNewID = (withTimestamp) => {
     } 
     return id
 }
-
-// u.simplifyIndex = (index) => {
-//     let flatIndex = flatten(index)
-//     let simpleFlat = {}
-//     Object.keys(flatIndex).forEach((path) => {
-
-//         let arrPath = u.stringPathToArrPath(path)
-//         let metaKey = arrPath.pop()
-//         if (metaKey.length === 1) {
-//             let simplePath = path.slice(0, -2)
-//             if (path.length === 1) {
-//                 simplePath = 'meta'
-//             }
-//             if (!simpleFlat[simplePath]) {
-//                 simpleFlat[simplePath] = {}
-//             }
-//             simpleFlat[simplePath][metaKey] = flatIndex[path]
-//         }
-//     })
-//     return simpleFlat
-// }
-
-
-
-
-
-
-
-
 
 
 // Returns array of keys

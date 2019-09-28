@@ -57,10 +57,6 @@ const unflatten = require('flat').unflatten
 const DynamoClient = require('./DynamoClient')
 const u = require('./u')
 
-const HARD_LIMIT_NODE_SIZE = 395 * 1024
-const MAX_NODE_SIZE = 300 * 1024
-const IDEAL_NODE_SIZE = 200 * 1024
-
 class DBObject {
 
     /* 
@@ -80,8 +76,8 @@ class DBObject {
             uid: id.split('-')[0],
             ts: id.split('-')[1] || 0
         },
-        this.permissionLevel = permissionLevel
-        this.maximumCacheSize = maximumCacheSize || 50 * 1024 * 1024
+        this.permissionLevel = permissionLevel || u.DEFAULT_PERMISSION_LEVEL
+        this.maximumCacheSize = maximumCacheSize || u.MAXIMUM_CACHE_SIZE
         this.isTopLevel = isTopLevel
         
         // We either have our index or else know that we don't exist yet
@@ -116,7 +112,7 @@ class DBObject {
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        if (newIndex.i.s > MAX_NODE_SIZE) {
+        if (newIndex.i.s > u.MAX_NODE_SIZE) {
             await this._handleSplit(attributes, newIndex)
         } else {
             let res = await this._write(attributes, doNotOverwrite)
@@ -272,16 +268,19 @@ class DBObject {
     - mismatched things, some bigger 
     */
     _handleSplit(newAttributes, newIndex) {
-        // let deepestLevel = 0
+        delete newIndex[u.INDEX_PREFIX]
 
         // First, deal with anything that requires lateral splitting
         Object.keys(newIndex).forEach((path) => {
             // let level = u.stringPathToArrPath(path).length
             // if (level > deepestLevel) {deepestLevel = level}
 
-            if (newIndex[path].s > HARD_LIMIT_NODE_SIZE) {
+            if (newIndex[path].s > u.HARD_LIMIT_NODE_SIZE) {
                 let lateralID = u.generateNewID()
                 let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
+
+                console.log('making buffer for ' + path)
+
                 let buffer = new Buffer.from(value)
                 newIndex[path].l = lateralID
                 newIndex[path].s = u.getSize(lateralID)
@@ -289,25 +288,29 @@ class DBObject {
             }
         })
         
-        let fits = () => {
-            newIndex.i.s = u.getSizeOfNodeAtPath('', newIndex)
-            return newIndex.i.s < MAX_NODE_SIZE
-        }
+        let fits = () => {return u.getSizeOfNodeAtPath('', newIndex) < u.MAX_NODE_SIZE}
         
+        // Naively adds next fitting key
         let getNextBestNode = () => {
             let newNode = {
                 i: {id: u.generateNewID()}
             }
             let addAttributesUntilFull = () => {
                 let getNextBestKey = (spaceLeft) => {
-    
+                    Object.keys(newAttributes).forEach((key) => {
+                        let value = newAttributes[key]
+                        let size = u.getSize(value)
+                        if (size < spaceLeft) {
+                            return key
+                        }
+                    })
                 }
-                let spaceLeft = u.getSize(newNode) - MAX_NODE_SIZE
+                let spaceLeft = u.getSize(newNode) - u.MAX_NODE_SIZE
                 let key = getNextBestKey(spaceLeft)
                 if (key) {
                     let value = newAttributes[key]
                     newNode[key] = value
-                    newAttributes[key].c.push(childID)
+                    newAttributes[key][u.CHILREDN_PREFIX].push(childID)
                     addAttributesUntilFull()
                 }
             }
@@ -315,19 +318,24 @@ class DBObject {
             return newNode
         }
 
+        debugger
+
+        // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
-            this._splitVertical(newNode.i.id, newNode)
+            this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
         }
         this.set(newAttributes)
     }
 
     _splitVertical(newNodeID, attributes) {
-
+        console.log('VERTICAL SPLIT: ' + newNodeID)
+        console.log(attributes)
     }
 
     _splitLateral(newNodeID, buffer) {
         console.log('LATERAL SPLIT: ' + newNodeID)
+        console.log(buffer.length)
     }
 
   
@@ -381,7 +389,7 @@ class DBObject {
     }
     
     size() {
-        return this.index.i.s 
+        return this.index[u.INDEX_PREFIX][u.SIZE_PREFIX]
     }
 
     /*  **************************************************    */
