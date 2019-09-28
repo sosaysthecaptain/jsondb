@@ -22,6 +22,7 @@ u.SIZE_PREFIX = 's'
 u.LATERAL_PREFIX = 'l'
 u.CHILDREN_PREFIX = 'c'
 u.PERMISSION_PREFIX = 'p'
+u.EXISTS_PREFIX = 'e'
 
 u.log = (message, {data}, type) => {
     if (LOGGING_ON) {

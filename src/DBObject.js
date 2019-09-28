@@ -111,7 +111,7 @@ class DBObject {
         u.validateKeys(attributes)
         let newIndex = this._getNewIndex(attributes)
         
-        // EXPERIMENTAL
+
         attributes = flatten(attributes)
         
         // Handle the split
@@ -138,13 +138,14 @@ class DBObject {
     async _write(attributes, doNotOverwrite, newIndex) {
         this._convertAttributesToExistingPaths(attributes)
 
+
         // EXPERIMENT
         // attributes = unflatten(attributes)   
         
         // Get new & updated index, if not already supplied
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
-        attributes['i'] = this.index
+        attributes[u.INDEX_PREFIX] = JSON.stringify(this.index)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -156,6 +157,10 @@ class DBObject {
             debugger
             console.log('failure in DBObject._write')
             console.error(err)
+        })
+
+        Object.keys(this.index).forEach((indexKey) => {
+            this.index[indexKey][u.EXISTS_PREFIX = true]
         })
         return data
     }
@@ -184,6 +189,7 @@ class DBObject {
             index[attributePath][u.SIZE_PREFIX] = u.getSize(flatAttributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
             index[attributePath][u.CHILDREN_PREFIX] = null
+            index[attributePath][u.EXISTS_PREFIX] = null
         })
 
         // Add the new index, with its updated size, to the data to be written
@@ -312,7 +318,10 @@ class DBObject {
                 // When we have the next key, strike from newAttributes, add to newNode, set the index to the pointer
                 if (key) {
                     let value = newAttributes[key]
+                    
+                    // TODO: delete existing
                     delete newAttributes[key]
+                    
                     newNode[key] = value
                     newIndex[key][u.CHILDREN_PREFIX] = newNode[u.INDEX_PREFIX].id
                     newIndex[key][u.SIZE_PREFIX] = 0
@@ -320,6 +329,7 @@ class DBObject {
                 }
             }
             addAttributesUntilFull()
+            newNode = unflatten(newNode)
             return newNode
         }
 
@@ -327,15 +337,14 @@ class DBObject {
         // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
-            debugger
             this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
         }
         this.set(newAttributes)
     }
 
     _splitVertical(newNodeID, attributes) {
-        console.log('VERTICAL SPLIT: ' + newNodeID)
-        console.log(attributes)
+        console.log('VERTICAL SPLIT: ' + newNodeID + ', size: ' + u.getSize(attributes))
+        console.log(Object.keys(attributes))
     }
 
     _splitLateral(newNodeID, buffer) {
