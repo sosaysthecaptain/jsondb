@@ -111,12 +111,14 @@ class DBObject {
         u.validateKeys(attributes)
         let newIndex = this._getNewIndex(attributes)
         
+        // EXPERIMENTAL
+        attributes = flatten(attributes)
+        
         // Handle the split
         if (newIndex.i.s > u.MAX_NODE_SIZE) {
-            await this._handleSplit(attributes, newIndex)
+            return await this._handleSplit(attributes, newIndex)
         } else {
-            let res = await this._write(attributes, doNotOverwrite)
-            return res
+            return await this._write(attributes, doNotOverwrite)
         }
     }
 
@@ -165,47 +167,47 @@ class DBObject {
         let index = u.copy(originalIndex)
         let flatAttributes = flatten(attributes)
         let changedKeys = Object.keys(flatAttributes)
+        let deleted = []
 
         // If new attributes have displaced existing attributes, we first remove those from the index
         changedKeys.forEach((attributePath) => {  
             let children = u.getChildren(attributePath, originalIndex)
             children.forEach((childPath) => {
                 delete index[childPath]
+                deleted.push(childPath)
             })
         })
 
         // Add new keys to index, write new
         changedKeys.forEach((attributePath) => {
-            index[attributePath] = {
-                s: u.getSize(flatAttributes[attributePath]),
-                p: 0
-            }
+            index[attributePath] = {}
+            index[attributePath][u.SIZE_PREFIX] = u.getSize(flatAttributes[attributePath]),
+            index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
+            index[attributePath][u.CHILDREN_PREFIX] = []
         })
 
         // Add the new index, with its updated size, to the data to be written
         let objectSize = u.getSizeOfNodeAtPath('', index)
         let indexSize = u.getSize(index)
 
-        index['i'] = {
-            id: this.id,
-            s: objectSize + indexSize,
-            p: this.permissionLevel,
-            l: null,
-            c: []
-        }
+        index[u.INDEX_PREFIX] = {id: this.id}
+        index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
+        index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
+        index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
+        index[u.INDEX_PREFIX][u.CHILDREN_PREFIX] = []
 
         return index
     }
 
     async _loadIndex() {
-        this.index = await this.get('i')
+        this.index = await this.get(u.INDEX_PREFIX)
     }
 
     _getHypotheticalSize(attributes) {
         let hypotheticalIndex = this._getNewIndex(attributes)
         let currentIndexSize = u.getSize(this.index)
         let newIndexSize = u.getSize(hypotheticalIndex)
-        return hypotheticalIndex.i.s - currentIndexSize + newIndexSize
+        return hypotheticalIndex[u.INDEX_PREFIX][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
     // If attribute has a parent and that parent doesn,t exist, reformat as: 
@@ -278,9 +280,6 @@ class DBObject {
             if (newIndex[path].s > u.HARD_LIMIT_NODE_SIZE) {
                 let lateralID = u.generateNewID()
                 let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-
-                console.log('making buffer for ' + path)
-
                 let buffer = new Buffer.from(value)
                 newIndex[path].l = lateralID
                 newIndex[path].s = u.getSize(lateralID)
@@ -292,25 +291,28 @@ class DBObject {
         
         // Naively adds next fitting key
         let getNextBestNode = () => {
-            let newNode = {
-                i: {id: u.generateNewID()}
-            }
+            let newNode = {}
+            newNode[u.INDEX_PREFIX] = {id: u.generateNewID()}
             let addAttributesUntilFull = () => {
                 let getNextBestKey = (spaceLeft) => {
-                    Object.keys(newAttributes).forEach((key) => {
+                    let keys = Object.keys(newIndex)
+                    for (let i = 0; i < keys.length; i++) {
+                        let key = keys[i]
                         let value = newAttributes[key]
                         let size = u.getSize(value)
                         if (size < spaceLeft) {
                             return key
                         }
-                    })
+                    }
                 }
-                let spaceLeft = u.getSize(newNode) - u.MAX_NODE_SIZE
+                let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
+                debugger
                 let key = getNextBestKey(spaceLeft)
                 if (key) {
                     let value = newAttributes[key]
                     newNode[key] = value
-                    newAttributes[key][u.CHILREDN_PREFIX].push(childID)
+                    newIndex[key][u.CHILDREN_PREFIX].push(newNode[u.INDEX_PREFIX].id)
+                    delete newAttributes[key]
                     addAttributesUntilFull()
                 }
             }

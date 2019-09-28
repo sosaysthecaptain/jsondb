@@ -20,7 +20,7 @@ u.DEFAULT_PERMISSION_LEVEL = 0
 u.INDEX_PREFIX = 'i'
 u.SIZE_PREFIX = 's'
 u.LATERAL_PREFIX = 'l'
-u.CHILREDN_PREFIX = 'c'
+u.CHILDREN_PREFIX = 'c'
 u.PERMISSION_PREFIX = 'p'
 
 u.log = (message, {data}, type) => {
@@ -412,3 +412,4 @@ u.sortObj = (obj, fn, reverse) => {
 //     }
 //     return obj
 // }
+
