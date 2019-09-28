@@ -135,6 +135,9 @@ class DynamoClient {
         }
     */
     async update({tableName, key, attributes, doNotOverwrite}) {
+        console.log('DynamoClient.update')
+        console.log(attributes)
+
         if (doNotOverwrite) {
             if (await this.checkExists({tableName, key})) {
                 throw new Error('Object already exists at specified key')
@@ -160,6 +163,7 @@ class DynamoClient {
             ReturnValues: 'ALL_NEW',
         }
         
+        console.log(params)
         let data = await this.dynamo.updateItem(params).promise().catch((err) => {
             console.log('failure in DynamoClient.update')
             throw(err)

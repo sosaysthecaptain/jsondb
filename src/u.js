@@ -266,6 +266,7 @@ u.validateKeys = (attributes) => {
         let parts = path.split('.')
         parts.forEach((part) => {
             if (part.length === 1) {
+                debugger
                 throw new Error(`Disallowed key: ${path} -- single letter keys are reserved for system use`)
             }
         })

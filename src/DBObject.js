@@ -76,6 +76,7 @@ class DBObject {
             uid: id.split('-')[0],
             ts: id.split('-')[1] || 0
         },
+        this.index = {}
         this.permissionLevel = permissionLevel || u.DEFAULT_PERMISSION_LEVEL
         this.maximumCacheSize = maximumCacheSize || u.MAXIMUM_CACHE_SIZE
         this.isTopLevel = isTopLevel
@@ -83,23 +84,22 @@ class DBObject {
         
         // We either have our index or else know that we don't exist yet
         this.exists = !isNew
-        this.index = index || {}
-        this.cachedIndices = {}
         
-        // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
+        // Only top level keeps a cache, though we cache indices of direct children regardless
         this.cache = {}
-
+        this.cachedIndices = {}
     }
 
     // Creates a new object in the database
     async create(initialData) {
+        if (initialData[u.INDEX_PREFIX]) {
+            delete initialData[u.INDEX_PREFIX]
+        }
         u.validateKeys(initialData)
-        let data = await this.set(initialData, true)
-        // let data = await this._write(initialData, true)
-        
-        // this.size = formattedContent.s
+        let res = await this.set(initialData, true)
+
         this.exists = true
-        return data
+        return res
     }
     
     async get(paths) {
@@ -197,7 +197,7 @@ class DBObject {
         let indexSize = u.getSize(index)
 
         index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX].isLateral = isNew, isLateral              // true if it is itself lateral
+        index[u.INDEX_PREFIX].isLateral = this.isLateral              // true if it is itself lateral
         index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
         index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
 
@@ -279,15 +279,16 @@ class DBObject {
         delete newIndex[u.INDEX_PREFIX]
 
         // First, deal with anything that requires lateral splitting
-        Object.keys(newIndex).forEach((path) => {
-
+        let indexKeys = Object.keys(newIndex)
+        for (let i = 0; i < indexKeys.length; i++) {
+            let path = indexKeys[i]
             if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
                 let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
                 newIndex[path][u.CHILDREN_PREFIX] = await this._splitLateral(value)
                 newIndex[key][u.SIZE_PREFIX] = 0
                 delete newAttributes[key]
             }
-        })
+        }
         
         let fits = () => {return u.getSizeOfNodeAtPath('', newIndex) < u.MAX_NODE_SIZE}
         
@@ -333,7 +334,7 @@ class DBObject {
         // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
-            let newNodeIndex = await this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
+            let newNodeIndex = await this._splitVertical(newNode)
             let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
             this.cachedIndices[newNodeID] = newNodeIndex
         }
@@ -342,14 +343,20 @@ class DBObject {
 
     // Given appropriately sized chunk of attributes, returns index of new node
     async _splitVertical(attributes) {
+        debugger
+        
         let newNodeID = u.generateNewID()
         let childNode = new DBObject({
             id: newNodeID, 
+            dynamoClient: this.dynamoClient,
+            tableName: this.tableName,
+            permissionLevel: this.permissionLevel,
             isNew: true,
             isTopLevel: false,
             isLateral: false
         })
         await childNode.create(attributes)
+        debugger
         return childNode.index
     }
 
@@ -362,9 +369,12 @@ class DBObject {
         while (buffer) {
             let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
             let buffer = buffer.slice(u.MAX_NODE_SIZE)
-            let newNodeID = u.generateNewID()
+            let newNodeID = u.generateNewID()    
             let siblingNode = new DBObject({
                 id: newNodeID, 
+                dynamoClient: this.dynamoClient,
+                tableName: this.tableName,
+                permissionLevel: this.permissionLevel,
                 isNew: true,
                 isTopLevel: false,
                 isLateral: true

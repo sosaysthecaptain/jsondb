@@ -195,7 +195,7 @@ let dbObjectTestAsyncWrapper = (async () => {
         tableName: 'jsondb_test_3',
         permissionLevel: null,
         isTopLevel: true,
-        doesNotExistYet: true,
+        isNew: true,
         size: 0
     })
     
