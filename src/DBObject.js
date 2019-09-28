@@ -58,14 +58,22 @@ const unflatten = require('flat').unflatten
 const DynamoClient = require('./DynamoClient')
 const u = require('./u')
 
-const HARD_LIMIT_NODE_SIZE = 400 * 1024 * 1024
-const MAX_NODE_SIZE = 300 * 1024 * 1024
-const IDEAL_NODE_SIZE = 200 * 1024 * 1024
+const HARD_LIMIT_NODE_SIZE = 400 * 1024
+const MAX_NODE_SIZE = 300 * 1024
+const IDEAL_NODE_SIZE = 200 * 1024
 
 class DBObject {
 
-    // A DBObject must be instantiated with ID. Size is tracked and determined by dead reckoning
-    constructor({id, tableName, dynamoClient, permissionLevel, maximumCacheSize, isTopLevel, doesNotExistYet, index}) {
+    /* 
+    Four options:
+        - creating a new DBObject: {id:'someUser@gmail.com', isTopLevel: true, isNew: true}
+        - instantiating an existing DBObject: {id:'someUser@gmail.com', isTopLevel: true}
+        - creating a new sub-node: {id:'ad3453jskfheh5k4-5345345353', isNew: true}
+        - instantiating an existing sub-node: {id:'ad3453jskfheh5k4-5345345353'}
+    
+    Note that id must always be specified from the outside
+    */
+    constructor({id, tableName, dynamoClient, isTopLevel, permissionLevel, maximumCacheSize, isNew, index}) {
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
@@ -78,7 +86,7 @@ class DBObject {
         this.isTopLevel = isTopLevel
         
         // We either have our index or else know that we don't exist yet
-        this.exists = !doesNotExistYet
+        this.exists = !isNew
         this.index = index || {s: 0, p: 0}
         
         // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
@@ -97,8 +105,10 @@ class DBObject {
         return data
     }
     
-    // TODO: since this is async, maybe the one-at-a-time API isn't great?
-    async get(path) {
+    async get(paths) {
+        if (typeof paths === 'string') {
+            paths = [paths]
+        }
 
     }
 
@@ -107,9 +117,8 @@ class DBObject {
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        debugger
         if (newIndex.s > MAX_NODE_SIZE) {
-            await this._handleSplit()
+            await this._handleSplit(attributes, newIndex)
         } else {
             let res = await this._write(attributes, doNotOverwrite)
             return res
@@ -123,10 +132,6 @@ class DBObject {
         let res = this.set({path: obj})
         u.stopTime('modify ' + path)
         return res
-    }
-
-    async getMultiple(paths) {
-
     }
 
 
@@ -157,38 +162,6 @@ class DBObject {
         })
         return data
     }
-
-        // let originalIndex = flatten(this.index)
-        // let index = u.copy(originalIndex)
-        // attributes = flatten(attributes)
-        // let changedKeys = Object.keys(attributes)
-
-        // // If new attributes have displaced existing attributes, we first remove those from the index
-        // changedKeys.forEach((attributePath) => {  
-        //     let children = u.getChildren(attributePath, originalIndex)
-        //     children.forEach((childPath) => {
-        //         delete index[childPath]
-        //     })
-        // })
-
-        // // Add new keys to index, write new
-        // // TODO: permissions, check that we can write deep attributes that exist
-        // changedKeys.forEach((attributePath) => {
-        //     index[attributePath + '.d'] = true
-        //     index[attributePath + '.p'] = 0                                         // TODO
-        //     index[attributePath + '.s'] = u.getSize(attributes[attributePath])
-        // })
-
-        // // Add the new index, with its updated size, to the data to be written
-        // this.index = unflatten(index)
-        // this.index.s = u.getSizeOfNodeAtPath('', index)
-        // this.index.s += u.getSize(this.index)
-        // this.index.k = this.key
-        // attributes['i'] = this.index
-        // attributes = unflatten(attributes)
-        
-        // debugger
-        
  
     // Gets hypothetical index, without setting it
     _getNewIndex(attributes) {
@@ -219,6 +192,10 @@ class DBObject {
         unflatIndex.s += u.getSize(this.index)
         unflatIndex.k = this.key
         return unflatIndex
+    }
+
+    async _loadIndex() {
+        this.index = await this.get('i')
     }
 
     _getHypotheticalSize(attributes) {
@@ -287,7 +264,10 @@ class DBObject {
     - one massive incoming blob
     - mismatched things, some bigger 
     */
-    _handleSplit() {
+    _handleSplit(newAttributes, hypotheticalIndex) {
+        
+        let flatHypotheticalIndex = flatten(hypotheticalIndex)
+        debugger
 
     }
 
