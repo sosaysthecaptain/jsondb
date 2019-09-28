@@ -87,7 +87,7 @@ class DBObject {
         
         // We either have our index or else know that we don't exist yet
         this.exists = !isNew
-        this.index = index || {s: 0, p: 0}
+        this.index = index || {}
         
         // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
         this.cache = {}
@@ -117,7 +117,7 @@ class DBObject {
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        if (newIndex.s > MAX_NODE_SIZE) {
+        if (newIndex.i.s > MAX_NODE_SIZE) {
             await this._handleSplit(attributes, newIndex)
         } else {
             let res = await this._write(attributes, doNotOverwrite)
@@ -185,19 +185,21 @@ class DBObject {
                 s: u.getSize(flatAttributes[attributePath]),
                 p: 0
             }
-            // index[attributePath + '.d'] = true
-            // index[attributePath + '.p'] = 0                                         // TODO
-            // index[attributePath + '.s'] = u.getSize(flatAttributes[attributePath])
         })
 
         // Add the new index, with its updated size, to the data to be written
-        let unflatIndex = unflatten(index)
-        unflatIndex['m'] = {
-            s: u.getSizeOfNodeAtPath('', index) + u.getSize(unflatIndex),
+        let objectSize = u.getSizeOfNodeAtPath('', index)
+        let indexSize = u.getSize(index)
+
+        index['i'] = {
             id: this.id,
-            p: this.permissionLevel
+            s: objectSize + indexSize,
+            p: this.permissionLevel,
+            l: null,
+            c: []
         }
-        return unflatIndex
+
+        return index
     }
 
     async _loadIndex() {
@@ -208,7 +210,7 @@ class DBObject {
         let hypotheticalIndex = this._getNewIndex(attributes)
         let currentIndexSize = u.getSize(this.index)
         let newIndexSize = u.getSize(hypotheticalIndex)
-        return hypotheticalIndex.s - currentIndexSize + newIndexSize
+        return hypotheticalIndex.i.s - currentIndexSize + newIndexSize
     }
 
     // If attribute has a parent and that parent doesn,t exist, reformat as: 
@@ -272,12 +274,16 @@ class DBObject {
     */
     _handleSplit(newAttributes, hypotheticalIndex) {
         
-        let flatHypotheticalIndex = flatten(hypotheticalIndex)
+        let indexBySize = this._indexBySize(hypotheticalIndex)
         debugger
-        let simpleIndex = u.simplifyIndex(hypotheticalIndex)
-        let isize = u.getSize(hypotheticalIndex)
-        let fsize = u.getSize(flatHypotheticalIndex)
-        let ssize = u.getSize(simpleIndex)
+
+
+
+        // let flatHypotheticalIndex = flatten(hypotheticalIndex)
+        // let simpleIndex = u.simplifyIndex(hypotheticalIndex)
+        // let isize = u.getSize(hypotheticalIndex)
+        // let fsize = u.getSize(flatHypotheticalIndex)
+        // let ssize = u.getSize(simpleIndex)
 
         
 
@@ -290,6 +296,23 @@ class DBObject {
     }
 
     _splitLateral(newNodeID, buffer) {
+
+    }
+
+    _indexBySize(index, invert) {
+        index = index || this.index
+        let sortedKeys = u.sortObj(index, (a, b) => {
+            return a[1].s > b[1].s
+        })
+        let sortedIndex = []
+        sortedKeys.forEach((key) => {
+            sortedIndex.push({path: key, size: index[key].s})
+        })
+        debugger
+        return sortedIndex
+    }
+
+    _indexByOrder(invert) {
 
     }
 
@@ -345,7 +368,7 @@ class DBObject {
     }
     
     size() {
-        return this.index.s
+        return this.index.i.s 
     }
 
     /*  **************************************************    */

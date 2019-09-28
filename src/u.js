@@ -297,54 +297,57 @@ u.getSizeOfNodeAtPath = (attributePath, index) => {
     return size
 }
 
-u.simplifyIndex = (index) => {
-    let flatIndex = flatten(index)
-    let simpleFlat = {}
-    Object.keys(flatIndex).forEach((path) => {
+// u.simplifyIndex = (index) => {
+//     let flatIndex = flatten(index)
+//     let simpleFlat = {}
+//     Object.keys(flatIndex).forEach((path) => {
 
-        let arrPath = u.stringPathToArrPath(path)
-        let metaKey = arrPath.pop()
-        if (metaKey.length === 1) {
-            let simplePath = path.slice(0, -2)
-            if (path.length === 1) {
-                simplePath = 'meta'
-            }
-            if (!simpleFlat[simplePath]) {
-                simpleFlat[simplePath] = {}
-            }
-            simpleFlat[simplePath][metaKey] = flatIndex[path]
-        }
-    })
-    return simpleFlat
-}
-
-
-
-
-
-
-
-
-
-
-
-// u.sortObj = (obj, fn, reverse) => {
-//     let sortable = []
-//     Object.keys(obj).forEach((key) => {
-//         sortable.push([key, obj[key]])
+//         let arrPath = u.stringPathToArrPath(path)
+//         let metaKey = arrPath.pop()
+//         if (metaKey.length === 1) {
+//             let simplePath = path.slice(0, -2)
+//             if (path.length === 1) {
+//                 simplePath = 'meta'
+//             }
+//             if (!simpleFlat[simplePath]) {
+//                 simpleFlat[simplePath] = {}
+//             }
+//             simpleFlat[simplePath][metaKey] = flatIndex[path]
+//         }
 //     })
-//     sortable.sort(fn)
-//     if (reverse) {
-//         sortable.reverse()
-//     }
-//     let sorted = {}
-//     sortable.forEach((a) => {
-//         let key = a[0]
-//         let value = obj[a[0]]
-//         sorted[key] = value
-//     })
-//     return sorted
+//     return simpleFlat
 // }
+
+
+
+
+
+
+
+
+
+
+// Returns array of keys
+u.sortObj = (obj, fn, reverse) => {
+    let sortable = []
+    Object.keys(obj).forEach((key) => {
+        sortable.push([key, obj[key]])
+    })
+    sortable.sort(fn)
+    if (reverse) {
+        sortable.reverse()
+    }
+    // let sorted = {}
+    let sorted = []
+    sortable.forEach((a) => {
+        let key = a[0]
+        let value = a[1]
+        sorted.push(key)
+        // let value = obj[a[0]]
+        // sorted[key] = value
+    })
+    return sorted
+}
 
 
 
