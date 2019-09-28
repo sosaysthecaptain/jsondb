@@ -285,8 +285,25 @@ u.getSizeOfNodeAtPath = (attributePath, index) => {
     return size
 }
 
-u.updateIndexStructure = (attributes, index) => {
+u.simplifyIndex = (index) => {
+    let flatIndex = flatten(index)
+    let simpleFlat = {}
+    Object.keys(flatIndex).forEach((path) => {
 
+        let arrPath = u.stringPathToArrPath(path)
+        let metaKey = arrPath.pop()
+        if (metaKey.length === 1) {
+            let simplePath = path.slice(0, -2)
+            if (path.length === 1) {
+                simplePath = 'meta'
+            }
+            if (!simpleFlat[simplePath]) {
+                simpleFlat[simplePath] = {}
+            }
+            simpleFlat[simplePath][metaKey] = flatIndex[path]
+        }
+    })
+    return simpleFlat
 }
 
 

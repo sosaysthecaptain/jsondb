@@ -268,6 +268,14 @@ class DBObject {
         
         let flatHypotheticalIndex = flatten(hypotheticalIndex)
         debugger
+        let simpleIndex = u.simplifyIndex(hypotheticalIndex)
+        let isize = u.getSize(hypotheticalIndex)
+        let fsize = u.getSize(flatHypotheticalIndex)
+        let ssize = u.getSize(simpleIndex)
+
+        
+
+        debugger
 
     }
 
