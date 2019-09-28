@@ -83,6 +83,7 @@ class DBObject {
         // We either have our index or else know that we don't exist yet
         this.exists = !isNew
         this.index = index || {}
+        this.cachedIndices = {}
         
         // If this is the top level, we keep a cache, otherwise we leave caching to the top level and only
         this.cache = {}
@@ -137,15 +138,11 @@ class DBObject {
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
         this._convertAttributesToExistingPaths(attributes)
-
-
-        // EXPERIMENT
-        // attributes = unflatten(attributes)   
         
         // Get new & updated index, if not already supplied
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
-        attributes[u.INDEX_PREFIX] = JSON.stringify(this.index)
+        attributes[u.INDEX_PREFIX] = u.packIndex(newIndex)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -162,6 +159,8 @@ class DBObject {
         Object.keys(this.index).forEach((indexKey) => {
             this.index[indexKey][u.EXISTS_PREFIX = true]
         })
+
+        debugger
         return data
     }
  
@@ -205,7 +204,8 @@ class DBObject {
     }
 
     async _loadIndex() {
-        this.index = await this.get(u.INDEX_PREFIX)
+        let packedIndex = await this.get(u.INDEX_PREFIX)
+        this.index = u.unpackIndex(packedIndex)
     }
 
     _getHypotheticalSize(attributes) {
@@ -274,13 +274,11 @@ class DBObject {
     - one massive incoming blob
     - mismatched things, some bigger 
     */
-    _handleSplit(newAttributes, newIndex) {
+    async _handleSplit(newAttributes, newIndex) {
         delete newIndex[u.INDEX_PREFIX]
 
         // First, deal with anything that requires lateral splitting
         Object.keys(newIndex).forEach((path) => {
-            // let level = u.stringPathToArrPath(path).length
-            // if (level > deepestLevel) {deepestLevel = level}
 
             if (newIndex[path].s > u.HARD_LIMIT_NODE_SIZE) {
                 let lateralID = u.generateNewID()
@@ -288,7 +286,7 @@ class DBObject {
                 let buffer = new Buffer.from(value)
                 newIndex[path].l = lateralID
                 newIndex[path].s = u.getSize(lateralID)
-                this._splitLateral(lateralID, buffer)
+                await this._splitLateral(lateralID, buffer)
             }
         })
         
@@ -337,17 +335,17 @@ class DBObject {
         // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
-            this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
+            await this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
         }
-        this.set(newAttributes)
+        await this.set(newAttributes)
     }
 
-    _splitVertical(newNodeID, attributes) {
+    async _splitVertical(newNodeID, attributes) {
         console.log('VERTICAL SPLIT: ' + newNodeID + ', size: ' + u.getSize(attributes))
         console.log(Object.keys(attributes))
     }
 
-    _splitLateral(newNodeID, buffer) {
+    async _splitLateral(newNodeID, buffer) {
         console.log('LATERAL SPLIT: ' + newNodeID)
         console.log(buffer.length)
     }

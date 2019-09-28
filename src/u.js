@@ -5,6 +5,7 @@ const dynoItemSize = require('dyno-item-size')
 const flatten = require('flat')
 const unflatten = require('flat').unflatten
 const uuidv4 = require('uuid/v4')
+const base64url = require('base64url')
 
 
 const u = {}
@@ -68,6 +69,7 @@ u.copy = (obj) => {
     return JSON.parse(JSON.stringify(obj))
 }
 
+// No hyphens, since we split the id on hyphen
 u.uuid = () => {
     let uuid = uuidv4()
     uuid = u.replace(uuid, '-', '0')
@@ -79,6 +81,37 @@ u.replace = (string, toReplace, toReplaceWith) => {
         string = string.replace(toReplace, toReplaceWith)
     }
     return string
+}
+
+u.encode = (obj) => {
+    return base64url.encode(JSON.stringify(obj))
+}
+
+u.decode = (base64) => {
+    let stringified = base64url.decode(base64)
+    return JSON.parse(stringified)
+}
+
+u.packIndex = (originalIndex) => {
+    let index = u.copy(originalIndex)
+    Object.keys(index).forEach((path) => {
+        let value = index[path]
+        delete index[path]
+        path = u.replace(path, '.', '-')
+        index[path] = value
+    })
+    return index
+}
+
+u.unpackIndex = (originalIndex) => {
+    let index = u.copy(originalIndex)
+    Object.keys(index).forEach((path) => {
+        let value = index[path]
+        delete index[path]
+        path = u.replace(path, '-', '.')
+        index[path] = value
+    })
+    return index
 }
 
 // Where path is array of props
@@ -148,18 +181,12 @@ u.getAttribute = (obj, p) => {
     }
 }
 
-// dynoItemSize ckokes on null, etc
 u.getSize = (obj) => {
     try {
         return JSON.stringify(obj).length
     } catch(err) {
         return 0
     }
-    // try {
-    //     return dynoItemSize(obj)
-    // } catch(err) {
-    //     return 0
-    // }
 }
 
 u.isValueTerminal = (value) => {
