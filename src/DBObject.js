@@ -51,14 +51,13 @@ Public methods:
     - sizeOf()
 */
 
-const dynoItemSize = require('dyno-item-size')
 const flatten = require('flat')
 const unflatten = require('flat').unflatten
 
 const DynamoClient = require('./DynamoClient')
 const u = require('./u')
 
-const HARD_LIMIT_NODE_SIZE = 400 * 1024
+const HARD_LIMIT_NODE_SIZE = 395 * 1024
 const MAX_NODE_SIZE = 300 * 1024
 const IDEAL_NODE_SIZE = 200 * 1024
 
@@ -272,23 +271,55 @@ class DBObject {
     - one massive incoming blob
     - mismatched things, some bigger 
     */
-    _handleSplit(newAttributes, hypotheticalIndex) {
+    _handleSplit(newAttributes, newIndex) {
+        // let deepestLevel = 0
+
+        // First, deal with anything that requires lateral splitting
+        Object.keys(newIndex).forEach((path) => {
+            // let level = u.stringPathToArrPath(path).length
+            // if (level > deepestLevel) {deepestLevel = level}
+
+            if (newIndex[path].s > HARD_LIMIT_NODE_SIZE) {
+                let lateralID = u.generateNewID()
+                let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
+                let buffer = new Buffer.from(value)
+                newIndex[path].l = lateralID
+                newIndex[path].s = u.getSize(lateralID)
+                this._splitLateral(lateralID, buffer)
+            }
+        })
         
-        let indexBySize = this._indexBySize(hypotheticalIndex)
-        debugger
-
-
-
-        // let flatHypotheticalIndex = flatten(hypotheticalIndex)
-        // let simpleIndex = u.simplifyIndex(hypotheticalIndex)
-        // let isize = u.getSize(hypotheticalIndex)
-        // let fsize = u.getSize(flatHypotheticalIndex)
-        // let ssize = u.getSize(simpleIndex)
-
+        let fits = () => {
+            newIndex.i.s = u.getSizeOfNodeAtPath('', newIndex)
+            return newIndex.i.s < MAX_NODE_SIZE
+        }
         
+        let getNextBestNode = () => {
+            let newNode = {
+                i: {id: u.generateNewID()}
+            }
+            let addAttributesUntilFull = () => {
+                let getNextBestKey = (spaceLeft) => {
+    
+                }
+                let spaceLeft = u.getSize(newNode) - MAX_NODE_SIZE
+                let key = getNextBestKey(spaceLeft)
+                if (key) {
+                    let value = newAttributes[key]
+                    newNode[key] = value
+                    newAttributes[key].c.push(childID)
+                    addAttributesUntilFull()
+                }
+            }
+            addAttributesUntilFull()
+            return newNode
+        }
 
-        debugger
-
+        while (!fits()) {
+            let newNode = getNextBestNode()
+            this._splitVertical(newNode.i.id, newNode)
+        }
+        this.set(newAttributes)
     }
 
     _splitVertical(newNodeID, attributes) {
@@ -296,28 +327,10 @@ class DBObject {
     }
 
     _splitLateral(newNodeID, buffer) {
-
+        console.log('LATERAL SPLIT: ' + newNodeID)
     }
 
-    _indexBySize(index, invert) {
-        index = index || this.index
-        let sortedKeys = u.sortObj(index, (a, b) => {
-            return a[1].s > b[1].s
-        })
-        let sortedIndex = []
-        sortedKeys.forEach((key) => {
-            sortedIndex.push({path: key, size: index[key].s})
-        })
-        debugger
-        return sortedIndex
-    }
-
-    _indexByOrder(invert) {
-
-    }
-
-
-
+  
     // IMPLEMENT ME
     _cache(attributes) {
         let currentCacheSize = this._cacheSize()

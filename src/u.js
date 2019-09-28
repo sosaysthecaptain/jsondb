@@ -4,6 +4,8 @@ const LOG_METRICS = false
 const dynoItemSize = require('dyno-item-size')
 const flatten = require('flat')
 const unflatten = require('flat').unflatten
+const uuidv4 = require('uuid/v4')
+
 
 const u = {}
 
@@ -45,6 +47,19 @@ u.getStringOfSize = (size) => {
 
 u.copy = (obj) => {
     return JSON.parse(JSON.stringify(obj))
+}
+
+u.uuid = () => {
+    let uuid = uuidv4()
+    uuid = u.replace(uuid, '-', '0')
+    return uuid
+}
+
+u.replace = (string, toReplace, toReplaceWith) => {
+    while(string.includes(toReplace)) {
+        string = string.replace(toReplace, toReplaceWith)
+    }
+    return string
 }
 
 // Where path is array of props
@@ -295,6 +310,16 @@ u.getSizeOfNodeAtPath = (attributePath, index) => {
         }
     })
     return size
+}
+
+
+
+u.generateNewID = (withTimestamp) => {
+    let id = u.uuid()
+    if (withTimestamp) {
+        id += '-' + Date.now()
+    } 
+    return id
 }
 
 // u.simplifyIndex = (index) => {
