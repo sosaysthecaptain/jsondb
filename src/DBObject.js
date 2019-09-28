@@ -183,7 +183,7 @@ class DBObject {
             index[attributePath] = {}
             index[attributePath][u.SIZE_PREFIX] = u.getSize(flatAttributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
-            index[attributePath][u.CHILDREN_PREFIX] = []
+            index[attributePath][u.CHILDREN_PREFIX] = null
         })
 
         // Add the new index, with its updated size, to the data to be written
@@ -191,10 +191,9 @@ class DBObject {
         let indexSize = u.getSize(index)
 
         index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
-        index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
+        index[u.INDEX_PREFIX].isLateral = false
         index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
-        index[u.INDEX_PREFIX][u.CHILDREN_PREFIX] = []
+        index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
 
         return index
     }
@@ -298,21 +297,25 @@ class DBObject {
                     let keys = Object.keys(newIndex)
                     for (let i = 0; i < keys.length; i++) {
                         let key = keys[i]
-                        let value = newAttributes[key]
-                        let size = u.getSize(value)
-                        if (size < spaceLeft) {
-                            return key
+                        if (!newIndex[key][u.CHILDREN_PREFIX]) {
+                            let value = newAttributes[key]
+                            let size = u.getSize(value)
+                            if (size < spaceLeft) {
+                                return key
+                            }
                         }
                     }
                 }
                 let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
-                debugger
                 let key = getNextBestKey(spaceLeft)
+                
+                // When we have the next key, strike from newAttributes, add to newNode, set the index to the pointer
                 if (key) {
                     let value = newAttributes[key]
-                    newNode[key] = value
-                    newIndex[key][u.CHILDREN_PREFIX].push(newNode[u.INDEX_PREFIX].id)
                     delete newAttributes[key]
+                    newNode[key] = value
+                    newIndex[key][u.CHILDREN_PREFIX] = newNode[u.INDEX_PREFIX].id
+                    newIndex[key][u.SIZE_PREFIX] = 0
                     addAttributesUntilFull()
                 }
             }
@@ -320,11 +323,11 @@ class DBObject {
             return newNode
         }
 
-        debugger
-
+        
         // Until current node has been depopulated sufficiently to fit, split off new nodes
         while (!fits()) {
             let newNode = getNextBestNode()
+            debugger
             this._splitVertical(newNode[u.INDEX_PREFIX].id, newNode)
         }
         this.set(newAttributes)

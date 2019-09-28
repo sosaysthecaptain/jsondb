@@ -54,7 +54,8 @@ u.getStringOfSize = (size) => {
     let strSize = 0
     while(strSize < size) {
         for (let i = 0; i < 100; i++) {
-            str += Math.random() + ' '
+            str += 'abcdefgh '
+            // str += Math.random() + ' '
         }
         strSize = u.getSize(str)
     }
@@ -149,10 +150,15 @@ u.getAttribute = (obj, p) => {
 // dynoItemSize ckokes on null, etc
 u.getSize = (obj) => {
     try {
-        return dynoItemSize(obj)
+        return JSON.stringify(obj).length
     } catch(err) {
         return 0
     }
+    // try {
+    //     return dynoItemSize(obj)
+    // } catch(err) {
+    //     return 0
+    // }
 }
 
 u.isValueTerminal = (value) => {
@@ -303,18 +309,6 @@ u.getChildren = (attributePath, parentObj) => {
         }
     })
     return childKeys
-}
-
-// Requires flattened, sums all '.s' nodes inside
-u.getSizeOfNodeAtPathOLD = (attributePath, index) => {
-    let nodePaths = u.getChildren(attributePath, index)
-    let size = 0
-    nodePaths.forEach((path) => {
-        if (path.slice(-1) === 's') {
-            size += index[path]
-        }
-    })
-    return size
 }
 
 u.getSizeOfNodeAtPath = (attributePath, index) => {
