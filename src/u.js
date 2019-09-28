@@ -236,6 +236,7 @@ u.getPathDepth = (path) => {
     return arrPath.length
 }
 
+// UP NEXT
 u.getKeysByOrder = (obj) => {
     let keys = u.getKeysByDepth(obj, true)
     let sortedByOrder = {}
@@ -274,12 +275,23 @@ u.getChildren = (attributePath, parentObj) => {
 }
 
 // Requires flattened, sums all '.s' nodes inside
-u.getSizeOfNodeAtPath = (attributePath, index) => {
+u.getSizeOfNodeAtPathOLD = (attributePath, index) => {
     let nodePaths = u.getChildren(attributePath, index)
     let size = 0
     nodePaths.forEach((path) => {
         if (path.slice(-1) === 's') {
             size += index[path]
+        }
+    })
+    return size
+}
+
+u.getSizeOfNodeAtPath = (attributePath, index) => {
+    let nodePaths = u.getChildren(attributePath, index)
+    let size = 0
+    nodePaths.forEach((path) => {
+        if (index[path].s) {
+            size += index[path].s
         }
     })
     return size

@@ -181,16 +181,22 @@ class DBObject {
 
         // Add new keys to index, write new
         changedKeys.forEach((attributePath) => {
-            index[attributePath + '.d'] = true
-            index[attributePath + '.p'] = 0                                         // TODO
-            index[attributePath + '.s'] = u.getSize(flatAttributes[attributePath])
+            index[attributePath] = {
+                s: u.getSize(flatAttributes[attributePath]),
+                p: 0
+            }
+            // index[attributePath + '.d'] = true
+            // index[attributePath + '.p'] = 0                                         // TODO
+            // index[attributePath + '.s'] = u.getSize(flatAttributes[attributePath])
         })
 
         // Add the new index, with its updated size, to the data to be written
         let unflatIndex = unflatten(index)
-        unflatIndex.s = u.getSizeOfNodeAtPath('', index)
-        unflatIndex.s += u.getSize(this.index)
-        unflatIndex.k = this.key
+        unflatIndex['m'] = {
+            s: u.getSizeOfNodeAtPath('', index) + u.getSize(unflatIndex),
+            id: this.id,
+            p: this.permissionLevel
+        }
         return unflatIndex
     }
 
