@@ -135,6 +135,7 @@ class DynamoClient {
         }
     */
     async update({tableName, key, attributes, doNotOverwrite}) {
+
         console.log('DynamoClient.update')
         console.log(attributes)
 

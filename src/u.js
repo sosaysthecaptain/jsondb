@@ -92,26 +92,24 @@ u.decode = (base64) => {
     return JSON.parse(stringified)
 }
 
-u.packIndex = (originalIndex) => {
-    let index = u.copy(originalIndex)
-    Object.keys(index).forEach((path) => {
-        let value = index[path]
-        delete index[path]
-        path = u.replace(path, '.', '-')
-        index[path] = value
+u.packKeys = (obj) => {
+    Object.keys(obj).forEach((path) => {
+        let value = obj[path]
+        delete obj[path]
+        path = u.replace(path, '.', 'XX')
+        obj[path] = value
     })
-    return index
+    return obj
 }
 
-u.unpackIndex = (originalIndex) => {
-    let index = u.copy(originalIndex)
-    Object.keys(index).forEach((path) => {
-        let value = index[path]
-        delete index[path]
-        path = u.replace(path, '-', '.')
-        index[path] = value
+u.unpackKeys = (obj) => {
+    Object.keys(obj).forEach((path) => {
+        let value = obj[path]
+        delete obj[path]
+        path = u.replace(path, '--', '.')
+        obj[path] = value
     })
-    return index
+    return obj
 }
 
 // Where path is array of props
@@ -265,9 +263,8 @@ u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
         let parts = path.split('.')
         parts.forEach((part) => {
-            if (part.length === 1) {
-                debugger
-                throw new Error(`Disallowed key: ${path} -- single letter keys are reserved for system use`)
+            if ((part.length === 1) || part.includes('--'))  {
+                throw new Error(`Disallowed key: ${path} -- keys may not be single letter, and may not contain "--"`)
             }
         })
     })

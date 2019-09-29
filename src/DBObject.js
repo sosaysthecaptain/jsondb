@@ -111,6 +111,10 @@ class DBObject {
 
     async set(attributes, doNotOverwrite) {        
         u.validateKeys(attributes)
+        attributes = flatten(attributes)
+        u.packKeys(attributes)
+
+        debugger
         let newIndex = this._getNewIndex(attributes)
         
 
@@ -138,12 +142,12 @@ class DBObject {
 
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
-        this._convertAttributesToExistingPaths(attributes)
         
         // Get new & updated index, if not already supplied
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
-        attributes[u.INDEX_PREFIX] = u.packIndex(newIndex)
+        u.packKeys(newIndex)
+        attributes[u.INDEX_PREFIX] = u.encode(newIndex)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -164,29 +168,36 @@ class DBObject {
         debugger
         return data
     }
+
+    _formatAttributes(attributes) {
+        let flat = flatten(attributes)
+        u.packKeys(flat)
+        return flat
+    }
+
  
     // Gets hypothetical index, without setting it
     _getNewIndex(attributes) {
         attributes = attributes || {}
-        let originalIndex = flatten(this.index)
-        let index = u.copy(originalIndex)
-        let flatAttributes = flatten(attributes)
-        let changedKeys = Object.keys(flatAttributes)
-        let deleted = []
+        let originalIndex = u.copy(this.index)
+        let index = u.copy(this.index)
+        
+        let changedKeys = Object.keys(attributes)
+        let keysToDelete = []
 
         // If new attributes have displaced existing attributes, we first remove those from the index
         changedKeys.forEach((attributePath) => {  
             let children = u.getChildren(attributePath, originalIndex)
             children.forEach((childPath) => {
                 delete index[childPath]
-                deleted.push(childPath)
+                keysToDelete.push(childPath)
             })
         })
 
         // Add new keys to index, write new
         changedKeys.forEach((attributePath) => {
             index[attributePath] = {}
-            index[attributePath][u.SIZE_PREFIX] = u.getSize(flatAttributes[attributePath]),
+            index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
             index[attributePath][u.CHILDREN_PREFIX] = null
             index[attributePath][u.EXISTS_PREFIX] = null
@@ -206,7 +217,7 @@ class DBObject {
 
     async _loadIndex() {
         let packedIndex = await this.get(u.INDEX_PREFIX)
-        this.index = u.unpackIndex(packedIndex)
+        this.index = u.unpackKeys(packedIndex)
     }
 
     _getHypotheticalSize(attributes) {
@@ -216,6 +227,132 @@ class DBObject {
         return hypotheticalIndex[u.INDEX_PREFIX][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
+
+    /*
+    Scenarios:
+    - lots of little stuff
+    - one massive incoming piece
+    - one massive incoming blob
+    - mismatched things, some bigger 
+    */
+   async _handleSplit(newAttributes, newIndex) {
+    delete newIndex[u.INDEX_PREFIX]
+
+    // First, deal with anything that requires lateral splitting
+    let indexKeys = Object.keys(newIndex)
+    for (let i = 0; i < indexKeys.length; i++) {
+        let path = indexKeys[i]
+        if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
+            let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
+            newIndex[path][u.CHILDREN_PREFIX] = await this._splitLateral(value)
+            newIndex[key][u.SIZE_PREFIX] = 0
+            delete newAttributes[key]
+        }
+    }
+    
+    let fits = () => {return u.getSizeOfNodeAtPath('', newIndex) < u.MAX_NODE_SIZE}
+    
+    // Naively adds next fitting key
+    let getNextBestNode = () => {
+        let newNode = {}
+        newNode[u.INDEX_PREFIX] = {id: u.generateNewID()}
+        let addAttributesUntilFull = () => {
+            let getNextBestKey = (spaceLeft) => {
+                let keys = Object.keys(newIndex)
+                for (let i = 0; i < keys.length; i++) {
+                    let key = keys[i]
+                    if (!newIndex[key][u.CHILDREN_PREFIX]) {
+                        let value = newAttributes[key]
+                        let size = u.getSize(value)
+                        if (size < spaceLeft) {
+                            return key
+                        }
+                    }
+                }
+            }
+            let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
+            let key = getNextBestKey(spaceLeft)
+            
+            // When we have the next key, strike from newAttributes, add to newNode, set the index to the pointer
+            if (key) {
+                let value = newAttributes[key]
+                
+                // TODO: delete existing
+                delete newAttributes[key]
+                
+                newNode[key] = value
+                newIndex[key][u.CHILDREN_PREFIX] = newNode[u.INDEX_PREFIX].id
+                newIndex[key][u.SIZE_PREFIX] = 0
+                addAttributesUntilFull()
+            }
+        }
+        addAttributesUntilFull()
+        newNode = unflatten(newNode)
+        return newNode
+    }
+
+    // Until current node has been depopulated sufficiently to fit, split off new nodes
+    while (!fits()) {
+        let newNode = getNextBestNode()
+        let newNodeIndex = await this._splitVertical(newNode)
+        let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
+        this.cachedIndices[newNodeID] = newNodeIndex
+    }
+    await this.set(newAttributes)
+}
+
+    // Given appropriately sized chunk of attributes, returns index of new node
+    async _splitVertical(attributes) {
+        debugger
+        
+        let newNodeID = u.generateNewID()
+        let childNode = new DBObject({
+            id: newNodeID, 
+            dynamoClient: this.dynamoClient,
+            tableName: this.tableName,
+            permissionLevel: this.permissionLevel,
+            isNew: true,
+            isTopLevel: false,
+            isLateral: false
+        })
+        await childNode.create(attributes)
+        debugger
+        return childNode.index
+    }
+
+    // Given an oversize load, returns ordered array of IDs of all the children splitting it up
+    async _splitLateral(payload) {
+
+        debugger
+        let childIDs = []
+        let buffer = new Buffer.from(payload)
+        while (buffer) {
+            let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
+            let buffer = buffer.slice(u.MAX_NODE_SIZE)
+            let newNodeID = u.generateNewID()    
+            let siblingNode = new DBObject({
+                id: newNodeID, 
+                dynamoClient: this.dynamoClient,
+                tableName: this.tableName,
+                permissionLevel: this.permissionLevel,
+                isNew: true,
+                isTopLevel: false,
+                isLateral: true
+            })
+            
+            await siblingNode.create({
+                buffer: bufferAttribute
+            })
+            childIDs.push(siblingNode.index.id)
+        }
+        return childIDs
+    }
+
+
+
+
+
+    // NOPE
     // If attribute has a parent and that parent doesn,t exist, reformat as: 
     // keyThatExists.firstNew = {firstThatDoesnt:{secondThatDoesnt:{deeplyNestedThing: 'value'}}}
     _convertAttributesToExistingPaths(attributes) {
@@ -268,125 +405,7 @@ class DBObject {
     }
 
 
-    /*
-    Scenarios:
-    - lots of little stuff
-    - one massive incoming piece
-    - one massive incoming blob
-    - mismatched things, some bigger 
-    */
-    async _handleSplit(newAttributes, newIndex) {
-        delete newIndex[u.INDEX_PREFIX]
-
-        // First, deal with anything that requires lateral splitting
-        let indexKeys = Object.keys(newIndex)
-        for (let i = 0; i < indexKeys.length; i++) {
-            let path = indexKeys[i]
-            if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
-                let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-                newIndex[path][u.CHILDREN_PREFIX] = await this._splitLateral(value)
-                newIndex[key][u.SIZE_PREFIX] = 0
-                delete newAttributes[key]
-            }
-        }
-        
-        let fits = () => {return u.getSizeOfNodeAtPath('', newIndex) < u.MAX_NODE_SIZE}
-        
-        // Naively adds next fitting key
-        let getNextBestNode = () => {
-            let newNode = {}
-            newNode[u.INDEX_PREFIX] = {id: u.generateNewID()}
-            let addAttributesUntilFull = () => {
-                let getNextBestKey = (spaceLeft) => {
-                    let keys = Object.keys(newIndex)
-                    for (let i = 0; i < keys.length; i++) {
-                        let key = keys[i]
-                        if (!newIndex[key][u.CHILDREN_PREFIX]) {
-                            let value = newAttributes[key]
-                            let size = u.getSize(value)
-                            if (size < spaceLeft) {
-                                return key
-                            }
-                        }
-                    }
-                }
-                let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
-                let key = getNextBestKey(spaceLeft)
-                
-                // When we have the next key, strike from newAttributes, add to newNode, set the index to the pointer
-                if (key) {
-                    let value = newAttributes[key]
-                    
-                    // TODO: delete existing
-                    delete newAttributes[key]
-                    
-                    newNode[key] = value
-                    newIndex[key][u.CHILDREN_PREFIX] = newNode[u.INDEX_PREFIX].id
-                    newIndex[key][u.SIZE_PREFIX] = 0
-                    addAttributesUntilFull()
-                }
-            }
-            addAttributesUntilFull()
-            newNode = unflatten(newNode)
-            return newNode
-        }
-
-        // Until current node has been depopulated sufficiently to fit, split off new nodes
-        while (!fits()) {
-            let newNode = getNextBestNode()
-            let newNodeIndex = await this._splitVertical(newNode)
-            let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
-            this.cachedIndices[newNodeID] = newNodeIndex
-        }
-        await this.set(newAttributes)
-    }
-
-    // Given appropriately sized chunk of attributes, returns index of new node
-    async _splitVertical(attributes) {
-        debugger
-        
-        let newNodeID = u.generateNewID()
-        let childNode = new DBObject({
-            id: newNodeID, 
-            dynamoClient: this.dynamoClient,
-            tableName: this.tableName,
-            permissionLevel: this.permissionLevel,
-            isNew: true,
-            isTopLevel: false,
-            isLateral: false
-        })
-        await childNode.create(attributes)
-        debugger
-        return childNode.index
-    }
-
-    // Given an oversize load, returns ordered array of IDs of all the children splitting it up
-    async _splitLateral(payload) {
-
-        debugger
-        let childIDs = []
-        let buffer = new Buffer.from(payload)
-        while (buffer) {
-            let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
-            let buffer = buffer.slice(u.MAX_NODE_SIZE)
-            let newNodeID = u.generateNewID()    
-            let siblingNode = new DBObject({
-                id: newNodeID, 
-                dynamoClient: this.dynamoClient,
-                tableName: this.tableName,
-                permissionLevel: this.permissionLevel,
-                isNew: true,
-                isTopLevel: false,
-                isLateral: true
-            })
-            
-            await siblingNode.create({
-                buffer: bufferAttribute
-            })
-            childIDs.push(siblingNode.index.id)
-        }
-        return childIDs
-    }
+    
 
   
     // IMPLEMENT ME

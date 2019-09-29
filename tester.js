@@ -275,7 +275,8 @@ let dbObjectTestAsyncWrapper = (async () => {
         }
 
         // Fri 530, objective 1: build out up to three
-        await dbobject.create(getTooBig1())
+        await dbobject.create(demoObj1)
+        // await dbobject.create(getTooBig1())
         debugger
         
         // Fri 530, objective 2: add 'otherone' as a key to 'two', instead of replacing two
