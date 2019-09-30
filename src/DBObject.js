@@ -89,6 +89,7 @@ class DBObject {
         this.cache = {}
         this.cachedDirectChildren = {}
         this._resetCachedPointers()
+        this.indexLoaded = false
     }
 
     // Creates a new object in the database
@@ -108,6 +109,34 @@ class DBObject {
             paths = [paths]
         }
 
+        debugger
+
+        
+        // Get what we can from the cache
+        let data = {}
+        paths.forEach((path) => {
+            if (this._cache[path]) {
+                data[path] = this._cacheGet(path)
+                paths.filter((a) => {return a !== path})
+            }
+        })
+        if (!paths.length) {
+            return data
+        }
+        
+        // If property we need is on 
+        if (!this.indexLoaded) {
+            await this._loadIndex()
+        }
+
+        // marc-look-here
+
+        let gettableFromHere = []
+        paths.forEach((path) => {
+            if (this.index[path]) {
+                
+            }
+        })
     }
 
     async set(attributes, doNotOverwrite) {        
@@ -174,6 +203,7 @@ class DBObject {
         Object.keys(this.index).forEach((indexKey) => {
             delete this.index[indexKey][u.DNE_PREFIX]
         })
+        this.indexLoaded = true
 
         u.stopTime('write', {
             attributes: Object.keys(attributes).toString(),
@@ -235,6 +265,7 @@ class DBObject {
         debugger
         let index = await this.get(u.INDEX_PREFIX)
         this.index = u.unencode(index)
+        this.indexLoaded = true
 
         if (all) {
             let allPointers = this.getPointers()

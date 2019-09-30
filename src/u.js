@@ -203,6 +203,7 @@ u.getSize = (obj) => {
     }
 }
 
+// marc-look-here
 u.isNodeTerminal = (path, index) => {
     if (!index[path][u.GROUP_SIZE_PREFIX]) {
     ret
