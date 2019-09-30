@@ -1,5 +1,5 @@
-const LOGGING_ON = false
-const LOG_METRICS = false
+const LOGGING_ON = true
+const LOG_METRICS = true
 
 const dynoItemSize = require('dyno-item-size')
 const flatten = require('flat')
@@ -25,32 +25,36 @@ u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
 u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    
+u.CHILDREN_COUNT_PREFIX = 'CHILDREN'
 u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
-u.log = (message, {data}, type) => {
+u.log = (message, data) => {
+    debugger
+    let {time} = data
     if (LOGGING_ON) {
-        console.log(message)
+        console.log(operation)
         console.log(data)
     }
     
-    if (data.time && LOG_METRICS) {
-        console.log(`time of ${message}: ${data.time}`)
+    if (time && LOG_METRICS) {
+        console.log(`    time of ${message}: ${time}`)
     }
 }
 
 let timedOperations = {}
 u.startTime = (operation) => {
     if (LOG_METRICS) {
+        u.log('beginning ' + operation)
         timedOperations[operation] = Date.now()
     }
 }
 
 u.stopTime = (operation) => {
     if (LOG_METRICS) {
-        let time = Date.now() - timedOperations[operation]
         delete timedOperations[operation]
-        u.log(operation, {time})
+        let time = Date.now() - timedOperations[operation]
+        u.log(`completed ${operation} in ${time} ms`)
     }
 }
 
@@ -393,15 +397,15 @@ u.getIntermediatePaths = (obj) => {
 
 // Vertical and lateral
 u.getPointers = (index) => {
-    pointers = {}
+    let allPointers = {lateral: {}, vertical: {}}
     Object.keys(index).forEach((path) => {
         let node = index[path]
         if (node[u.EXT_PREFIX]) {
-            pointers[path] = node[u.EXT_PREFIX]
+            pointers.vertical[path] = node[u.EXT_PREFIX]
         }
 
         if (node[u.LARGE_EXT_PREFIX]) {
-            pointers[path] = node[u.EXT_PREFIX]
+            pointers.vertical[path] = node[u.EXT_PREFIX]
         }
     })
     return pointers
@@ -424,17 +428,19 @@ u.updateIndex = (index) => {
     paths.forEach((path) => {
         if (path === u.INDEX_PREFIX) return
         if (index[path][u.GROUP_SIZE_PREFIX]) {
+            let children = u.getChildren(path, index)
             let nodeSize = u.getSizeOfNodeAtPath(path, index)
             index[path][u.GROUP_SIZE_PREFIX] = nodeSize
+            index[path][u.CHILDREN_COUNT_PREFIX] = children.length
             
             // If all don't exist, note that
             let allDNE = true
-            let children = u.getChildren(path, index)
             Object.keys(children).forEach((childPath) => {
                 if (!children[childPath][u.DNE_PREFIX]) {
                     allDNE = false
                 }
             })
+            
             index[path][u.DNE_PREFIX] = allDNE
             if (!nodeSize) {
                 delete index[path]
@@ -446,6 +452,20 @@ u.updateIndex = (index) => {
     if (index[u.INDEX_PREFIX]) {
         index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
     }
+}
+
+// Removes intermediate data except for links
+u.cleanIndex = (index) => {
+    let intermediatePaths = u.getIntermediatePaths(index)
+    intermediatePaths.forEach((path) => {
+        let ext = index[path][u.EXT_PREFIX]
+        delete index[path]
+        if (ext) {
+            index[path] = {}
+            index[path][u.EXT_PREFIX] = ext
+        }
+    })
+
 }
 
 u.generateNewID = (withTimestamp) => {

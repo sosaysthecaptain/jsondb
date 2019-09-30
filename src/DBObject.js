@@ -85,9 +85,9 @@ class DBObject {
         // We either have our index or else know that we don't exist yet
         this.exists = !isNew
         
-        // Only top level keeps a cache, though we cache indices of direct children regardless
+        // Only top level keeps a cache, though we cache indices and child objects regardless
         this.cache = {}
-        this.cachedIndices = {}
+        this.cachedDirectChildren = {}
         this._resetCachedPointers()
     }
 
@@ -134,17 +134,30 @@ class DBObject {
         return res
     }
 
+    exists() {
+        return this.exists
+    }
+    
+    // TODO: overall size option
+    size(index) {
+        index = index || this.index
+        return this.index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX]
+    }
+
 
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
+        u.startTime('write')
         
         // Get new & updated index, if not already supplied. Add in any cached pointers 
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
         this._setCachedPointers()
-        attributes[u.INDEX_PREFIX] = u.encode(newIndex)
+        let indexCopy = u.copy(this.index)
+        u.cleanIndex(indexCopy)
+        attributes[u.INDEX_PREFIX] = u.encode(indexCopy)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -162,7 +175,9 @@ class DBObject {
             delete this.index[indexKey][u.DNE_PREFIX]
         })
 
-        debugger
+        u.stopTime('write', {
+            attributes: Object.keys(attributes).toString()
+        })
         return data
     }
 
@@ -215,9 +230,35 @@ class DBObject {
         return index
     }
 
-    async _loadIndex() {
-        let packedIndex = await this.get(u.INDEX_PREFIX)
-        this.index = u.unpackKeys(packedIndex)
+    async _loadIndex(all) {
+        debugger
+        let index = await this.get(u.INDEX_PREFIX)
+        this.index = u.unencode(index)
+
+        if (all) {
+            let allPointers = this.getPointers()
+            let lateral = allPointers.lateral
+            let indices = await this.dynamoClient.batchGet({
+                tableName: this.tableName,
+                keys: lateral,
+                attributes: [u.INDEX_PREFIX]
+            })
+            indices.forEach((index) => {
+                index = u.decode(index)
+                let newNodeID = index[u.INDEX_PREFIX].id
+                let dbobj = new DBObject({
+                    id: newNodeID, 
+                    dynamoClient: this.dynamoClient,
+                    tableName: this.tableName,
+                    isNew: false,
+                    isTopLevel: false,
+                    isLateral: false
+                })
+                this.cachedDirectChildren[index[u.INDEX_PREFIX].id] = dbobj
+            })
+
+        }
+        
     }
 
     _getHypotheticalSize(attributes) {
@@ -236,7 +277,6 @@ class DBObject {
     - mismatched things, some bigger 
     */
    async _handleSplit(newAttributes, newIndex) {
-    // delete newIndex[u.INDEX_PREFIX]
 
     // First, deal with anything that requires lateral splitting
     let indexKeys = Object.keys(newIndex)
@@ -245,7 +285,7 @@ class DBObject {
         if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
             let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
             let latExIDs = await this._splitLateral(value)
-            this._cacheLateralPointerArray(path, latExIDs)
+            this._cacheLateralPointerArray(path, latExIDs, newIndex[path][u.SIZE_PREFIX])
             delete newIndex[path]
             delete newAttributes[path]
         }
@@ -319,15 +359,15 @@ class DBObject {
         }
 
         // Create the new node
-        let newNodeIndex = await this._splitVertical(newNodeID, newNodeAttributes)
+        let newNode = await this._splitVertical(newNodeID, newNodeAttributes)
 
-        return newNodeIndex
+        return newNode
     }
 
     // Until current node has been depopulated sufficiently to fit, split off new nodes
     while (getAmountOver() > 0) {
-        let newNodeIndex = await pullOffNextBestNode()
-        this.cachedIndices[newNodeIndex[u.INDEX_PREFIX].id] = newNodeIndex
+        let newNode = await pullOffNextBestNode()
+        this.cachedDirectChildren[newNode.id] = newNode
     }
 
     // Write the remaining new attributes
@@ -346,7 +386,7 @@ class DBObject {
             isLateral: false
         })
         await childNode.create(attributes)
-        return childNode.index
+        return childNode
     }
 
     // Given an oversize load, returns ordered array of IDs of all the children splitting it up
@@ -466,8 +506,8 @@ class DBObject {
         this.cachedPointers.vertical[pathOfAttributeMoving] = pointer
     }
 
-    _cacheLateralPointerArray(pathOfAttributeMoving, pointerArray) {
-        this.cachedPointers.lateral[pathOfAttributeMoving] = pointerArray
+    _cacheLateralPointerArray(pathOfAttributeMoving, pointerArray, size) {
+        this.cachedPointers.lateral[pathOfAttributeMoving] = {pointers: pointerArray, size}
     }
 
     _setCachedPointers() {
@@ -484,9 +524,9 @@ class DBObject {
             this.index[basePath][u.EXT_PREFIX] = pointer
         })
         Object.keys(this.cachedPointers.lateral).forEach((path) => {
-            let pointer = this.cachedPointers.lateral[path]
+            let pointerObject = this.cachedPointers.lateral[path]
             this.index[path] = {}
-            this.index[path][u.LARGE_EXT_PREFIX] = pointer
+            this.index[path][u.LARGE_EXT_PREFIX] = pointerObject
         })
         this._resetCachedPointers()
     }
@@ -495,32 +535,30 @@ class DBObject {
         this.cachedPointers = {lateral: {}, vertical: {}}
     }
 
+    _getPointers() {
+        u.getPointers(this.index)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-    
-/* MINOR GETTERS */
-    exists() {
-        return this.exists
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
-    size(index) {
-        index = index || this.index
-        return this.index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX]
-    }
+
+
+
 
     /*  **************************************************    */
 
