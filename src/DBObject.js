@@ -117,11 +117,8 @@ class DBObject {
         debugger
         let newIndex = this._getNewIndex(attributes)
         
-
-        attributes = flatten(attributes)
-        
         // Handle the split
-        if (newIndex.i.s > u.MAX_NODE_SIZE) {
+        if (newIndex[u.INDEX_PREFIX][u.SIZE_PREFIX] > u.MAX_NODE_SIZE) {
             return await this._handleSplit(attributes, newIndex)
         } else {
             return await this._write(attributes, doNotOverwrite)
@@ -199,6 +196,14 @@ class DBObject {
             index[attributePath] = {}
             index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
+            index[attributePath][u.DNE_PREFIX] = true   // this one doesn't exist yet
+        })
+
+        // Add group nodes
+        let intermediatePaths = u.getIntermediatePaths(index)
+        intermediatePaths.forEach((path) => {
+            index[path] = {}
+            index[path][u.EXT_PREFIX] = null
         })
 
         // Add the new index, with its updated size, to the data to be written
@@ -206,12 +211,13 @@ class DBObject {
         let indexSize = u.getSize(index)
 
         index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX].isLateral = this.isLateral              // true if it is itself lateral
-        index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
+        index[u.INDEX_PREFIX].isLateral = this.isLateral              
+        index[u.INDEX_PREFIX][u.LARGE_EXT_PREFIX] = null
         index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
-
+        index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
+        
+        
         debugger
-
         return index
     }
 

@@ -293,11 +293,15 @@ u.stringPathToArrPath = (path) => {
     }
 }
 
-u.arrayPathToStringPath = (path) => {
+u.arrayPathToStringPath = (path, usePathSeparator) => {
     if (typeof path === 'string') {
         return path
     }
-    return path.join('.')
+    if (!usePathSeparator) {
+        return path.join('.')
+    } else {
+        return path.join(u.PATH_SEPARATOR)
+    }
 }
 
 u.getPathDepth = (path) => {
@@ -347,14 +351,34 @@ u.getSizeOfNodeAtPath = (attributePath, index) => {
     let nodePaths = u.getChildren(attributePath, index)
     let size = 0
     nodePaths.forEach((path) => {
-        if (index[path][UIEvent.SIZE_PREFIX]) {
+        if (index[path][u.SIZE_PREFIX]) {
             size += index[path][u.SIZE_PREFIX]
         }
     })
     return size
 }
 
-
+u.getIntermediatePaths = (obj) => {
+    let usesSeparator = false
+    let intermediateKeys = []
+    let keys = Object.keys(obj)
+    keys.forEach((key) => {
+        if (key.includes(u.PATH_SEPARATOR)) {
+            usesSeparator = true
+        }
+        let arrPath = u.stringPathToArrPath(key)
+        while(arrPath.length) {
+            arrPath.pop()
+            if (arrPath.length) {
+                let parentPath = u.arrayPathToStringPath(arrPath, usesSeparator)
+                if (!intermediateKeys.includes(parentPath)) {
+                    intermediateKeys.push(parentPath)
+                }
+            }
+        }
+    })
+    return intermediateKeys
+}
 
 u.generateNewID = (withTimestamp) => {
     let id = u.uuid()
