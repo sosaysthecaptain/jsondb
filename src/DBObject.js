@@ -118,7 +118,7 @@ class DBObject {
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        if (newIndex[u.INDEX_PREFIX][u.SIZE_PREFIX] > u.MAX_NODE_SIZE) {
+        if (newIndex[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] > u.MAX_NODE_SIZE) {
             return await this._handleSplit(attributes, newIndex)
         } else {
             return await this._write(attributes, doNotOverwrite)
@@ -200,11 +200,7 @@ class DBObject {
         })
 
         // Add intermediate nodes
-        let intermediatePaths = u.getIntermediatePaths(index)
-        intermediatePaths.forEach((path) => {
-            index[path] = {}
-            index[path][u.EXT_PREFIX] = null
-        })
+        u.updateIndex(index)
 
         // Add the new index, with its updated size, to the data to be written
         let objectSize = u.getSizeOfNodeAtPath('', index)
@@ -213,7 +209,7 @@ class DBObject {
         index[u.INDEX_PREFIX] = {id: this.id}
         index[u.INDEX_PREFIX].isLateral = this.isLateral              
         index[u.INDEX_PREFIX][u.LARGE_EXT_PREFIX] = null
-        index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
+        index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = objectSize + indexSize
         index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
         
         return index
@@ -254,14 +250,30 @@ class DBObject {
         }
     }
     
-    let fits = () => {return u.getSizeOfNodeAtPath('', newIndex) < u.MAX_NODE_SIZE}
+    let getAmountOver = () => {
+        let overBy = u.getSizeOfNodeAtPath('', newIndex) - u.MAX_NODE_SIZE
+        if (overBy > 0) {
+            return overBy
+        }
+        return 0
+    }
+
     
-    // Naively adds next fitting key
     let getNextBestNode = () => {
+        debugger
+        let overBy = getAmountOver()
+
+
+
+
         let newNode = {}
         newNode[u.INDEX_PREFIX] = {id: u.generateNewID()}
         let addAttributesUntilFull = () => {
+    
+            // Returns largest of the most deeply nested keys that fits
             let getNextBestKey = (spaceLeft) => {
+                debugger
+                
                 let keys = Object.keys(newIndex)
                 for (let i = 0; i < keys.length; i++) {
                     let key = keys[i]
@@ -280,7 +292,7 @@ class DBObject {
             // When we have the next key:
             //   - strike from newAttributes
             //   - add to newNode
-            //   - set the pointer on 
+            //   - set the pointer on
             if (key) {
                 let value = newAttributes[key]
                 
@@ -299,7 +311,7 @@ class DBObject {
     }
 
     // Until current node has been depopulated sufficiently to fit, split off new nodes
-    while (!fits()) {
+    while (getAmountOver() > 0) {
         let newNode = getNextBestNode()
         let newNodeIndex = await this._splitVertical(newNode)
         let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
@@ -464,8 +476,9 @@ class DBObject {
         return this.exists
     }
     
-    size() {
-        return this.index[u.INDEX_PREFIX][u.SIZE_PREFIX]
+    size(index) {
+        index = index || this.index
+        return this.index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX]
     }
 
     /*  **************************************************    */

@@ -20,9 +20,11 @@ u.DEFAULT_PERMISSION_LEVEL = 0
 
 u.INDEX_PREFIX = 'META'
 u.PERMISSION_PREFIX = 'P'
+u.GROUP_PREFIX = 'G'
 u.SIZE_PREFIX = 'S'
-u.EXT_PREFIX = 'EXT'
-u.LARGE_EXT_PREFIX = 'LARGE_EXT'
+u.GROUP_SIZE_PREFIX = 'SG'
+u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
+u.LARGE_EXT_PREFIX = 'LARGE_EXT'    
 u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
@@ -188,7 +190,10 @@ u.getSize = (obj) => {
     }
 }
 
-u.isValueTerminal = (value) => {
+u.isNodeTerminal = (path, index) => {
+    if (!index[path][u.GROUP_SIZE_PREFIX]) {
+    ret
+    }
     return (typeof value) !== 'object'
 }
 
@@ -378,6 +383,38 @@ u.getIntermediatePaths = (obj) => {
         }
     })
     return intermediateKeys
+}
+
+u.updateIndex = (index) => {
+
+    // Add any intermediate paths that don't exist yet
+    let intermediatePaths = u.getIntermediatePaths(index)
+    intermediatePaths.forEach((path) => {
+        if (!index[path]) {
+            index[path] = {}
+            index[path][u.GROUP_PREFIX] = true
+            index[path][u.EXT_PREFIX] = null
+            index[path][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
+        }
+    })
+
+    // Update all intermediate path sizes, delete any intermediate paths with no children
+    let paths = Object.keys(index)
+    paths.forEach((path) => {
+        if (path === u.INDEX_PREFIX) return
+        if (index[path][u.GROUP_PREFIX]) {
+            let nodeSize = u.getSizeOfNodeAtPath(path, index)
+            index[path][u.GROUP_SIZE_PREFIX] = nodeSize
+            if (!nodeSize) {
+                delete index[path]
+            }
+        }
+    })
+
+    // Update index's top level size, if it's already been instantiated
+    if (index[u.INDEX_PREFIX]) {
+        index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
+    }
 }
 
 u.generateNewID = (withTimestamp) => {
