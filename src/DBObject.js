@@ -118,7 +118,7 @@ class DBObject {
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
-        if (newIndex[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] > u.MAX_NODE_SIZE) {
+        if (newIndex[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
             return await this._handleSplit(attributes, newIndex)
         } else {
             return await this._write(attributes, doNotOverwrite)
@@ -244,9 +244,10 @@ class DBObject {
         let path = indexKeys[i]
         if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
             let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-            newIndex[path][u.CHILDREN_PREFIX] = await this._splitLateral(value)
-            newIndex[key][u.SIZE_PREFIX] = 0
-            delete newAttributes[key]
+            let latExIDs = await this._splitLateral(value)
+            this._cacheLateralPointerArray(path, latExIDs)
+            delete newIndex[path]
+            delete newAttributes[path]
         }
     }
     
@@ -350,13 +351,11 @@ class DBObject {
 
     // Given an oversize load, returns ordered array of IDs of all the children splitting it up
     async _splitLateral(payload) {
-
-        debugger
         let childIDs = []
         let buffer = new Buffer.from(payload)
-        while (buffer) {
+        while (buffer.length) {
             let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
-            let buffer = buffer.slice(u.MAX_NODE_SIZE)
+            buffer = buffer.slice(u.MAX_NODE_SIZE)
             let newNodeID = u.generateNewID()    
             let siblingNode = new DBObject({
                 id: newNodeID, 
@@ -371,7 +370,7 @@ class DBObject {
             await siblingNode.create({
                 buffer: bufferAttribute
             })
-            childIDs.push(siblingNode.index.id)
+            childIDs.push(siblingNode.id)
         }
         return childIDs
     }
@@ -467,8 +466,8 @@ class DBObject {
         this.cachedPointers.vertical[pathOfAttributeMoving] = pointer
     }
 
-    _cacheLateralPointer(pathOfAttributeMoving, pointer) {
-        this.cachedPointers.lateral[pathOfAttributeMoving] = pointer
+    _cacheLateralPointerArray(pathOfAttributeMoving, pointerArray) {
+        this.cachedPointers.lateral[pathOfAttributeMoving] = pointerArray
     }
 
     _setCachedPointers() {

@@ -183,6 +183,9 @@ u.getAttribute = (obj, p) => {
 }
 
 u.getSize = (obj) => {
+    if (obj.length) {
+        return obj.length
+    }
     try {
         return JSON.stringify(obj).length
     } catch(err) {

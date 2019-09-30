@@ -266,7 +266,8 @@ let dbObjectTestAsyncWrapper = (async () => {
                         fourth_sub_sub: u.getStringOfSize(100),
                         fifth_sub_sub: u.getStringOfSize(1800)
                     }
-                }
+                },
+                four: u.getStringOfSize(600000)
             }
         }
         
