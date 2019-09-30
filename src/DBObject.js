@@ -88,6 +88,7 @@ class DBObject {
         // Only top level keeps a cache, though we cache indices of direct children regardless
         this.cache = {}
         this.cachedIndices = {}
+        this._resetCachedPointers()
     }
 
     // Creates a new object in the database
@@ -139,10 +140,10 @@ class DBObject {
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
         
-        // Get new & updated index, if not already supplied
+        // Get new & updated index, if not already supplied. Add in any cached pointers 
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
-        u.packKeys(newIndex)
+        this._setCachedPointers()
         attributes[u.INDEX_PREFIX] = u.encode(newIndex)
         
         // Write to dynamo
@@ -235,7 +236,7 @@ class DBObject {
     - mismatched things, some bigger 
     */
    async _handleSplit(newAttributes, newIndex) {
-    delete newIndex[u.INDEX_PREFIX]
+    // delete newIndex[u.INDEX_PREFIX]
 
     // First, deal with anything that requires lateral splitting
     let indexKeys = Object.keys(newIndex)
@@ -288,7 +289,7 @@ class DBObject {
                             newNodeAttributes[childPath] = newAttributes[childPath]
                             delete newAttributes[childPath]
                             delete newIndex[childPath]
-                            u.setPointer(childPath, newNodeID, newIndex)
+                            this._cacheVerticalPointer(childPath, newNodeID)
                         })
                         delete newIndex[candidate.path]
                         newNodeSizeLeft -= candidate.size
@@ -311,13 +312,14 @@ class DBObject {
                     u.updateIndex(newIndex)
                     overBy -= size
                     newNodeSizeLeft -= size
-                    u.setPointer(attributePath, newNodeID, newIndex)
+                    this._cacheVerticalPointer(attributePath, newNodeID)
                 }
             })
         }
 
         // Create the new node
         let newNodeIndex = await this._splitVertical(newNodeID, newNodeAttributes)
+
         return newNodeIndex
     }
 
@@ -459,6 +461,39 @@ class DBObject {
             return this.cache[path]
         }
         return undefined
+    }
+
+    _cacheVerticalPointer(pathOfAttributeMoving, pointer) {
+        this.cachedPointers.vertical[pathOfAttributeMoving] = pointer
+    }
+
+    _cacheLateralPointer(pathOfAttributeMoving, pointer) {
+        this.cachedPointers.lateral[pathOfAttributeMoving] = pointer
+    }
+
+    _setCachedPointers() {
+        Object.keys(this.cachedPointers.vertical).forEach((path) => {
+            let pointer = this.cachedPointers.vertical[path]
+            let arrPath = u.stringPathToArrPath(path)
+            arrPath.pop()
+            let basePath = u.INDEX_PREFIX
+            if (arrPath.length) {
+                let parentNodePath = u.arrayPathToStringPath(arrPath, true)
+                basePath = parentNodePath
+            }
+            this.index[basePath] = this.index[basePath] || {}
+            this.index[basePath][u.EXT_PREFIX] = pointer
+        })
+        Object.keys(this.cachedPointers.lateral).forEach((path) => {
+            let pointer = this.cachedPointers.lateral[path]
+            this.index[path] = {}
+            this.index[path][u.LARGE_EXT_PREFIX] = pointer
+        })
+        this._resetCachedPointers()
+    }
+
+    _resetCachedPointers() {
+        this.cachedPointers = {lateral: {}, vertical: {}}
     }
 
 

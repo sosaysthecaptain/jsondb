@@ -24,7 +24,7 @@ u.PERMISSION_PREFIX = 'P'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
-u.LARGE_EXT_PREFIX = 'LARGE_EXT'    
+u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    
 u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
@@ -388,6 +388,22 @@ u.getIntermediatePaths = (obj) => {
     return intermediateKeys
 }
 
+// Vertical and lateral
+u.getPointers = (index) => {
+    pointers = {}
+    Object.keys(index).forEach((path) => {
+        let node = index[path]
+        if (node[u.EXT_PREFIX]) {
+            pointers[path] = node[u.EXT_PREFIX]
+        }
+
+        if (node[u.LARGE_EXT_PREFIX]) {
+            pointers[path] = node[u.EXT_PREFIX]
+        }
+    })
+    return pointers
+}
+
 u.updateIndex = (index) => {
 
     // Add any intermediate paths that don't exist yet
@@ -427,17 +443,6 @@ u.updateIndex = (index) => {
     if (index[u.INDEX_PREFIX]) {
         index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
     }
-}
-
-u.setPointer = (pathOfAttributeMoving, pointer, index) => {
-    let arrPath = u.stringPathToArrPath(pathOfAttributeMoving)
-    arrPath.pop()
-    let pointerPath = u.INDEX_PREFIX + '.' + u.EXT_PREFIX
-    if (arrPath.length) {
-        let parentIntNodePath = u.arrayPathToStringPath(arrPath)
-        pointerPath = parentIntNodePath + u.EXT_PREFIX
-    } 
-    index[pointerPath] = pointer
 }
 
 u.generateNewID = (withTimestamp) => {
