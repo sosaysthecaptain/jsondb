@@ -176,7 +176,8 @@ class DBObject {
         })
 
         u.stopTime('write', {
-            attributes: Object.keys(attributes).toString()
+            attributes: Object.keys(attributes).toString(),
+            size: `${Math.round((u.getSize(attributes)/1024), 1)} KB`
         })
         return data
     }

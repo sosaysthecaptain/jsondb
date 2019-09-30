@@ -30,15 +30,11 @@ u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
 u.log = (message, data) => {
-    debugger
-    let {time} = data
     if (LOGGING_ON) {
-        console.log(operation)
-        console.log(data)
-    }
-    
-    if (time && LOG_METRICS) {
-        console.log(`    time of ${message}: ${time}`)
+        console.log(message)
+        if (data) {
+            console.log(data)
+        }
     }
 }
 
@@ -50,11 +46,12 @@ u.startTime = (operation) => {
     }
 }
 
-u.stopTime = (operation) => {
+u.stopTime = (operation, data) => {
     if (LOG_METRICS) {
-        delete timedOperations[operation]
         let time = Date.now() - timedOperations[operation]
-        u.log(`completed ${operation} in ${time} ms`)
+        u.log(`completed ${operation} in ${time} ms`, data)
+        u.log(' ')
+        delete timedOperations[operation]
     }
 }
 
@@ -187,11 +184,20 @@ u.getAttribute = (obj, p) => {
 }
 
 u.getSize = (obj) => {
-    if (obj.length) {
-        return obj.length
-    }
     try {
-        return JSON.stringify(obj).length
+        if (obj.length) {
+            return obj.length
+        }
+        let size = 0
+        Object.keys(obj).forEach((key) => {
+            let value = obj[key]
+            if (value.length) {
+                size += value.length
+            } else {
+                size += JSON.stringify(obj).length
+            }
+        })
+        return size
     } catch(err) {
         return 0
     }
@@ -458,14 +464,15 @@ u.updateIndex = (index) => {
 u.cleanIndex = (index) => {
     let intermediatePaths = u.getIntermediatePaths(index)
     intermediatePaths.forEach((path) => {
-        let ext = index[path][u.EXT_PREFIX]
-        delete index[path]
-        if (ext) {
-            index[path] = {}
-            index[path][u.EXT_PREFIX] = ext
+        if (index[path]) {
+            let ext = index[path][u.EXT_PREFIX]
+            delete index[path]
+            if (ext) {
+                index[path] = {}
+                index[path][u.EXT_PREFIX] = ext
+            }
         }
     })
-
 }
 
 u.generateNewID = (withTimestamp) => {
