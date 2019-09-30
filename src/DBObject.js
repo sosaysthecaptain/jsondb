@@ -114,7 +114,6 @@ class DBObject {
         attributes = flatten(attributes)
         u.packKeys(attributes)
 
-        debugger
         let newIndex = this._getNewIndex(attributes)
         
         // Handle the split
@@ -259,8 +258,8 @@ class DBObject {
     }
 
     // Lifts off as large a single vertical chunk as possible
-    let getNextBestNode = () => {
-        let newNodeID = {id: u.generateNewID()}
+    let pullOffNextBestNode = async () => {
+        let newNodeID = u.generateNewID()
         let overBy = getAmountOver()
 
         // Get data on intermediate groupings
@@ -269,18 +268,20 @@ class DBObject {
         intermediatePaths.forEach((path) => {
             let order = u.stringPathToArrPath(path).length
             let size = newIndex[path][u.GROUP_SIZE_PREFIX]
+            let dne = newIndex[path][u.DNE_PREFIX]
             candidates[order] = candidates[order] || []
-            candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
+            candidates[order].push({path, size, order, dne, children: u.getChildren(path, newIndex)})
         })
         
         // Look for the largest groups that can be split off intact
+        // NOTE: for now, only moving attributes not yet written
         let newNodeSizeLeft = u.MAX_NODE_SIZE
         let newNodeAttributes = {}
         for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
             if (candidates[depth]) {
                 candidates[depth].sort((a, b) => (a.size < b.size))
                 candidates[depth].forEach((candidate) => {
-                    if (candidate.size < newNodeSizeLeft) {
+                    if ((candidate.size < newNodeSizeLeft) && candidate.DNE) {
                         
                         // Migrate each child
                         candidate.children.forEach((childPath) => {
@@ -315,75 +316,23 @@ class DBObject {
             })
         }
 
-        // 
-
-
-
-        // NOTE: account for DNE
-        debugger
-
-
-
-
-        let newNode = {}
-        newNode[u.INDEX_PREFIX] = {id: u.generateNewID()}
-        let addAttributesUntilFull = () => {
-    
-            // Returns largest of the most deeply nested keys that fits
-            let getNextBestKey = (spaceLeft) => {
-                debugger
-                
-                let keys = Object.keys(newIndex)
-                for (let i = 0; i < keys.length; i++) {
-                    let key = keys[i]
-                    if (!newIndex[key][u.CHILDREN_PREFIX]) {
-                        let value = newAttributes[key]
-                        let size = u.getSize(value)
-                        if (size < spaceLeft) {
-                            return key
-                        }
-                    }
-                }
-            }
-            let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
-            let key = getNextBestKey(spaceLeft)
-            
-            // When we have the next key:
-            //   - strike from newAttributes
-            //   - add to newNode
-            //   - set the pointer on
-            if (key) {
-                let value = newAttributes[key]
-                
-                // TODO: delete existing
-                delete newAttributes[key]
-                
-                newNode[key] = value
-                newIndex[key][u.CHILDREN_PREFIX] = newNode[u.INDEX_PREFIX].id
-                newIndex[key][u.SIZE_PREFIX] = 0
-                addAttributesUntilFull()
-            }
-        }
-        addAttributesUntilFull()
-        newNode = unflatten(newNode)
-        return newNode
+        // Create the new node
+        let newNodeIndex = await this._splitVertical(newNodeID, newNodeAttributes)
+        return newNodeIndex
     }
 
     // Until current node has been depopulated sufficiently to fit, split off new nodes
     while (getAmountOver() > 0) {
-        let newNode = getNextBestNode()
-        let newNodeIndex = await this._splitVertical(newNode)
-        let newNodeID = newNodeIndex[u.INDEX_PREFIX].id
-        this.cachedIndices[newNodeID] = newNodeIndex
+        let newNodeIndex = await pullOffNextBestNode()
+        this.cachedIndices[newNodeIndex[u.INDEX_PREFIX].id] = newNodeIndex
     }
+
+    // Write the remaining new attributes
     await this.set(newAttributes)
 }
 
     // Given appropriately sized chunk of attributes, returns index of new node
-    async _splitVertical(attributes) {
-        debugger
-        
-        let newNodeID = u.generateNewID()
+    async _splitVertical(newNodeID, attributes) {
         let childNode = new DBObject({
             id: newNodeID, 
             dynamoClient: this.dynamoClient,
@@ -394,7 +343,6 @@ class DBObject {
             isLateral: false
         })
         await childNode.create(attributes)
-        debugger
         return childNode.index
     }
 
