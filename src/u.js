@@ -17,10 +17,10 @@ u.MAX_NODE_SIZE = 300 * 1024
 u.IDEAL_NODE_SIZE = 200 * 1024
 u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
 u.DEFAULT_PERMISSION_LEVEL = 0
+u.MAX_NESTING_DEPTH = 30
 
 u.INDEX_PREFIX = 'META'
 u.PERMISSION_PREFIX = 'P'
-u.GROUP_PREFIX = 'G'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
@@ -337,6 +337,7 @@ u.getAncestors = (key, parentObj) => {
 
 }
 
+// Excludes intermediate
 u.getChildren = (attributePath, parentObj) => {
     let childKeys = []
     if (attributePath === '') {
@@ -345,7 +346,9 @@ u.getChildren = (attributePath, parentObj) => {
 
     Object.keys(parentObj).forEach((key) => {
         if (key.includes(attributePath) && (key !== attributePath)) {
-            childKeys.push(key)
+            if (!parentObj[key][u.GROUP_SIZE_PREFIX]) {
+                childKeys.push(key)
+            }
         }
     })
     return childKeys
@@ -392,9 +395,8 @@ u.updateIndex = (index) => {
     intermediatePaths.forEach((path) => {
         if (!index[path]) {
             index[path] = {}
-            index[path][u.GROUP_PREFIX] = true
+            index[path][u.GROUP_SIZE_PREFIX] = -1
             index[path][u.EXT_PREFIX] = null
-            index[path][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
         }
     })
 
@@ -402,9 +404,19 @@ u.updateIndex = (index) => {
     let paths = Object.keys(index)
     paths.forEach((path) => {
         if (path === u.INDEX_PREFIX) return
-        if (index[path][u.GROUP_PREFIX]) {
+        if (index[path][u.GROUP_SIZE_PREFIX]) {
             let nodeSize = u.getSizeOfNodeAtPath(path, index)
             index[path][u.GROUP_SIZE_PREFIX] = nodeSize
+            
+            // If all don't exist, note that
+            let allDNE = true
+            let children = u.getChildren(path, index)
+            Object.keys(children).forEach((childPath) => {
+                if (!children[childPath][u.DNE_PREFIX]) {
+                    allDNE = false
+                }
+            })
+            index[path][u.DNE_PREFIX] = allDNE
             if (!nodeSize) {
                 delete index[path]
             }
@@ -415,6 +427,17 @@ u.updateIndex = (index) => {
     if (index[u.INDEX_PREFIX]) {
         index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
     }
+}
+
+u.setPointer = (pathOfAttributeMoving, pointer, index) => {
+    let arrPath = u.stringPathToArrPath(pathOfAttributeMoving)
+    arrPath.pop()
+    let pointerPath = u.INDEX_PREFIX + '.' + u.EXT_PREFIX
+    if (arrPath.length) {
+        let parentIntNodePath = u.arrayPathToStringPath(arrPath)
+        pointerPath = parentIntNodePath + u.EXT_PREFIX
+    } 
+    index[pointerPath] = pointer
 }
 
 u.generateNewID = (withTimestamp) => {

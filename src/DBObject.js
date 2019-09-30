@@ -258,10 +258,69 @@ class DBObject {
         return 0
     }
 
-    
+    // Lifts off as large a single vertical chunk as possible
     let getNextBestNode = () => {
-        debugger
+        let newNodeID = {id: u.generateNewID()}
         let overBy = getAmountOver()
+
+        // Get data on intermediate groupings
+        let intermediatePaths = u.getIntermediatePaths(newIndex)
+        let candidates = {}
+        intermediatePaths.forEach((path) => {
+            let order = u.stringPathToArrPath(path).length
+            let size = newIndex[path][u.GROUP_SIZE_PREFIX]
+            candidates[order] = candidates[order] || []
+            candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
+        })
+        
+        // Look for the largest groups that can be split off intact
+        let newNodeSizeLeft = u.MAX_NODE_SIZE
+        let newNodeAttributes = {}
+        for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
+            if (candidates[depth]) {
+                candidates[depth].sort((a, b) => (a.size < b.size))
+                candidates[depth].forEach((candidate) => {
+                    if (candidate.size < newNodeSizeLeft) {
+                        
+                        // Migrate each child
+                        candidate.children.forEach((childPath) => {
+                            newNodeAttributes[childPath] = newAttributes[childPath]
+                            delete newAttributes[childPath]
+                            delete newIndex[childPath]
+                            u.setPointer(childPath, newNodeID, newIndex)
+                        })
+                        delete newIndex[candidate.path]
+                        newNodeSizeLeft -= candidate.size
+                        overBy -= candidate.size
+                    }
+                })
+                
+            }
+        }
+
+        // If we're still over, add new attributes one by one
+        if (overBy > 0) {
+            Object.keys(newAttributes).forEach((attributePath) => {
+                if (newIndex[attributePath][u.SIZE_PREFIX] < newNodeSizeLeft) {
+                    let value = newAttributes[attributePath]
+                    let size = newIndex[attributePath][u.SIZE_PREFIX]
+                    newNodeAttributes[attributePath] = value
+                    delete newIndex[attributePath]
+                    delete newAttributes[attributePath]
+                    u.updateIndex(newIndex)
+                    overBy -= size
+                    newNodeSizeLeft -= size
+                    u.setPointer(attributePath, newNodeID, newIndex)
+                }
+            })
+        }
+
+        // 
+
+
+
+        // NOTE: account for DNE
+        debugger
 
 
 
