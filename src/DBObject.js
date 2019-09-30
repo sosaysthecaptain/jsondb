@@ -199,7 +199,7 @@ class DBObject {
             index[attributePath][u.DNE_PREFIX] = true   // this one doesn't exist yet
         })
 
-        // Add group nodes
+        // Add intermediate nodes
         let intermediatePaths = u.getIntermediatePaths(index)
         intermediatePaths.forEach((path) => {
             index[path] = {}
@@ -216,8 +216,6 @@ class DBObject {
         index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
         index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
         
-        
-        debugger
         return index
     }
 
@@ -279,7 +277,10 @@ class DBObject {
             let spaceLeft = u.MAX_NODE_SIZE - u.getSize(newNode) 
             let key = getNextBestKey(spaceLeft)
             
-            // When we have the next key, strike from newAttributes, add to newNode, set the index to the pointer
+            // When we have the next key:
+            //   - strike from newAttributes
+            //   - add to newNode
+            //   - set the pointer on 
             if (key) {
                 let value = newAttributes[key]
                 
