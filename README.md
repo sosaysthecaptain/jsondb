@@ -144,3 +144,5 @@ Nodes are designated with a uniqueID namespaced to the type and table, and have 
 When it is determined that a write operation will cause a document to become too big, it is split up with the aim of keeping as much data as possibly as high up the tree as is possible. 
 
 Specific keys are then accessed by first fetching the root node and then walking the tree, until either the desired value is found, or it is determined that a pointer must be followed to reach it. At this point a second query is made, the value is returned, and the data is cached on the server up to the specified limit, 50 mb by default. As the desired information is fetched, pointer data is also fetched. Since cache space is used preferentially for pointers, this means that even deeply nested values can usually be gotten with a single call.
+
+

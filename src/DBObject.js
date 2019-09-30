@@ -162,7 +162,7 @@ class DBObject {
         })
 
         Object.keys(this.index).forEach((indexKey) => {
-            this.index[indexKey][u.EXISTS_PREFIX = true]
+            delete this.index[indexKey][u.DNE_PREFIX]
         })
 
         debugger
@@ -199,8 +199,6 @@ class DBObject {
             index[attributePath] = {}
             index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
-            index[attributePath][u.CHILDREN_PREFIX] = null
-            index[attributePath][u.EXISTS_PREFIX] = null
         })
 
         // Add the new index, with its updated size, to the data to be written
@@ -211,6 +209,8 @@ class DBObject {
         index[u.INDEX_PREFIX].isLateral = this.isLateral              // true if it is itself lateral
         index[u.INDEX_PREFIX][u.LATERAL_PREFIX] = null
         index[u.INDEX_PREFIX][u.SIZE_PREFIX] = objectSize + indexSize
+
+        debugger
 
         return index
     }

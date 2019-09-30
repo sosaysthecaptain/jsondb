@@ -18,12 +18,13 @@ u.IDEAL_NODE_SIZE = 200 * 1024
 u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
 u.DEFAULT_PERMISSION_LEVEL = 0
 
-u.INDEX_PREFIX = 'i'
-u.SIZE_PREFIX = 's'
-u.LATERAL_PREFIX = 'l'
-u.CHILDREN_PREFIX = 'c'
-u.PERMISSION_PREFIX = 'p'
-u.EXISTS_PREFIX = 'e'
+u.INDEX_PREFIX = 'META'
+u.PERMISSION_PREFIX = 'P'
+u.SIZE_PREFIX = 'S'
+u.EXT_PREFIX = 'EXT'
+u.LARGE_EXT_PREFIX = 'LARGE_EXT'
+u.DNE_PREFIX = 'DNE'
+u.PATH_SEPARATOR = '__'
 
 u.log = (message, {data}, type) => {
     if (LOGGING_ON) {
@@ -96,7 +97,7 @@ u.packKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.replace(path, '.', 'XX')
+        path = u.replace(path, '.', u.PATH_SEPARATOR)
         obj[path] = value
     })
     return obj
@@ -106,7 +107,7 @@ u.unpackKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.replace(path, '--', '.')
+        path = u.replace(path, u.PATH_SEPARATOR, '.')
         obj[path] = value
     })
     return obj
@@ -261,11 +262,13 @@ u.isKeyValid = (key) => {
 
 u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
-        let parts = path.split('.')
-        parts.forEach((part) => {
-            if ((part.length === 1) || part.includes('--'))  {
-                throw new Error(`Disallowed key: ${path} -- keys may not be single letter, and may not contain "--"`)
-            }
+        let forbidden = [u.INDEX_PREFIX, u.PATH_SEPARATOR]
+        let arrPath = u.stringPathToArrPath(path)
+        arrPath.forEach((part) => {
+            forbidden.forEach((forbiddenString) => {
+                if (part.includes(forbiddenString))
+                throw new Error(`Disallowed key: ${path} -- keys may not contain ${forbiddenString}`)
+            })
         })
     })
 }
@@ -283,6 +286,8 @@ u.stringPathToArrPath = (path) => {
     }
     if (path === '') {
         return []
+    } else if (path.includes(u.PATH_SEPARATOR)) {
+        return path.split(u.PATH_SEPARATOR)
     } else {
         return path.split('.')
     }
@@ -337,11 +342,12 @@ u.getChildren = (attributePath, parentObj) => {
     return childKeys
 }
 
+// Sums sizes of terminal nodes. Only terminal nodes have sizes
 u.getSizeOfNodeAtPath = (attributePath, index) => {
     let nodePaths = u.getChildren(attributePath, index)
     let size = 0
     nodePaths.forEach((path) => {
-        if (index[path].s) {
+        if (index[path][UIEvent.SIZE_PREFIX]) {
             size += index[path][u.SIZE_PREFIX]
         }
     })
