@@ -1,9 +1,11 @@
-let assert = require('assert')
-let jsondb = require('./index')
-let ScanQuery = require('./src/ScanQuery')
-let DynamoClient = require('./src/DynamoClient')
-let config = require('./config')
-let u = require('./src/u')
+const assert = require('assert')
+const flatten = require('flat')
+const unflatten = require('flat').unflatten
+const jsondb = require('./index')
+const ScanQuery = require('./src/ScanQuery')
+const DynamoClient = require('./src/DynamoClient')
+const config = require('./config')
+const u = require('./src/u')
 
 let dynamoClient = new DynamoClient({
     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
@@ -29,11 +31,7 @@ let dbobject = new jsondb.DBObject({
 })
 
 
-it('DynamoClient: should update, get, update, delete', async () => {
-
-    // Clean up
-    await cleanUp()
-
+it('DynamoClient: update, get, update, delete', async () => {
     let new_attributes = {
         'key1.subkey2': 'changed automatically a second time'
     }
@@ -75,11 +73,9 @@ it('DynamoClient: should update, get, update, delete', async () => {
     })
     assert.equal(read2.key1.subkey1, "please don't change me")
     assert.equal(read2.key1.subkey2, "changed!")
-    console.log('confirmed can selectively overwrite keys')
-
-    await cleanUp()
 })
-it('should batchGet, getPagewise', async () => {
+it('DynamoClient: batchGet, getPagewise', async function() {
+
     await dynamoClient.update({
         tableName: config.tableName,
         key: getTestKey(0),
@@ -121,7 +117,8 @@ it('should batchGet, getPagewise', async () => {
         tableName: config.tableName,
         key: getKeyWithTS(),
         attributes: {
-            'message': 'three'
+            'message': 'three',
+            'payload': 'hi!'
         }
     })
     await dynamoClient.update({
@@ -142,8 +139,7 @@ it('should batchGet, getPagewise', async () => {
     let read2 = await dynamoClient.getPagewise({
         tableName: config.tableName,
         uid: 'testOrdered',
-        limit: 3,
-        exclusiveFirstSk: Date.now() - 5000,
+        limit: 3
     })
     assert.equal(read2[0].message, 'one')
     assert.equal(read2[1].message, 'two')
@@ -161,37 +157,22 @@ it('should batchGet, getPagewise', async () => {
     assert.equal(read3[0].message, 'three')
     assert.equal(read3[1].message, 'four')
     
-    // let obj = {testKey: 'sdfsdfsdfsdf'}
-    // await dbobject.destroy()
-    // await dbobject.create(obj)
     
-    // let gotten = await dbobject.get('testKey')
-    // assert.equal(gotten, obj['testKey'])
-
+    let query = new ScanQuery(config.tableName)
+    query.addParam({
+        param: 'message',
+        value: 'three', 
+        message: '='
+    })
+    let read4 = await dynamoClient.scan(query)
+    assert.equal(read4[0].message, 'three')
+    assert.equal(read4[0].payload, 'hi!')
 })
-// it('should write nested subkey without overwriting first key', async () => {
-//     let obj = {asd: 'sdfsdfsdfsdf'}
-//     await dbobject.destroy()
-//     await dbobject.create(obj)
-    
-//     let gotten = await dbobject.get('asd')
-//     assert.equal(gotten, obj['asd'])
-// })
-// it('should write and retrieve object requiring lateral split', () => {
-//     assert.equal(-1, [1,2,3].indexOf(4))
-// })
-// it('should write and retrieve object requiring vertical split', () => {
-//     assert.equal(-1, [1,2,3].indexOf(4))
-// })
 
+it('DynamoClient: scan and delete', async function() {
+    this.timeout(10000)
+        
 
-
-
-
-
-/* TEST DATA BELOW */
-
-let cleanUp = async () => {
     await dynamoClient.delete({
         tableName: config.tableName,
         key: getTestKey(0)
@@ -200,7 +181,61 @@ let cleanUp = async () => {
         tableName: config.tableName,
         key: getTestKey(1)
     })
-}
+
+    let query = new ScanQuery(config.tableName)
+    query.addParam({
+        param: 'uid',
+        value: 'testOrdered', 
+        message: '='
+    })
+    let all = await dynamoClient.scan(query)
+    
+    let timestamps = []
+    all.forEach((item) => {
+        timestamps.push(item.ts)
+    })
+    for (let i = 0; i < timestamps.length; i++) {
+        await dynamoClient.delete({
+            tableName: config.tableName,
+            key: {
+                uid: 'testOrdered',
+                ts: timestamps[i]
+            }
+        })
+    }
+
+    let leftAfterDelete = await dynamoClient.scan(query)
+    assert.equal(leftAfterDelete.length, 0)
+
+})
+
+it('DBObject: create, cacheGet', async function() {
+    this.timeout(10000)
+
+    await dbobject.destroy()
+    await dbobject.create(basicObj)
+    // await dbobject.create(getTooBig1())
+    
+    // let data = await dbobject.get('one.sub1')
+    let read1 = await dbobject.get('key1')
+    assert.equal(JSON.stringify(read1), JSON.stringify(basicObj.key1))
+    
+    let read2 = await dbobject.get()
+    let flatRead = flatten(read2)
+    let flatOrig = flatten(basicObj)
+    let keys = Object.keys(flatOrig)
+    for (let i = 0; i < keys.length; i++) {
+        let key = keys[i]
+        assert.equal(flatRead[key], flatOrig[key])
+    }
+})
+
+
+
+
+
+/* TEST DATA BELOW */
+
 
 let getTestKey = (num) => {
     return {uid: `testKey${num}`, ts: 0}

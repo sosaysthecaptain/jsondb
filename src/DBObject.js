@@ -116,7 +116,21 @@ class DBObject {
     }
 
     async get(path) {
-        let data = await this.batchGet(path)
+        if (!this.indexLoaded) {
+            await this._loadIndex()
+        }
+        path = path || ''
+        let originalPath = path
+        let allChildren = u.getChildren(path, this.index)
+        let paths = []
+        allChildren.forEach((path) => {
+            paths.push(path)
+        })
+        let data = await this.batchGet(paths)
+        data = unflatten(data)
+        if (originalPath === '') {
+            return data
+        }
         return data[path]
     }
     
