@@ -104,6 +104,17 @@ class DBObject {
         return res
     }
 
+    async destroy() {
+        let data = await this.dynamoClient.delete({
+            tableName: this.tableName,
+            key: this.key,
+        }).catch((err) => {
+            debugger
+            console.log('failure in DBObject.delete')
+            console.error(err)
+        })
+    }
+
     async get(path) {
         let data = await this.batchGet(path)
         return data[path]
@@ -155,7 +166,7 @@ class DBObject {
                 while (arrPath.length) {
                     arrPath.pop()
                     let intermediatePath = u.arrayPathToStringPath(arrPath, true)
-                    if (this.index[intermediatePath][u.EXT_PREFIX]) {
+                    if (this.index[intermediatePath] && this.index[intermediatePath][u.EXT_PREFIX]) {
                         let address = this.index[intermediatePath][u.EXT_PREFIX]
                         addresses[address] = addresses[address] || []
                         addresses[address].push(path)

@@ -1,5 +1,5 @@
-const LOGGING_ON = true
-const LOG_METRICS = true
+const LOGGING_ON = false
+const LOG_METRICS = false
 
 const dynoItemSize = require('dyno-item-size')
 const flatten = require('flat')

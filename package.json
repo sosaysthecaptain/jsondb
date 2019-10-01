@@ -4,7 +4,8 @@
   "description": "DynamoDB abstraction layer to let you work easily and efficiently with giant virtual objects",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha",
+    "debuggerTest": "mocha --inspect-brk test.js"
   },
   "repository": {
     "type": "git",
