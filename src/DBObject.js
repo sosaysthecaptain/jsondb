@@ -142,7 +142,7 @@ class DBObject {
                 gettableFromHere.push(path)
                 paths = paths.filter(a => (a !== path))
             } else {
-                let arrPath = u.stringPathToArrPath()
+                let arrPath = u.stringPathToArrPath(path)
                 while (arrPath.length) {
                     arrPath.pop()
                     let intermediatePath = u.arrayPathToStringPath(arrPath, true)
@@ -150,24 +150,29 @@ class DBObject {
                         let address = this.index[intermediatePath][u.EXT_PREFIX]
                         addresses[address] = addresses[address] || []
                         addresses[address].push(path)
+                        break
                     }
                 }
             }
         })
 
         // Get what properties live here, return them if that's all
-        let res = await this._read(gettableFromHere)
-        Object.keys(res).forEach((key) => {
-            data[key] = res[key]
-        })
-        if (!paths.length) {
-            return u.unpackKeys(data)
+        if (gettableFromHere.length) {
+            let res = await this._read(gettableFromHere)
+            Object.keys(res).forEach((key) => {
+                data[key] = res[key]
+            })
+            if (!paths.length) {
+                return u.unpackKeys(data)
+            }
         }
 
         // Otherwise, get from child nodes
-        let children = this._getDBObjects(Object.keys(addresses))
+        let children = this._getChildren(Object.keys(addresses))
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
+            let childID = childKeys[i]
+            debugger
             let dataFromChild = await children[childID].batchGet(addresses[childID])
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
@@ -272,7 +277,7 @@ class DBObject {
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {
                 this.cachedDirectChildren[id] = new DBObject({
-                    id: newNodeID, 
+                    id: id, 
                     dynamoClient: this.dynamoClient,
                     tableName: this.tableName,
                     isNew: false,
