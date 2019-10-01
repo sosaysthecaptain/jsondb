@@ -87,6 +87,9 @@ class DBObject {
         
         // Only top level keeps a cache, though we cache indices and child objects regardless
         this.cache = {}
+        this.cacheIndex = {}
+        this.cacheSize = 0
+
         this.cachedDirectChildren = {}
         this._resetCachedPointers()
         this.indexLoaded = false
@@ -145,6 +148,7 @@ class DBObject {
         u.packKeys(attributes)
 
         let newIndex = this._getNewIndex(attributes)
+        this._cacheSet(attributes)
         
         // Handle the split
         if (newIndex[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
@@ -454,86 +458,119 @@ class DBObject {
     // NOPE
     // If attribute has a parent and that parent doesn,t exist, reformat as: 
     // keyThatExists.firstNew = {firstThatDoesnt:{secondThatDoesnt:{deeplyNestedThing: 'value'}}}
-    _convertAttributesToExistingPaths(attributes) {
+    // _convertAttributesToExistingPaths(attributes) {
         
-        // A path is invalid if it has no parent in either the index or the other attributes
-        let isPathInvalid = (path) => {
-            let parentPath = u.stringPathToArrPath(path)
-            parentPath.pop()
+    //     // A path is invalid if it has no parent in either the index or the other attributes
+    //     let isPathInvalid = (path) => {
+    //         let parentPath = u.stringPathToArrPath(path)
+    //         parentPath.pop()
 
-            // We assume the index to be valid, so if parent key is in index, we're fine
-            if (u.pathExists(parentPath, this.index)) {
-                return false
-            } else if (u.pathExists(parentPath, attributes)) {
-                return false
-            }
-            return true
-        }
+    //         // We assume the index to be valid, so if parent key is in index, we're fine
+    //         if (u.pathExists(parentPath, this.index)) {
+    //             return false
+    //         } else if (u.pathExists(parentPath, attributes)) {
+    //             return false
+    //         }
+    //         return true
+    //     }
 
-        // 'one.two.three': 'and four' -> one:{two:{three:'and four'}}
-        let reformatAttribute = (oldKey) => {
+    //     // 'one.two.three': 'and four' -> one:{two:{three:'and four'}}
+    //     let reformatAttribute = (oldKey) => {
 
-            // Find the closest parent
-            let value = attributes[oldKey]
-            let arrPath = u.stringPathToArrPath(oldKey)
-            let closestParent = u.findLowestLevelDNE(arrPath, this.index)
-            let candidate2 = u.findLowestLevelDNE(arrPath, attributes)
-            if (candidate2.length > closestParent.length) {
-                closestParent = candidate2
-            }
+    //         // Find the closest parent
+    //         let value = attributes[oldKey]
+    //         let arrPath = u.stringPathToArrPath(oldKey)
+    //         let closestParent = u.findLowestLevelDNE(arrPath, this.index)
+    //         let candidate2 = u.findLowestLevelDNE(arrPath, attributes)
+    //         if (candidate2.length > closestParent.length) {
+    //             closestParent = candidate2
+    //         }
 
-            // Create a new key and value based on this new parent
-            let newKey = u.arrayPathToStringPath(closestParent)
-            let pathOnTopOfParent = oldKey.slice(newKey.length + 1)
-            let newFlatAttribute = {}
-            newFlatAttribute[pathOnTopOfParent] = value
-            let newValue = unflatten(newFlatAttribute)
+    //         // Create a new key and value based on this new parent
+    //         let newKey = u.arrayPathToStringPath(closestParent)
+    //         let pathOnTopOfParent = oldKey.slice(newKey.length + 1)
+    //         let newFlatAttribute = {}
+    //         newFlatAttribute[pathOnTopOfParent] = value
+    //         let newValue = unflatten(newFlatAttribute)
             
-            // Replace
-            delete attributes[oldKey]
-            attributes[newKey] = newValue
-        }
+    //         // Replace
+    //         delete attributes[oldKey]
+    //         attributes[newKey] = newValue
+    //     }
 
-        // If path is invalid, restructure this attribute to build out objects under it
-        let flatAttributes = flatten(attributes)
-        Object.keys(flatAttributes).forEach((attributePath) => {
-            if (isPathInvalid(attributePath)) {
-                reformatAttribute(attributePath)
-            }
-        })
-    }
+    //     // If path is invalid, restructure this attribute to build out objects under it
+    //     let flatAttributes = flatten(attributes)
+    //     Object.keys(flatAttributes).forEach((attributePath) => {
+    //         if (isPathInvalid(attributePath)) {
+    //             reformatAttribute(attributePath)
+    //         }
+    //     })
+    // }
 
-
-    
-
-  
-    // IMPLEMENT ME
-    _cache(attributes) {
-        let currentCacheSize = this._cacheSize()
-
-        Object.keys(attributes).forEach((attributeKey) => {
-            let size = u.getSize(attributes[attributeKey])
-            if ((currentCacheSize + size) < this.maximumCacheSize) {
-                this.cache[attributeKey] = attributes[attributeKey]
-            }
-            currentCacheSize += size
-        })
-
-        // TODO: priority and booting mechanism
-
-    }
-
-    _cacheSize() {
-        return u.getSize(this._cache)
-    }
 
     _cacheGet(path) {
         if (this.cache[path]) {
+            this.cacheIndex[path].accessed += 1
+            this.cacheIndex[path].timestamp = Date.now()
             return this.cache[path]
         }
         return undefined
     }
 
+    // Sets to cache if space, ejects oldest things if not
+    _cacheSet(attributes) {
+        if (!this.isTopLevel) {return}
+        let setIfFits = (key, value) => {
+            let size = (u.getSize(value))
+            let oldSize = this.cacheIndex[key] || 0
+            let difference = size - oldSize
+            if (this.cacheSize + difference < this.maximumCacheSize) {
+                this.cache[key] = value
+                this.cacheIndex[key] = {
+                    timestamp: Date.now(),
+                    accessed: 0,
+                    size: size
+                }
+                this.cacheSize += difference
+                return true
+            } else {
+                return false
+            }
+        }
+
+        // Deletes oldest key until sufficient space cleared
+        let clearSpace = (space) => {
+            debugger
+            while (this.cacheSize + space > this.maximumCacheSize) {
+                let oldestTimestamp = Date.now()
+                let oldestKey
+                Object.keys(this.cache).forEach((key) => {
+                    if (this.cache[key].timestamp < oldestTimestamp) {
+                        oldestTimestamp = this._cacheIndex[key].timestamp
+                        oldestKey = key
+                    }
+                })
+                if (Date.now() - oldestTimestamp > 15 * 1000) {
+                    return false
+                }
+                this.cacheSize -= this.cacheIndex[key].size
+                delete this.cache[key]
+                delete this.cacheIndex[key]
+            }
+            return true
+        }
+
+        // If path already exists and size not a problem, replace, make space and try again
+        Object.keys(attributes).forEach((path) => {
+            let setSuccessfully = setIfFits(path, attributes[path])
+            if (!setSuccessfully) {
+                clearSpace(u.getSize(attributes.path))
+                setIfFits(path, attributes[path])
+            }
+        })
+    }
+
+    // Pointers are generated before the index is refreshed, and thus need to be cached
     _cacheVerticalPointer(pathOfAttributeMoving, pointer) {
         this.cachedPointers.vertical[pathOfAttributeMoving] = pointer
     }
@@ -569,7 +606,6 @@ class DBObject {
 
     _getPointers() {
         u.getPointers(this.index)
-
     }
 
 
