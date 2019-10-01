@@ -97,6 +97,14 @@ u.decode = (base64) => {
 }
 
 u.packKeys = (obj) => {
+    if (obj instanceof Array) {
+        let newArr = []
+        obj.forEach((path) => {
+            newArr.push(u.replace(path, '.', u.PATH_SEPARATOR))
+        })
+        return newArr
+    }
+    
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
@@ -107,6 +115,14 @@ u.packKeys = (obj) => {
 }
 
 u.unpackKeys = (obj) => {
+    if (obj instanceof Array) {
+        let newArr = []
+        obj.forEach((path) => {
+            newArr.push(u.replace(path, u.PATH_SEPARATOR, '.'))
+        })
+        return newArr
+    }
+
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
@@ -114,6 +130,12 @@ u.unpackKeys = (obj) => {
         obj[path] = value
     })
     return obj
+}
+
+u.naturalize = (data) => {
+    u.unpackKeys(data)
+    data = unflatten(data)
+    return data
 }
 
 // Where path is array of props

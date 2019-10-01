@@ -106,40 +106,74 @@ class DBObject {
         this.exists = true
         return res
     }
+
+    async get(path) {
+        let data = await this.batchGet(path)
+        return data[path]
+    }
     
-    async get(paths) {
+    async batchGet(paths) {
         if (typeof paths === 'string') {
             paths = [paths]
         }
-
-        debugger
-
+        paths = u.packKeys(paths)
         
         // Get what we can from the cache
         let data = {}
         paths.forEach((path) => {
-            if (this._cache[path]) {
-                data[path] = this._cacheGet(path)
-                paths.filter((a) => {return a !== path})
+            let fromCache = this._cacheGet(path)
+            if (fromCache) {
+                data[path] = fromCache
+                paths = paths.filter(a => (a !== path))
             }
         })
         if (!paths.length) {
-            return data
+            return u.unpackKeys(data)
         }
         
-        // If property we need is on 
+        // Load index, see where requested properties live
         if (!this.indexLoaded) {
             await this._loadIndex()
         }
-
-        // marc-look-here
-
         let gettableFromHere = []
+        let addresses = {}
         paths.forEach((path) => {
             if (this.index[path]) {
-                
+                gettableFromHere.push(path)
+                paths = paths.filter(a => (a !== path))
+            } else {
+                let arrPath = u.stringPathToArrPath()
+                while (arrPath.length) {
+                    arrPath.pop()
+                    let intermediatePath = u.arrayPathToStringPath(arrPath, true)
+                    if (this.index[intermediatePath][u.EXT_PREFIX]) {
+                        let address = this.index[intermediatePath][u.EXT_PREFIX]
+                        addresses[address] = addresses[address] || []
+                        addresses[address].push(path)
+                    }
+                }
             }
         })
+
+        // Get what properties live here, return them if that's all
+        let res = await this._read(gettableFromHere)
+        Object.keys(res).forEach((key) => {
+            data[key] = res[key]
+        })
+        if (!paths.length) {
+            return u.unpackKeys(data)
+        }
+
+        // Otherwise, get from child nodes
+        let children = this._getDBObjects(Object.keys(addresses))
+        let childKeys = Object.keys(children)
+        for (let i = 0; i < childKeys.length; i++) {
+            let dataFromChild = await children[childID].batchGet(addresses[childID])
+            Object.keys(dataFromChild).forEach((key) => {
+                data[key] = dataFromChild[key]
+            })
+        }
+        return u.unpackKeys(data)
     }
 
     async set(attributes, doNotOverwrite) {        
@@ -216,6 +250,42 @@ class DBObject {
         return data
     }
 
+    async _read(attributes) {
+        let data = await this.dynamoClient.get({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: attributes
+        }).catch((err) => {
+            debugger
+            console.log('failure in DBObject._read')
+            console.error(err)
+        })
+        return data
+    }
+
+    _getChildren(ids) {
+        if (!ids) {
+            let allPointers = this.getPointers()
+            ids = allPointers.lateral
+        }
+        let dbobjects = {}
+        ids.forEach((id) => {
+            if (!this.cachedDirectChildren[id]) {
+                this.cachedDirectChildren[id] = new DBObject({
+                    id: newNodeID, 
+                    dynamoClient: this.dynamoClient,
+                    tableName: this.tableName,
+                    isNew: false,
+                    isTopLevel: false
+                })
+            }
+        })
+        ids.forEach((id) => {
+            dbobjects[id] = this.cachedDirectChildren[id]
+        })
+        return dbobjects
+    }
+
     _formatAttributes(attributes) {
         let flat = flatten(attributes)
         u.packKeys(flat)
@@ -266,35 +336,38 @@ class DBObject {
     }
 
     async _loadIndex(all) {
-        debugger
-        let index = await this.get(u.INDEX_PREFIX)
-        this.index = u.unencode(index)
+        let index = await this.dynamoClient.get({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: [u.INDEX_PREFIX]
+        })
+        this.index = u.decode(index[u.INDEX_PREFIX])
         this.indexLoaded = true
-
-        if (all) {
-            let allPointers = this.getPointers()
-            let lateral = allPointers.lateral
-            let indices = await this.dynamoClient.batchGet({
-                tableName: this.tableName,
-                keys: lateral,
-                attributes: [u.INDEX_PREFIX]
-            })
-            indices.forEach((index) => {
-                index = u.decode(index)
-                let newNodeID = index[u.INDEX_PREFIX].id
-                let dbobj = new DBObject({
-                    id: newNodeID, 
-                    dynamoClient: this.dynamoClient,
-                    tableName: this.tableName,
-                    isNew: false,
-                    isTopLevel: false,
-                    isLateral: false
-                })
-                this.cachedDirectChildren[index[u.INDEX_PREFIX].id] = dbobj
-            })
-
+        if (!all) {
+            return
         }
         
+        debugger
+        let allPointers = this.getPointers()
+        let lateral = allPointers.lateral
+        let indices = await this.dynamoClient.batchGet({
+            tableName: this.tableName,
+            keys: lateral,
+            attributes: [u.INDEX_PREFIX]
+        })
+        indices.forEach((index) => {
+            index = u.decode(index[u.INDEX_PREFIX])
+            let newNodeID = index[u.INDEX_PREFIX].id
+            let dbobj = new DBObject({
+                id: newNodeID, 
+                dynamoClient: this.dynamoClient,
+                tableName: this.tableName,
+                isNew: false,
+                isTopLevel: false,
+                isLateral: false
+            })
+            this.cachedDirectChildren[index[u.INDEX_PREFIX].id] = dbobj
+        })
     }
 
     _getHypotheticalSize(attributes) {
@@ -522,7 +595,11 @@ class DBObject {
         if (!this.isTopLevel) {return}
         let setIfFits = (key, value) => {
             let size = (u.getSize(value))
-            let oldSize = this.cacheIndex[key] || 0
+            let indexRecord
+            let oldSize = 0
+            if (this.cacheIndex[key] && this.cacheIndex[key].size) {
+                oldSize = this.cacheIndex[key].size
+            }
             let difference = size - oldSize
             if (this.cacheSize + difference < this.maximumCacheSize) {
                 this.cache[key] = value
@@ -540,7 +617,6 @@ class DBObject {
 
         // Deletes oldest key until sufficient space cleared
         let clearSpace = (space) => {
-            debugger
             while (this.cacheSize + space > this.maximumCacheSize) {
                 let oldestTimestamp = Date.now()
                 let oldestKey
