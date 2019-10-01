@@ -13,21 +13,16 @@ let dynamoClient = new DynamoClient({
     awsRegion: config.AWS_REGION
 })
 
-let myDBObjectHandler = new jsondb.DBObjectHandler({
-    awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
-    awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-    awsRegion: config.AWS_REGION,
-    tableName: 'object_dev_v2'
-})
+// let myDBObjectHandler = new jsondb.DBObjectHandler({
+//     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+//     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+//     awsRegion: config.AWS_REGION,
+//     tableName: 'object_dev_v2'
+// })
 
-let dbobject = new jsondb.DBObject({
-    id: 'aBcDeFG',
+let dbobject = new jsondb.DBObject('aBcDeFG', {
     dynamoClient: dynamoClient,
-    tableName: config.tableName,
-    permissionLevel: null,
-    isTopLevel: true,
-    isNew: true,
-    size: 0
+    tableName: config.tableName
 })
 
 

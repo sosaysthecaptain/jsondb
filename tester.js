@@ -189,14 +189,9 @@ let dbObjectTestAsyncWrapper = (async () => {
     //     awsRegion: config.AWS_REGION,
     //     tableName: 'object_dev_v2'
     // })
-    let dbobject = new jsondb.DBObject({
-        id: 'aBcDeFG',
+    let dbobject = new jsondb.DBObject('aBcDeFG', {
         dynamoClient: dynamoClient,
-        tableName: 'jsondb_test_3',
-        permissionLevel: null,
-        isTopLevel: true,
-        isNew: true,
-        size: 0
+        tableName: 'jsondb_test_3'
     })
     
     let ind = {"s":637,"p":0,"key1":{"subkey1":{"d":true,"p":0,"s":50},"subkey2":{"d":true,"p":0,"s":50},"subkey3":{"subsubkey3":{"s":0,"p":0,"d":true},"subsubkey2":{"s":6,"p":0,"d":true},"subsubkey1":{"s":0,"p":0,"d":true}}},"key3":{"subkey3":{"p":0,"d":true,"s":50},"subkey2":{"s":50,"p":0,"d":true},"subkey1":{"s":50,"p":0,"d":true}},"key2":{"subkey3":{"s":50,"d":true,"p":0},"subkey1":{"p":0,"s":50,"d":true},"subkey2":{"d":true,"p":0,"s":50}},"k":{"uid":"aBcDeFG","ts":0}}

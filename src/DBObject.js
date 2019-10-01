@@ -58,50 +58,40 @@ const DynamoClient = require('./DynamoClient')
 const u = require('./u')
 
 class DBObject {
-
-    /* 
-    Four options:
-        - creating a new DBObject: {id:'someUser@gmail.com', isTopLevel: true, isNew: true}
-        - instantiating an existing DBObject: {id:'someUser@gmail.com', isTopLevel: true}
-        - creating a new sub-node: {id:'ad3453jskfheh5k4-5345345353', isNew: true}
-        - instantiating an existing sub-node: {id:'ad3453jskfheh5k4-5345345353'}
-    
-    Note that id must always be specified from the outside
-    */
-    constructor({id, tableName, dynamoClient, isTopLevel, isNew, isLateral, permissionLevel, maximumCacheSize}) {
+    constructor(id, {tableName, dynamoClient}) {
+        
+        // Information we actually have
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
         this.key = u.keyFromID(id)
+
+        // Default assumptions about information we don't have yet
+        this.permissionLevel = u.DEFAULT_PERMISSION_LEVEL
+        this.maximumCacheSize = u.MAXIMUM_CACHE_SIZE
+        this.isSubordinate = false
+        
+        // Places to put things
         this.index = {}
-        this.permissionLevel = permissionLevel || u.DEFAULT_PERMISSION_LEVEL
-        this.maximumCacheSize = maximumCacheSize || u.MAXIMUM_CACHE_SIZE
-        this.isTopLevel = isTopLevel
-        this.isLateral = isLateral
-        
-        // We either have our index or else know that we don't exist yet
-        this.exists = !isNew
-        
-        // Only top level keeps a cache, though we cache indices and child objects regardless
         this.cache = {}
         this.cacheIndex = {}
         this.cacheSize = 0
-
         this.cachedDirectChildren = {}
-        this._resetCachedPointers()
         this.indexLoaded = false
+        this._resetCachedPointers()
     }
 
     // Creates a new object in the database
-    async create(initialData) {
+    async create(initialData, params) {
+        params = params || {}
+        this.isSubordinate = params.isSubordinate || false
+        this.permissionLevel = params.permissionLevel || u.DEFAULT_PERMISSION_LEVEL
+
         if (initialData[u.INDEX_PREFIX]) {
             delete initialData[u.INDEX_PREFIX]
         }
         u.validateKeys(initialData)
-        let res = await this.set(initialData, true)
-
-        this.exists = true
-        return res
+        return await this.set(initialData, true)
     }
 
     async destroy() {
@@ -239,10 +229,6 @@ class DBObject {
         return res
     }
 
-    exists() {
-        return this.exists
-    }
-    
     // TODO: overall size option
     size(index) {
         index = index || this.index
@@ -326,12 +312,9 @@ class DBObject {
         let dbobjects = {}
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {
-                this.cachedDirectChildren[id] = new DBObject({
-                    id: id, 
+                this.cachedDirectChildren[id] = new DBObject(id, {
                     dynamoClient: this.dynamoClient,
-                    tableName: this.tableName,
-                    isNew: false,
-                    isTopLevel: false
+                    tableName: this.tableName
                 })
             }
         })
@@ -382,7 +365,6 @@ class DBObject {
         let indexSize = u.getSize(index)
 
         index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX].isLateral = this.isLateral              
         index[u.INDEX_PREFIX][u.LARGE_EXT_PREFIX] = null
         index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = objectSize + indexSize
         index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
@@ -412,13 +394,9 @@ class DBObject {
         indices.forEach((index) => {
             index = u.decode(index[u.INDEX_PREFIX])
             let newNodeID = index[u.INDEX_PREFIX].id
-            let dbobj = new DBObject({
-                id: newNodeID, 
+            let dbobj = new DBObject(id, {
                 dynamoClient: this.dynamoClient,
-                tableName: this.tableName,
-                isNew: false,
-                isTopLevel: false,
-                isLateral: false
+                tableName: this.tableName
             })
             this.cachedDirectChildren[index[u.INDEX_PREFIX].id] = dbobj
         })
@@ -539,16 +517,11 @@ class DBObject {
 
     // Given appropriately sized chunk of attributes, returns index of new node
     async _splitVertical(newNodeID, attributes) {
-        let childNode = new DBObject({
-            id: newNodeID, 
+        let childNode = new DBObject(newNodeID, {
             dynamoClient: this.dynamoClient,
-            tableName: this.tableName,
-            permissionLevel: this.permissionLevel,
-            isNew: true,
-            isTopLevel: false,
-            isLateral: false
+            tableName: this.tableName
         })
-        await childNode.create(attributes)
+        await childNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
         return childNode
     }
 
@@ -560,19 +533,14 @@ class DBObject {
             let encodedAttribute = encoded.slice(0, u.MAX_NODE_SIZE)
             encoded = encoded.slice(u.MAX_NODE_SIZE)
             let newNodeID = u.generateNewID()
-            let siblingNode = new DBObject({
-                id: newNodeID, 
+            let siblingNode = new DBObject(newNodeID, {
                 dynamoClient: this.dynamoClient,
-                tableName: this.tableName,
-                permissionLevel: this.permissionLevel,
-                isNew: true,
-                isTopLevel: false,
-                isLateral: true
+                tableName: this.tableName
             })
 
             let attributes = {}
             attributes[u.LARGE_SERIALIZED_PAYLOAD] = encodedAttribute
-            await siblingNode.create(attributes)
+            await siblingNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
             childIDs.push(siblingNode.id)
         }
         return childIDs
@@ -589,7 +557,7 @@ class DBObject {
 
     // Sets to cache if space, ejects oldest things if not
     _cacheSet(attributes) {
-        if (!this.isTopLevel) {return}
+        if (this.isSubordinate) {return}
         let setIfFits = (key, value) => {
             let size = (u.getSize(value))
             let indexRecord
