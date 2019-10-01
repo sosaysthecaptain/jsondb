@@ -25,6 +25,7 @@ u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
 u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    
+u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 u.CHILDREN_COUNT_PREFIX = 'CHILDREN'
 u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
@@ -94,6 +95,14 @@ u.encode = (obj) => {
 u.decode = (base64) => {
     let stringified = base64url.decode(base64)
     return JSON.parse(stringified)
+}
+
+u.keyFromID = (id) => {
+    let key = {
+        uid: id.split('-')[0],
+        ts: id.split('-')[1] || 0
+    }
+    return key
 }
 
 u.packKeys = (obj) => {

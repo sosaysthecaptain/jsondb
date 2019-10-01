@@ -279,7 +279,8 @@ let dbObjectTestAsyncWrapper = (async () => {
         // await dbobject.create(demoObj1)
         // await dbobject.create(getTooBig1())
         debugger
-        let data = await dbobject.get('one.sub1')
+        // let data = await dbobject.get('one.sub1')
+        let data = await dbobject.get('four')
         
         // Fri 530, objective 2: add 'otherone' as a key to 'two', instead of replacing two
         // let res1 = await dbobject.set({'one.two.otherone': 'did I stomp on three?'})

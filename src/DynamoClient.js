@@ -50,7 +50,7 @@ class DynamoClient {
                 projectionExpressionsString += attribute + ', '
             })
             projectionExpressionsString = projectionExpressionsString.slice(0, -2)
-            params.RequestItems[table_name].ProjectionExpression = projectionExpressionsString
+            params.RequestItems[tableName].ProjectionExpression = projectionExpressionsString
         }
     
         let data = await this.dynamo.batchGetItem(params).promise().catch((err) => {

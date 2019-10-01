@@ -72,10 +72,7 @@ class DBObject {
         this.id = id,
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
-        this.key = {
-            uid: id.split('-')[0],
-            ts: id.split('-')[1] || 0
-        },
+        this.key = u.keyFromID(id)
         this.index = {}
         this.permissionLevel = permissionLevel || u.DEFAULT_PERMISSION_LEVEL
         this.maximumCacheSize = maximumCacheSize || u.MAXIMUM_CACHE_SIZE
@@ -137,11 +134,23 @@ class DBObject {
         }
         let gettableFromHere = []
         let addresses = {}
-        paths.forEach((path) => {
+
+        for (let i = 0; i < paths.length; i++) {
+            let path = paths[i]
+
+            // Case 1a, 1b: in this object, laterally split or not
             if (this.index[path]) {
-                gettableFromHere.push(path)
+                if (this.index[path][u.LARGE_EXT_PREFIX]) {
+                    let nodeIDs = this.index[path][u.LARGE_EXT_PREFIX]
+                    data[path] = await this._getLaterallySplitNode(nodeIDs)
+                } else {
+                    gettableFromHere.push(path)
+                }
                 paths = paths.filter(a => (a !== path))
-            } else {
+            } 
+                        
+            // Case 2: in another object
+            else {
                 let arrPath = u.stringPathToArrPath(path)
                 while (arrPath.length) {
                     arrPath.pop()
@@ -151,10 +160,10 @@ class DBObject {
                         addresses[address] = addresses[address] || []
                         addresses[address].push(path)
                         break
-                    }
+                    }  
                 }
             }
-        })
+        }
 
         // Get what properties live here, return them if that's all
         if (gettableFromHere.length) {
@@ -172,7 +181,6 @@ class DBObject {
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            debugger
             let dataFromChild = await children[childID].batchGet(addresses[childID])
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
@@ -268,6 +276,23 @@ class DBObject {
         return data
     }
 
+    async _getLaterallySplitNode(nodeIDs) {
+        let keys = []
+        nodeIDs.forEach((id) => {
+            keys.push(u.keyFromID(id))
+        })
+        let serialized = ''
+        let pieces = await this.dynamoClient.batchGet({
+            tableName: this.tableName,
+            keys: keys,
+            attributes: [u.LARGE_SERIALIZED_PAYLOAD]
+        })
+        pieces.forEach((piece) => {
+            serialized = serialized.concat(piece[u.LARGE_SERIALIZED_PAYLOAD])
+        })
+        return u.decode(serialized)
+    }
+
     _getChildren(ids) {
         if (!ids) {
             let allPointers = this.getPointers()
@@ -352,7 +377,6 @@ class DBObject {
             return
         }
         
-        debugger
         let allPointers = this.getPointers()
         let lateral = allPointers.lateral
         let indices = await this.dynamoClient.batchGet({
@@ -506,11 +530,11 @@ class DBObject {
     // Given an oversize load, returns ordered array of IDs of all the children splitting it up
     async _splitLateral(payload) {
         let childIDs = []
-        let buffer = new Buffer.from(payload)
-        while (buffer.length) {
-            let bufferAttribute = buffer.slice(0, u.MAX_NODE_SIZE)
-            buffer = buffer.slice(u.MAX_NODE_SIZE)
-            let newNodeID = u.generateNewID()    
+        let encoded = u.encode(payload)
+        while (encoded.length) {
+            let encodedAttribute = encoded.slice(0, u.MAX_NODE_SIZE)
+            encoded = encoded.slice(u.MAX_NODE_SIZE)
+            let newNodeID = u.generateNewID()
             let siblingNode = new DBObject({
                 id: newNodeID, 
                 dynamoClient: this.dynamoClient,
@@ -520,71 +544,14 @@ class DBObject {
                 isTopLevel: false,
                 isLateral: true
             })
-            
-            await siblingNode.create({
-                buffer: bufferAttribute
-            })
+
+            let attributes = {}
+            attributes[u.LARGE_SERIALIZED_PAYLOAD] = encodedAttribute
+            await siblingNode.create(attributes)
             childIDs.push(siblingNode.id)
         }
         return childIDs
     }
-
-
-
-
-
-    // NOPE
-    // If attribute has a parent and that parent doesn,t exist, reformat as: 
-    // keyThatExists.firstNew = {firstThatDoesnt:{secondThatDoesnt:{deeplyNestedThing: 'value'}}}
-    // _convertAttributesToExistingPaths(attributes) {
-        
-    //     // A path is invalid if it has no parent in either the index or the other attributes
-    //     let isPathInvalid = (path) => {
-    //         let parentPath = u.stringPathToArrPath(path)
-    //         parentPath.pop()
-
-    //         // We assume the index to be valid, so if parent key is in index, we're fine
-    //         if (u.pathExists(parentPath, this.index)) {
-    //             return false
-    //         } else if (u.pathExists(parentPath, attributes)) {
-    //             return false
-    //         }
-    //         return true
-    //     }
-
-    //     // 'one.two.three': 'and four' -> one:{two:{three:'and four'}}
-    //     let reformatAttribute = (oldKey) => {
-
-    //         // Find the closest parent
-    //         let value = attributes[oldKey]
-    //         let arrPath = u.stringPathToArrPath(oldKey)
-    //         let closestParent = u.findLowestLevelDNE(arrPath, this.index)
-    //         let candidate2 = u.findLowestLevelDNE(arrPath, attributes)
-    //         if (candidate2.length > closestParent.length) {
-    //             closestParent = candidate2
-    //         }
-
-    //         // Create a new key and value based on this new parent
-    //         let newKey = u.arrayPathToStringPath(closestParent)
-    //         let pathOnTopOfParent = oldKey.slice(newKey.length + 1)
-    //         let newFlatAttribute = {}
-    //         newFlatAttribute[pathOnTopOfParent] = value
-    //         let newValue = unflatten(newFlatAttribute)
-            
-    //         // Replace
-    //         delete attributes[oldKey]
-    //         attributes[newKey] = newValue
-    //     }
-
-    //     // If path is invalid, restructure this attribute to build out objects under it
-    //     let flatAttributes = flatten(attributes)
-    //     Object.keys(flatAttributes).forEach((attributePath) => {
-    //         if (isPathInvalid(attributePath)) {
-    //             reformatAttribute(attributePath)
-    //         }
-    //     })
-    // }
-
 
     _cacheGet(path) {
         if (this.cache[path]) {
@@ -676,7 +643,7 @@ class DBObject {
         Object.keys(this.cachedPointers.lateral).forEach((path) => {
             let pointerObject = this.cachedPointers.lateral[path]
             this.index[path] = {}
-            this.index[path][u.LARGE_EXT_PREFIX] = pointerObject
+            this.index[path][u.LARGE_EXT_PREFIX] = pointerObject.pointers
         })
         this._resetCachedPointers()
     }
