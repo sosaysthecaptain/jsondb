@@ -205,16 +205,15 @@ xit('DynamoClient: scan and delete', async function() {
 
 })
 
-it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
-    let testObjID = 'dbobject_test_1'
+xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
+    // Create fresh object
+    let testObjID = 'dbobject_test_1'
     let dbobject = new jsondb.DBObject(testObjID, {
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    
-    await dbobject.destroy()
     await dbobject.create(basicObj)
     
     // Read one key (from cache)
@@ -235,10 +234,8 @@ it('DBObject 1: should create and get a single node object, with and without cac
     })
     
     // Starting fresh, read one key
-    debugger
     let read2 = await dbobject.get('key1')
     let passed2 = _.isEqual(basicObj.key1, read2)
-    debugger
     assert.equal(passed2, true)
     
     // Read entire object
@@ -246,58 +243,115 @@ it('DBObject 1: should create and get a single node object, with and without cac
     let passed3 = _.isEqual(basicObj, read3)
     assert.equal(passed3, true)
 
-
+    // Clean up
     await dbobject.destroy()
     let dbObjectExists = await dbobject.destroy()
     assert.equal(dbObjectExists, false)
 })
 
-xit('DBObject: vertical and lateral split', async function() {
+it('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(10000)
+
+    // Data
+    let testObjID = 'dbobject_test_2'
+    let sizePerKey = 100 * 1000
+    let testObj = {
+        k1: {
+            k1s1: getVerifiableString(sizePerKey, 1),
+            k1s2: getVerifiableString(sizePerKey, 2),
+            k1s3: getVerifiableString(sizePerKey, 3),
+        },
+        k2: {
+            k2s1: getVerifiableString(sizePerKey, 4),
+            k2s2: getVerifiableString(sizePerKey, 5),
+            k2s3: getVerifiableString(sizePerKey, 6),
+        }, 
+        k3: {
+            k3s1: getVerifiableString(sizePerKey, 7),
+            k3s2: getVerifiableString(sizePerKey, 8),
+            k3s3: getVerifiableString(sizePerKey, 9),
+        }
+    }
     
-    let bigDBObj = new jsondb.DBObject('bigTestObj', {
+    // Create fresh object
+    let dbobject = new jsondb.DBObject(testObjID, {
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
-    await bigDBObj.create(getTooBig1())
+    await dbobject.ensureDestroyed()
+    await dbobject.create(testObj)
+    
+    // Read one key (from cache)
+    let read0 = await dbobject.get('k1.k1s3')
+    let passed0 = _.isEqual(testObj.k1.k1s3, read0)
+    assert.equal(passed0, true)
+    
+    // Read entire object (from cache)
+    let read1 = await dbobject.get()
+    let passed1 = _.isEqual(testObj, read1)
+    assert.equal(passed1, true)
+    
+    // Clear the variable in memory, make sure we can still get
+    dbobject = null
+    dbobject = new jsondb.DBObject(testObjID, {
+        dynamoClient: dynamoClient,
+        tableName: config.tableName
+    })
+    
+    // Starting fresh, read one key
+    let read2 = await dbobject.get('k1.k1s3')
+    let passed2 = _.isEqual(testObj.k1.k1s3, read2)
+    assert.equal(passed2, true)
+    
+    // Read entire object
+    let read3 = await dbobject.get()
+    let passed3 = _.isEqual(testObj, read3)
+    assert.equal(passed3, true)
 
     debugger
-    bigDBObj = null
-    debugger
-    bigDBObj = new jsondb.DBObject('bigTestObj', {
-        dynamoClient: dynamoClient,
-        tableName: config.tableName
-    })
-    
-    let entireObject = await bigDBObj.get()
-    debugger
-    
-    
-    // let read2 = await dbobject.get()
-    // let flatRead = flatten(read2)
-    // let flatOrig = flatten(basicObj)
-    // let keys = Object.keys(flatOrig)
-    // for (let i = 0; i < keys.length; i++) {
-    //     let key = keys[i]
-    //     assert.equal(flatRead[key], flatOrig[key])
-    // }
+
+    // Clean up
+    await dbobject.destroy()
+    let dbObjectExists = await dbobject.destroy()
+    assert.equal(dbObjectExists, false)
 })
+// xit('DBObject 2: vertical split', async function() {
+//     this.timeout(10000)
+    
+//     let bigDBObj = new jsondb.DBObject('bigTestObj', {
+//         dynamoClient: dynamoClient,
+//         tableName: config.tableName
+//     })
+//     await bigDBObj.create(getTooBig1())
+
+//     debugger
+//     bigDBObj = null
+//     debugger
+//     bigDBObj = new jsondb.DBObject('bigTestObj', {
+//         dynamoClient: dynamoClient,
+//         tableName: config.tableName
+//     })
+    
+//     let entireObject = await bigDBObj.get()
+//     debugger
+    
+    
+//     // let read2 = await dbobject.get()
+//     // let flatRead = flatten(read2)
+//     // let flatOrig = flatten(basicObj)
+//     // let keys = Object.keys(flatOrig)
+//     // for (let i = 0; i < keys.length; i++) {
+//     //     let key = keys[i]
+//     //     assert.equal(flatRead[key], flatOrig[key])
+//     // }
+// })
 
 xit('tools', async function() {
 
-    let o1 = {
-        str1: 'asdasd',
-        str2: 'adfsdfds'
-    }
-    
-    let o2 = {
-        str2: 'adfsdfds',
-        str1: 'asdasd'
-    }
-
-    let result = (_.isEqual(o1, o2))
-    
-    assert.equal(result, true)
+    let str = getVerifiableString(1000, 3)
+    let str2 = str
+    let theSame = _.isEqual(str, str2)
+    let res = verifyString(str, 2)
 })
 
 
@@ -389,12 +443,30 @@ getTooBig2 = () => {
 
 /* TEST UTILS */
 
-getVerifiableString = (length) => {
+getVerifiableString = (length, multiplier) => {
+    multiplier = multiplier || 1
     let str = ''
     let i = 0
     while(str.length < length) {
-        str += String(i) + ' '
+        str += String(i * multiplier) + ' '
         i++
     }
-    return str
+    return str.trim()
+}
+
+verifyString = (str, multiplier) => {
+    multiplier = multiplier || 1
+    let split = str.split(' ')
+    let index = 0
+    split.forEach((num) => {
+        num = Number(num)
+        if (num !== index * multiplier) {
+            return false
+        }
+        index++
+    })
+    if (index !== split.length) {
+        return false
+    }
+    return true
 }

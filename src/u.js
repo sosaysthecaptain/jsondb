@@ -116,6 +116,9 @@ u.keyFromID = (id) => {
 }
 
 u.packKeys = (obj) => {
+    if (typeof obj === 'string') {
+        return (u.replace(obj, '.', u.PATH_SEPARATOR))
+    }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
@@ -134,6 +137,9 @@ u.packKeys = (obj) => {
 }
 
 u.unpackKeys = (obj) => {
+    if (typeof obj === 'string') {
+        return (u.replace(obj, u.PATH_SEPARATOR, '.'))
+    }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
