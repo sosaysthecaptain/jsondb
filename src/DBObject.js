@@ -107,10 +107,11 @@ class DBObject {
     }
 
     async get(path) {
-        if (!this.indexLoaded) {
-            await this._loadIndex()
+        await this.ensureIndexLoaded()
+        if (!path) {
+            return await this.getEntireObject()
         }
-        path = path || ''
+
         let originalPath = path
         let allChildren = u.getChildren(path, this.index)
         let paths = []
@@ -126,6 +127,11 @@ class DBObject {
     }
     
     async batchGet(paths) {
+        if (!paths) {
+            paths = Object.keys(this.index)
+            paths.filter((a) => a !== u.INDEX_PREFIX)
+        }
+
         if (typeof paths === 'string') {
             paths = [paths]
         }
@@ -145,13 +151,9 @@ class DBObject {
         }
         
         // Load index, see where requested properties live
-        if (!this.indexLoaded) {
-            await this._loadIndex()
-        }
+        await this.ensureIndexLoaded()
         let gettableFromHere = []
         let addresses = {}
-
-        debugger
 
         for (let i = 0; i < paths.length; i++) {
             let path = paths[i]
@@ -195,7 +197,7 @@ class DBObject {
         }
 
         // Otherwise, get from child nodes
-        let children = this._getChildren(Object.keys(addresses))
+        let children = await this.getChildNodes()
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
@@ -239,8 +241,6 @@ class DBObject {
             this.cacheSize = 0
             return
         }
-
-        debugger
         delete this.cache[path]
         let size = this.cacheIndex[path].size
         delete this.cacheIndex[path]
@@ -305,6 +305,27 @@ class DBObject {
         return data
     }
 
+    async getEntireObject(secondaryCall) {
+        await this.ensureIndexLoaded()
+        
+        // Get local data
+        let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_PREFIX)
+        let data = await this.batchGet(paths)
+        debugger
+        
+        // Get all children. Get data from each and add it
+        let children = await this.getChildNodes()
+        let childKeys = Object.keys(children)
+        for (let i = 0; i < childKeys.length; i++) {
+            let childID = childKeys[i]
+            let dataFromChild = await children[childID].getEntireObject()
+            Object.keys(dataFromChild).forEach((key) => {
+                data[key] = dataFromChild[key]
+            })
+        }
+        return u.unpackKeys(data)
+    }
+
     async _getLaterallySplitNode(nodeIDs) {
         debugger
 
@@ -325,11 +346,12 @@ class DBObject {
         return u.decode(serialized)
     }
 
-    _getChildren(ids) {
-        if (!ids) {
-            let allPointers = this.getPointers()
-            ids = allPointers.lateral
-        }
+    // Instantiates all child nodes
+    async getChildNodes() {
+        await this.ensureIndexLoaded()
+        let pointers = this._getPointers()
+        let ids = Object.values(pointers.vertical)
+        ids = u.dedupe(ids)
         let dbobjects = {}
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {
@@ -393,17 +415,32 @@ class DBObject {
         return index
     }
 
-    async _loadIndex(all) {
+    async ensureIndexLoaded(all) {
+        try {
+            if (!this.indexLoaded) {
+                await this.loadIndex(all)
+            }
+
+        } catch(err) {debugger}
+    }
+
+    async loadIndex(all) {
+
+        // Get this index, directly via dynamoClient
         let index = await this.dynamoClient.get({
             tableName: this.tableName,
             key: this.key,
             attributes: [u.INDEX_PREFIX]
         })
+
         this.index = u.decode(index[u.INDEX_PREFIX])
         this.indexLoaded = true
+        
         if (!all) {
-            return
+            return this.index
         }
+
+        // If we want all indexes, get all pointers, instantiate all objects, add their indices
         let allPointers = this._getPointers()
         let vertical = Object.values(allPointers.vertical)
         if (!vertical.length) {return}

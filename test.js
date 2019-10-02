@@ -234,6 +234,7 @@ it('DBObject: vertical and lateral split', async function() {
     })
     await bigDBObj.create(getTooBig1())
 
+    debugger
     bigDBObj = null
     debugger
     bigDBObj = new jsondb.DBObject('bigTestObj', {
