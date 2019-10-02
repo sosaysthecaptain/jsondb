@@ -717,14 +717,20 @@ class DBObject {
         Object.keys(this.cachedPointers.vertical).forEach((path) => {
             let pointer = this.cachedPointers.vertical[path]
             let arrPath = u.stringPathToArrPath(path)
-            arrPath.pop()
+            let childKey = arrPath.pop()
             let basePath = u.INDEX_PREFIX
             if (arrPath.length) {
                 let parentNodePath = u.arrayPathToStringPath(arrPath, true)
                 basePath = parentNodePath
             }
+            
+            // Note on the parent node that this node has children at address
             this.index[basePath] = this.index[basePath] || {}
             this.index[basePath][u.EXT_PREFIX] = pointer
+
+            // Note specifically which children
+            this.index[basePath][u.EXT_CHILDREN_PREFIX] = this.index[basePath][u.EXT_CHILDREN_PREFIX] || {}
+            this.index[basePath][u.EXT_CHILDREN_PREFIX][childKey] = pointer
         })
         Object.keys(this.cachedPointers.lateral).forEach((path) => {
             let pointerObject = this.cachedPointers.lateral[path]

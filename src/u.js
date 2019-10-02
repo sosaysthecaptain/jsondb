@@ -24,6 +24,7 @@ u.PERMISSION_PREFIX = 'P'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
+u.EXT_CHILDREN_PREFIX = 'CHILDREN'
 
 u.NODE_TYPE_KEY = 'META_TYPE'
 u.TYPE_LATERAL_SPLIT = 'LAT_SPLIT'
@@ -36,7 +37,6 @@ u.TYPE_REFERENCE ='REF'
 u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    // NEXT UP: kill this, replace with above
 
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
-u.CHILDREN_COUNT_PREFIX = 'CHILDREN'
 u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
@@ -485,7 +485,6 @@ u.updateIndex = (index) => {
             let children = u.getChildren(path, index)
             let nodeSize = u.getSizeOfNodeAtPath(path, index)
             index[path][u.GROUP_SIZE_PREFIX] = nodeSize
-            index[path][u.CHILDREN_COUNT_PREFIX] = children.length
             
             // If all don't exist, note that
             let allDNE = true
