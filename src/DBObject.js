@@ -192,16 +192,19 @@ class DBObject {
             
             // Case 2: in another object
             else {
+                debugger
+                // marc-resume-here
                 let arrPath = u.stringPathToArrPath(path)
-                while (arrPath.length) {
-                    arrPath.pop()
-                    let intermediatePath = u.arrayPathToStringPath(arrPath, true)
-                    if (this.index[intermediatePath] && this.index[intermediatePath][u.EXT_PREFIX]) {
-                        let address = this.index[intermediatePath][u.EXT_PREFIX]
+                let childKey = arrPath.pop()
+                let intermediatePath = u.arrayPathToStringPath(arrPath, true)
+                if (this.index[intermediatePath] && this.index[intermediatePath][u.EXT_PREFIX]) {
+                    
+                    // Pointer should be specifically designated
+                    if (this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]) {
+                        let address = this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]
                         addresses[address] = addresses[address] || []
                         addresses[address].push(path)
-                        break
-                    }  
+                    }
                 }
             }
         }
