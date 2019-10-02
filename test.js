@@ -235,6 +235,7 @@ it('DBObject 1: should create and get a single node object, with and without cac
     })
     
     // Starting fresh, read one key
+    debugger
     let read2 = await dbobject.get('key1')
     let passed2 = _.isEqual(basicObj.key1, read2)
     debugger

@@ -123,7 +123,7 @@ class DBObject {
             let allKeysFlat = await this.getEntireObject()
             return unflatten(allKeysFlat)
         }
-
+        
         let originalPath = path
         let allChildren = u.getChildren(path, this.index)
         let paths = []
@@ -139,6 +139,8 @@ class DBObject {
     }
     
     async batchGet(paths) {
+
+        // If called without paths, will get all the paths in the local index only
         if (!paths) {
             paths = Object.keys(this.index)
             paths.filter((a) => a !== u.INDEX_PREFIX)
@@ -147,18 +149,20 @@ class DBObject {
         if (typeof paths === 'string') {
             paths = [paths]
         }
-        paths = u.packKeys(paths)
+        let pathsRemaining = u.packKeys(paths)
+        let pathsFound = []
         
         // Get what we can from the cache
         let data = {}
-        paths.forEach((path) => {
+        pathsRemaining.forEach((path) => {
             let fromCache = this._cacheGet(path)
             if (fromCache) {
                 data[path] = fromCache
-                paths = paths.filter(a => (a !== path))
+                pathsFound.push(path)
             }
         })
-        if (!paths.length) {
+        pathsRemaining = _.difference(pathsRemaining, pathsFound)
+        if (!pathsRemaining.length) {
             return u.unpackKeys(data)
         }
         
@@ -167,8 +171,8 @@ class DBObject {
         let gettableFromHere = []
         let addresses = {}
 
-        for (let i = 0; i < paths.length; i++) {
-            let path = paths[i]
+        for (let i = 0; i < pathsRemaining.length; i++) {
+            let path = pathsRemaining[i]
 
             // Case 1a, 1b: in this object, laterally split or not
             if (this.index[path]) {
@@ -178,9 +182,9 @@ class DBObject {
                 } else {
                     gettableFromHere.push(path)
                 }
-                paths = paths.filter(a => (a !== path))
+                pathsFound.push(path)
             } 
-                        
+            
             // Case 2: in another object
             else {
                 let arrPath = u.stringPathToArrPath(path)
@@ -196,6 +200,7 @@ class DBObject {
                 }
             }
         }
+        pathsRemaining = _.difference(pathsRemaining, pathsFound)
 
         // Get what properties live here, return them if that's all
         if (gettableFromHere.length) {
@@ -203,7 +208,7 @@ class DBObject {
             Object.keys(res).forEach((key) => {
                 data[key] = res[key]
             })
-            if (!paths.length) {
+            if (!pathsRemaining.length) {
                 return u.unpackKeys(data)
             }
         }
