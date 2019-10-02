@@ -53,6 +53,7 @@ Public methods:
 
 const flatten = require('flat')
 const unflatten = require('flat').unflatten
+const _ = require('lodash')
 
 const DynamoClient = require('./DynamoClient')
 const u = require('./u')
@@ -104,12 +105,23 @@ class DBObject {
             console.log('failure in DBObject.delete')
             console.error(err)
         })
+        return _.has(data, 'Attributes')
+    }
+
+    async ensureDestroyed() {
+        let exists = await this.destroy()
+        if (!exists) {
+            return true
+        } else {
+            this.ensureDestroyed()
+        }
     }
 
     async get(path) {
         await this.ensureIndexLoaded()
         if (!path) {
-            return await this.getEntireObject()
+            let allKeysFlat = await this.getEntireObject()
+            return unflatten(allKeysFlat)
         }
 
         let originalPath = path
@@ -305,6 +317,7 @@ class DBObject {
         return data
     }
 
+    // Returns all keys, flat. It is the responsibility of the caller to unflatten
     async getEntireObject(secondaryCall) {
         await this.ensureIndexLoaded()
         

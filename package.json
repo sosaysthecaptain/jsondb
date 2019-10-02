@@ -30,6 +30,7 @@
     "dynamodb-doc": "^1.0.0",
     "dyno-item-size": "^0.3.1",
     "flat": "^4.1.0",
+    "lodash": "^4.17.15",
     "uuid": "^3.3.3"
   },
   "devDependencies": {}
