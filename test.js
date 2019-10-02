@@ -205,7 +205,7 @@ xit('DynamoClient: scan and delete', async function() {
 
 })
 
-xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -219,6 +219,7 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     // Read one key (from cache)
     let read0 = await dbobject.get('key1')
     let passed0 = _.isEqual(basicObj.key1, read0)
+    debugger
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
@@ -249,7 +250,7 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     assert.equal(dbObjectExists, false)
 })
 
-it('DBObject 2: should create and get an object requiring vertical split', async function() {
+xit('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(10000)
 
     // Data

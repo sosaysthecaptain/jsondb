@@ -123,22 +123,22 @@ class DBObject {
             let allKeysFlat = await this.getEntireObject()
             return unflatten(allKeysFlat)
         }
-        // path = u.packKeys(path)
+        path = u.packKeys(path)
         let originalPath = path
         let paths = [path]
         
-
-        // let allChildren = u.getChildren(path, this.index)
-        // let paths = []
-        // allChildren.forEach((path) => {
-        //     paths.push(path)
-        // })
+        let everythingUnderThisPath = u.getChildren(path, this.index)
+        everythingUnderThisPath.forEach((path) => {
+            paths.push(path)
+        })
+        
         let data = await this.batchGet(paths)
+        data = unflatten(data)
         if (originalPath !== '') {
+            path = u.unpackKeys(path)
             data = data[path]
             return data
         } 
-        data = unflatten(data)
 
         return data
     }

@@ -406,7 +406,7 @@ u.getChildren = (attributePath, parentObj) => {
     }
 
     Object.keys(parentObj).forEach((key) => {
-        if (key.includes(attributePath) && (key !== attributePath)) {
+        if (key.startsWith(attributePath) && (key !== attributePath)) {
             if (!parentObj[key][u.GROUP_SIZE_PREFIX]) {
                 childKeys.push(key)
             }
