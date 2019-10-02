@@ -24,7 +24,17 @@ u.PERMISSION_PREFIX = 'P'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
-u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    
+
+u.NODE_TYPE_KEY = 'META_TYPE'
+u.TYPE_LATERAL_SPLIT = 'LAT_SPLIT'
+u.TYPE_COLLECTION = 'COL'
+u.TYPE_FILE_LINK = 'FILE_LINK'
+u.TYPE_FILE_BUFFER = 'FILE_BUF'
+u.TYPE_REFERENCE ='REF'
+
+
+u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    // NEXT UP: kill this, replace with above
+
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 u.CHILDREN_COUNT_PREFIX = 'CHILDREN'
 u.DNE_PREFIX = 'DNE'
@@ -435,7 +445,7 @@ u.getIntermediatePaths = (obj) => {
 
 // Vertical and lateral
 u.getPointers = (index) => {
-    let allPointers = {lateral: {}, vertical: {}}
+    let pointers = {lateral: {}, vertical: {}}
     Object.keys(index).forEach((path) => {
         let node = index[path]
         if (node[u.EXT_PREFIX]) {
@@ -536,6 +546,16 @@ u.sortObj = (obj, fn, reverse) => {
         // sorted[key] = value
     })
     return sorted
+}
+
+u.dedupe = (arr) => {
+    let unique = {}
+    arr.forEach((entry) => {
+        if (!unique[entry]) {
+            unique[entry] = true
+        }
+    })
+    return Object.keys(unique)
 }
 
 

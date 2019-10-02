@@ -95,6 +95,7 @@ class DBObject {
     }
 
     async destroy() {
+        this.invalidateCache()
         let data = await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
@@ -149,6 +150,8 @@ class DBObject {
         }
         let gettableFromHere = []
         let addresses = {}
+
+        debugger
 
         for (let i = 0; i < paths.length; i++) {
             let path = paths[i]
@@ -229,6 +232,21 @@ class DBObject {
         return res
     }
 
+    invalidateCache(path) {
+        if (!path) {
+            this.cache = {}
+            this.cacheIndex = {}
+            this.cacheSize = 0
+            return
+        }
+
+        debugger
+        delete this.cache[path]
+        let size = this.cacheIndex[path].size
+        delete this.cacheIndex[path]
+        this.cacheSize -= size
+    }
+
     // TODO: overall size option
     size(index) {
         index = index || this.index
@@ -288,6 +306,8 @@ class DBObject {
     }
 
     async _getLaterallySplitNode(nodeIDs) {
+        debugger
+
         let keys = []
         nodeIDs.forEach((id) => {
             keys.push(u.keyFromID(id))
@@ -298,6 +318,7 @@ class DBObject {
             keys: keys,
             attributes: [u.LARGE_SERIALIZED_PAYLOAD]
         })
+        pieces.reverse()
         pieces.forEach((piece) => {
             serialized = serialized.concat(piece[u.LARGE_SERIALIZED_PAYLOAD])
         })
@@ -383,18 +404,25 @@ class DBObject {
         if (!all) {
             return
         }
+        let allPointers = this._getPointers()
+        let vertical = Object.values(allPointers.vertical)
+        if (!vertical.length) {return}
+        vertical = u.dedupe(vertical)
+        let keys = []
+        vertical.forEach((id) => {
+            keys.push(u.keyFromID(id))
+        })
         
-        let allPointers = this.getPointers()
-        let lateral = allPointers.lateral
         let indices = await this.dynamoClient.batchGet({
             tableName: this.tableName,
-            keys: lateral,
+            keys: keys,
             attributes: [u.INDEX_PREFIX]
         })
+        
         indices.forEach((index) => {
             index = u.decode(index[u.INDEX_PREFIX])
             let newNodeID = index[u.INDEX_PREFIX].id
-            let dbobj = new DBObject(id, {
+            let dbobj = new DBObject(newNodeID, {
                 dynamoClient: this.dynamoClient,
                 tableName: this.tableName
             })
@@ -646,7 +674,7 @@ class DBObject {
     }
 
     _getPointers() {
-        u.getPointers(this.index)
+        return u.getPointers(this.index)
     }
 
 
