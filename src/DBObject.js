@@ -280,6 +280,9 @@ class DBObject {
 
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
+        
+        console.log(`writing to ${this.id}: ${_.join(Object.keys(attributes))}`)
+        
         u.startTime('write')
         
         // Get new & updated index, if not already supplied. Add in any cached pointers 
@@ -334,7 +337,6 @@ class DBObject {
         // Get local data
         let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_PREFIX)
         let data = await this.batchGet(paths)
-        debugger
         
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
@@ -345,6 +347,9 @@ class DBObject {
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
+        }
+        if (!this.isSubordinate) {
+            debugger
         }
         return u.unpackKeys(data)
     }

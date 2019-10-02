@@ -254,7 +254,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
 
     // Data
     let testObjID = 'dbobject_test_2'
-    let sizePerKey = 100 * 1000
+    let sizePerKey = 200 * 1000
     let testObj = {
         k1: {
             k1s1: getVerifiableString(sizePerKey, 1),
@@ -289,6 +289,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     // Read entire object (from cache)
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(testObj, read1)
+    debugger
     assert.equal(passed1, true)
     
     // Clear the variable in memory, make sure we can still get
