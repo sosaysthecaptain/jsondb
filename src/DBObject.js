@@ -123,20 +123,23 @@ class DBObject {
             let allKeysFlat = await this.getEntireObject()
             return unflatten(allKeysFlat)
         }
-        path = u.packKeys(path)
         let originalPath = path
+        path = u.packKeys(path)
         let paths = [path]
         
+        // Get those children present on this object
         let everythingUnderThisPath = u.getChildren(path, this.index)
         everythingUnderThisPath.forEach((path) => {
             paths.push(path)
         })
         
         let data = await this.batchGet(paths)
+
+        // We pull out what we want from a naturally formatted object
         if (originalPath !== '') {
-            path = u.unpackKeys(path)
             data = unflatten(data)
-            data = data[path]
+            let originalArrPath = u.stringPathToArrPath(originalPath)
+            data = u.getAttribute(data, originalArrPath)
             return data
         } 
         data = unflatten(data)
@@ -156,6 +159,8 @@ class DBObject {
         }
         let pathsRemaining = u.packKeys(paths)
         let pathsFound = []
+
+        if (u.flag) {debugger}
         
         // Get what we can from the cache
         let data = {}
@@ -280,8 +285,6 @@ class DBObject {
     // Writes given attributes to this specific node
     async _write(attributes, doNotOverwrite, newIndex) {
         
-        console.log(`writing to ${this.id}: ${_.join(Object.keys(attributes))}`)
-        
         u.startTime('write')
         
         // Get new & updated index, if not already supplied. Add in any cached pointers 
@@ -340,7 +343,6 @@ class DBObject {
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
 
-        debugger
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
@@ -349,9 +351,7 @@ class DBObject {
                 data[key] = dataFromChild[key]
             })
         }
-        if (!this.isSubordinate) {
-            debugger
-        }
+
         return u.unpackKeys(data)
     }
 

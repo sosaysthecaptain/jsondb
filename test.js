@@ -239,9 +239,6 @@ it('DBObject 1: should create and get a single node object, with and without cac
         tableName: config.tableName
     })
     
-    debugger
-    // THURS AM: GOOD TO HERE
-    
     // Starting fresh, read one key
     let read2 = await dbobject.get('key1')
     let passed2 = _.isEqual(basicObj.key1, read2)
@@ -258,7 +255,7 @@ it('DBObject 1: should create and get a single node object, with and without cac
     assert.equal(dbObjectExists, false)
 })
 
-xit('DBObject 2: should create and get an object requiring vertical split', async function() {
+it('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(10000)
 
     // Data
@@ -291,41 +288,48 @@ xit('DBObject 2: should create and get an object requiring vertical split', asyn
     await dbobject.create(testObj)
     
     // Read one key (from cache)
+    
     let read0 = await dbobject.get('k1.k1s3')
     let passed0 = _.isEqual(testObj.k1.k1s3, read0)
-    debugger
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(testObj, read1)
-    debugger
     assert.equal(passed1, true)
     
-    // Clear the variable in memory, make sure we can still get
-    dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
-        dynamoClient: dynamoClient,
-        tableName: config.tableName
-    })
+    // // Clear the variable in memory, make sure we can still get
+    // dbobject = null
+    // dbobject = new jsondb.DBObject(testObjID, {
+    //     dynamoClient: dynamoClient,
+    //     tableName: config.tableName
+    // })
     
-    // Starting fresh, read one key
-    let read2 = await dbobject.get('k1.k1s3')
-    let passed2 = _.isEqual(testObj.k1.k1s3, read2)
-    assert.equal(passed2, true)
+    // // Starting fresh, read one key
+    // let read2 = await dbobject.get('k1.k1s3')
+    // let passed2 = _.isEqual(testObj.k1.k1s3, read2)
+    // assert.equal(passed2, true)
     
-    // Read entire object
-    let read3 = await dbobject.get()
-    let passed3 = _.isEqual(testObj, read3)
-    assert.equal(passed3, true)
+    // // Read entire object
+    // let read3 = await dbobject.get()
+    // let passed3 = _.isEqual(testObj, read3)
+    // assert.equal(passed3, true)
 
-    debugger
+    // debugger
 
-    // Clean up
-    await dbobject.destroy()
-    let dbObjectExists = await dbobject.destroy()
-    assert.equal(dbObjectExists, false)
+    // // Clean up
+    // await dbobject.destroy()
+    // let dbObjectExists = await dbobject.destroy()
+    // assert.equal(dbObjectExists, false)
 })
+
+
+
+
+
+
+
+
 // xit('DBObject 3: something', async function() {
 //     this.timeout(10000)
     
@@ -400,6 +404,9 @@ let basicObj = {
         subkey3: 'this is key3.subkey3',
     }
 }
+
+
+
 
 let requiresRestructuring = {
     'one.two.three' : 'and four'
