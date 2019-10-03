@@ -133,13 +133,12 @@ class DBObject {
         })
         
         let data = await this.batchGet(paths)
-        data = unflatten(data)
         if (originalPath !== '') {
             path = u.unpackKeys(path)
             data = data[path]
             return data
         } 
-
+        data = unflatten(data)
         return data
     }
     
@@ -343,6 +342,8 @@ class DBObject {
         
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
+
+        debugger
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
@@ -380,9 +381,7 @@ class DBObject {
     // Instantiates all child nodes
     async getChildNodes() {
         await this.ensureIndexLoaded()
-        let pointers = this._getPointers()
-        let ids = Object.values(pointers.vertical)
-        ids = u.dedupe(ids)
+        let ids = u.getVerticalPointers(this.index, true)
         let dbobjects = {}
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {

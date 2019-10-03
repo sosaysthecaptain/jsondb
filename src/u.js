@@ -6,6 +6,7 @@ const flatten = require('flat')
 const unflatten = require('flat').unflatten
 const uuidv4 = require('uuid/v4')
 const base64url = require('base64url')
+const _ = require('lodash')
 
 
 const u = {}
@@ -250,7 +251,6 @@ u.getSize = (obj) => {
     }
 }
 
-// marc-look-here
 u.isNodeTerminal = (path, index) => {
     if (!index[path][u.GROUP_SIZE_PREFIX]) {
     ret
@@ -390,6 +390,27 @@ u.getKeysByOrder = (obj) => {
     return sortedByOrder
 }
 
+u.getMetaIndexPaths = (index) => {
+    let metaPaths = []
+    Object.keys(index).forEach((key) => {
+        if (index[key][u.EXT_PREFIX] && (key !== u.INDEX_PREFIX)) {
+            metaPaths.push(key)
+        }
+    })
+    return metaPaths
+
+}
+
+u.getTerminalIndexPaths = (index) => {
+    let terminalPaths = []
+    Object.keys(index).forEach((key) => {
+        if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_PREFIX)) {
+            terminalPaths.push(key)
+        }
+    })
+    return terminalPaths
+}
+
 u.buildExhaustiveTree = (obj) => {
 
 }
@@ -449,20 +470,26 @@ u.getIntermediatePaths = (obj) => {
     return intermediateKeys
 }
 
-// Vertical and lateral
-u.getPointers = (index) => {
-    let pointers = {lateral: {}, vertical: {}}
-    Object.keys(index).forEach((path) => {
+u.getVerticalPointers = (index, idsOnly) => {
+    let pointers = {}
+    let metaPaths = u.getMetaIndexPaths(index)
+    metaPaths.forEach((path) => {
         let node = index[path]
         if (node[u.EXT_PREFIX]) {
-            pointers.vertical[path] = node[u.EXT_PREFIX]
+            pointers[path] = node[u.EXT_PREFIX]
         }
-
-        if (node[u.LARGE_EXT_PREFIX]) {
-            pointers.vertical[path] = node[u.EXT_PREFIX]
+        if (node[u.EXT_CHILDREN_PREFIX]) {
+            children = node[u.EXT_CHILDREN_PREFIX]
+            pointers = _.assign({}, pointers, children)
         }
     })
-    return pointers
+    if (!idsOnly) {
+        return pointers
+    }
+    let ids = Object.values(pointers)
+    ids = u.dedupe(ids)
+    return ids
+    
 }
 
 u.updateIndex = (index) => {
