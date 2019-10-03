@@ -133,8 +133,10 @@ class DBObject {
         })
         
         let data = await this.batchGet(paths)
+        debugger
         if (originalPath !== '') {
             path = u.unpackKeys(path)
+            data = unflatten(data)
             data = data[path]
             return data
         } 
@@ -172,44 +174,66 @@ class DBObject {
         
         // Load index, see where requested properties live
         await this.ensureIndexLoaded()
+
+        let childNodes = await this.getChildNodes()
+        let pointers = u.getVerticalPointers(this.index)
+
+
         let gettableFromHere = []
         let addresses = {}
-
         for (let i = 0; i < pathsRemaining.length; i++) {
             let path = pathsRemaining[i]
-
-            // Case 1a, 1b: in this object, laterally split or not
             if (this.index[path]) {
-                if (this.index[path][u.LARGE_EXT_PREFIX]) {
-                    let nodeIDs = this.index[path][u.LARGE_EXT_PREFIX]
-                    data[path] = await this._getLaterallySplitNode(nodeIDs)
-                } else {
-                    gettableFromHere.push(path)
-                }
+                gettableFromHere.push(path)
                 pathsFound.push(path)
-            } 
-            
-            // Case 2: in another object
-            else {
-                debugger
-                // marc-resume-here
-                let arrPath = u.stringPathToArrPath(path)
-                let childKey = arrPath.pop()
-                let intermediatePath = u.arrayPathToStringPath(arrPath, true)
-                if (this.index[intermediatePath] && this.index[intermediatePath][u.EXT_PREFIX]) {
-                    
-                    // Pointer should be specifically designated
-                    if (this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]) {
-                        let address = this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]
-                        addresses[address] = addresses[address] || []
-                        addresses[address].push(path)
-                    }
-                }
+            } else {
+                let childNodeID = pointers[path]
+                let childNode = childNodes[childNodeID]
+                data[path] = await childNode.get(path)
+                pathsFound.push(path)
             }
-        }
-        pathsRemaining = _.difference(pathsRemaining, pathsFound)
 
+        }
+
+        // for (let i = 0; i < pathsRemaining.length; i++) {
+
+        // }
+        //     let path = pathsRemaining[i]
+
+        //     // Case 1a, 1b: in this object, laterally split or not
+        //     if (this.index[path]) {
+        //         if (this.index[path][u.LARGE_EXT_PREFIX]) {
+        //             let nodeIDs = this.index[path][u.LARGE_EXT_PREFIX]
+        //             data[path] = await this._getLaterallySplitNode(nodeIDs)
+        //         } else {
+        //             gettableFromHere.push(path)
+        //         }
+        //         pathsFound.push(path)
+        //     } 
+            
+        //     // Case 2: in another object
+        //     else {
+        //         debugger
+        //         // marc-resume-here
+        //         let arrPath = u.stringPathToArrPath(path)
+        //         let childKey = arrPath.pop()
+        //         let intermediatePath = u.arrayPathToStringPath(arrPath, true)
+        //         if (this.index[intermediatePath] && this.index[intermediatePath][u.EXT_PREFIX]) {
+                    
+        //             // Pointer should be specifically designated
+        //             if (this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]) {
+        //                 let address = this.index[intermediatePath][u.EXT_CHILDREN_PREFIX]
+        //                 addresses[address] = addresses[address] || []
+        //                 addresses[address].push(path)
+        //             }
+        //         }
+        //     }
+        // }
+
+
+        
         // Get what properties live here, return them if that's all
+        pathsRemaining = _.difference(pathsRemaining, gettableFromHere)
         if (gettableFromHere.length) {
             let res = await this._read(gettableFromHere)
             Object.keys(res).forEach((key) => {
@@ -333,7 +357,7 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async getEntireObject(secondaryCall) {
+    async getEntireObject() {
         await this.ensureIndexLoaded()
         
         // Get local data
@@ -471,15 +495,8 @@ class DBObject {
         }
 
         // If we want all indexes, get all pointers, instantiate all objects, add their indices
-        let allPointers = this._getPointers()
-        let vertical = Object.values(allPointers.vertical)
-        if (!vertical.length) {return}
-        vertical = u.dedupe(vertical)
-        let keys = []
-        vertical.forEach((id) => {
-            keys.push(u.keyFromID(id))
-        })
-        
+        let allPointers = u.getVerticalPointers(this.index, true)
+        let keys = Object.values(allPointers.vertical)
         let indices = await this.dynamoClient.batchGet({
             tableName: this.tableName,
             keys: keys,

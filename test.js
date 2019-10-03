@@ -27,15 +27,13 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-xit('DynamoClient: update, get, update, delete', async () => {
-    let new_attributes = {
-        'key1.subkey2': 'changed automatically a second time'
-    }
+it('DynamoClient 1: update, get, update, delete', async () => {
+    let key = getTestKey(1)
 
     // Write
     await dynamoClient.update({
         tableName: config.tableName,
-        key: getTestKey(0),
+        key: key,
         attributes: {
             key1: {
                 subkey1: "please don't change me",
@@ -46,32 +44,39 @@ xit('DynamoClient: update, get, update, delete', async () => {
     })
     
     // Read
-    let read1 = await dynamoClient.get({
+    let read0 = await dynamoClient.get({
         tableName: config.tableName,
-        key: getTestKey(0)
+        key: key
     })
-    assert.equal(read1.key1.subkey1, "please don't change me")
-    assert.equal(read1.key1.subkey2, "but do change me")
+    assert.equal(read0.key1.subkey1, "please don't change me")
+    assert.equal(read0.key1.subkey2, "but do change me")
     
     // Overwrite one subkey
     await dynamoClient.update({
         tableName: config.tableName,
-        key: getTestKey(0),
+        key: key,
         attributes: {
             'key1.subkey2': 'changed!'
         }
     })
     
     // Read again
-    read2 = await dynamoClient.get({
+    read1 = await dynamoClient.get({
         tableName: config.tableName,
-        key: getTestKey(0)
+        key: key
     })
-    assert.equal(read2.key1.subkey1, "please don't change me")
-    assert.equal(read2.key1.subkey2, "changed!")
-})
-xit('DynamoClient: batchGet, getPagewise', async function() {
+    assert.equal(read1.key1.subkey1, "please don't change me")
+    assert.equal(read1.key1.subkey2, "changed!")
 
+    // Clean up
+    await dynamoClient.delete({
+        tableName: config.tableName,
+        key: key
+    })
+})
+it('DynamoClient 2: batchGet, getPagewise', async function() {
+
+    
     await dynamoClient.update({
         tableName: config.tableName,
         key: getTestKey(0),
@@ -86,15 +91,16 @@ xit('DynamoClient: batchGet, getPagewise', async function() {
             'message': 'hardcode2'
         }
     })
-
-    let read1 = await dynamoClient.batchGet({
+    
+    let read0 = await dynamoClient.batchGet({
         tableName: config.tableName,
         keys: [getTestKey(0), getTestKey(1)],
         attributes: ['message']
     })
-    assert.equal(read1[0].message, 'hardcode1')
-    assert.equal(read1[1].message, 'hardcode2')
 
+    let passed0 = JSON.stringify(read0).includes('hardcode1') && JSON.stringify(read0).includes('hardcode1')
+    assert.equal(passed0, true)
+    
     await dynamoClient.update({
         tableName: config.tableName,
         key: getKeyWithTS(),
@@ -165,7 +171,7 @@ xit('DynamoClient: batchGet, getPagewise', async function() {
     assert.equal(read4[0].payload, 'hi!')
 })
 
-xit('DynamoClient: scan and delete', async function() {
+it('DynamoClient 3: scan and delete', async function() {
     this.timeout(10000)
         
 
@@ -205,7 +211,7 @@ xit('DynamoClient: scan and delete', async function() {
 
 })
 
-xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -219,7 +225,6 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     // Read one key (from cache)
     let read0 = await dbobject.get('key1')
     let passed0 = _.isEqual(basicObj.key1, read0)
-    debugger
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
@@ -233,6 +238,9 @@ xit('DBObject 1: should create and get a single node object, with and without ca
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
+    
+    debugger
+    // THURS AM: GOOD TO HERE
     
     // Starting fresh, read one key
     let read2 = await dbobject.get('key1')
@@ -250,7 +258,7 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     assert.equal(dbObjectExists, false)
 })
 
-it('DBObject 2: should create and get an object requiring vertical split', async function() {
+xit('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(10000)
 
     // Data
@@ -318,7 +326,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     let dbObjectExists = await dbobject.destroy()
     assert.equal(dbObjectExists, false)
 })
-// xit('DBObject 2: vertical split', async function() {
+// xit('DBObject 3: something', async function() {
 //     this.timeout(10000)
     
 //     let bigDBObj = new jsondb.DBObject('bigTestObj', {

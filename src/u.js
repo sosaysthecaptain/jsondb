@@ -390,21 +390,32 @@ u.getKeysByOrder = (obj) => {
     return sortedByOrder
 }
 
+u.isMetaPath = (path, index) => {
+    if ((index[path][u.EXT_PREFIX] !== undefined) && (path !== u.INDEX_PREFIX)) {
+        return true
+    }
+}
+
+u.isTerminalPath = (index) => {
+    if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_PREFIX)) {
+        return true
+    }
+}
+
 u.getMetaIndexPaths = (index) => {
     let metaPaths = []
     Object.keys(index).forEach((key) => {
-        if (index[key][u.EXT_PREFIX] && (key !== u.INDEX_PREFIX)) {
+        if (u.isMetaPath(key, index)) {
             metaPaths.push(key)
         }
     })
     return metaPaths
-
 }
 
 u.getTerminalIndexPaths = (index) => {
     let terminalPaths = []
     Object.keys(index).forEach((key) => {
-        if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_PREFIX)) {
+        if (u.isTerminalPath(key, index)) {
             terminalPaths.push(key)
         }
     })
@@ -491,6 +502,10 @@ u.getVerticalPointers = (index, idsOnly) => {
     return ids
     
 }
+
+// u.whereToFindKeys = (index, keys) => {
+//     let pointers = u.getVerticalPointers(index)
+// }
 
 u.updateIndex = (index) => {
 
