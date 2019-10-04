@@ -10,6 +10,7 @@ const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
 const DynamoClient = require('./DynamoClient')
+const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
@@ -227,6 +228,10 @@ class DBObject {
         u.packKeys(attributes)
 
         let newIndex = this._getNewIndex(attributes)
+        let EXPERIMENTALINDEX = new NodeIndex(this.id)
+        EXPERIMENTALINDEX.build(attributes)
+        debugger
+
         this._cacheSet(attributes)
         
         // Handle the split

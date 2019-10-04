@@ -61,6 +61,10 @@ u.getNodeData = (path, index) => {
         type: u.NT_DEFAULT,
         size: indexNode[u.SIZE_PREFIX],
         permission: u.DEFAULT_PERMISSION_LEVEL,                 // TODO
+        content: null,
+        pointer: null,
+        s3Link: null,
+
     }
     
     // Data not stored here
@@ -69,7 +73,10 @@ u.getNodeData = (path, index) => {
     }
     
     // Lateral pointer
-    if (!indexNode[u.NOTE_TYPE_KEY] === u.NT_)
+    if (!indexNode[u.NOTE_TYPE_KEY] === u.NT_META) {
+        data.type = u.NT_META
+        data.size = indexNode[u.GROUP_SIZE_PREFIX]
+    }
     
     // Vertical pointer
 }
