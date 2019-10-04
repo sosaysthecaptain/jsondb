@@ -222,13 +222,11 @@ class DBObject {
             } 
             
             // Pointers to large things
-            else if (this.index[path][u.LARGE_EXT_PREFIX]) {
+            else if (this.index[path] && this.index[path][u.LARGE_EXT_PREFIX]) {
                 let lateralPayloadNodes = await this.index[path][u.LARGE_EXT_PREFIX]
                 data[path] = await this._getLaterallySplitNode(lateralPayloadNodes)
                 pathsFound.push(path)
             }
-            
-            
             
             // If not, does it belong to a child we have record of? 
             // (othwise its a metapath for something we already have)
@@ -241,11 +239,6 @@ class DBObject {
                 }
             }
         }
-
-
-
-        // TODO: lateral reconstruction
-
         
         // Get what properties live here, return them if that's all
         pathsRemaining = _.difference(pathsRemaining, gettableFromHere)

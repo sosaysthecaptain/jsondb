@@ -27,7 +27,7 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-xit('DynamoClient 1: update, get, update, delete', async () => {
+it('DynamoClient 1: update, get, update, delete', async () => {
     let key = getTestKey(1)
 
     // Write
@@ -74,7 +74,7 @@ xit('DynamoClient 1: update, get, update, delete', async () => {
         key: key
     })
 })
-xit('DynamoClient 2: batchGet, getPagewise', async function() {
+it('DynamoClient 2: batchGet, getPagewise', async function() {
 
     
     await dynamoClient.update({
@@ -171,7 +171,7 @@ xit('DynamoClient 2: batchGet, getPagewise', async function() {
     assert.equal(read4[0].payload, 'hi!')
 })
 
-xit('DynamoClient 3: scan and delete', async function() {
+it('DynamoClient 3: scan and delete', async function() {
     this.timeout(10000)
         
 
@@ -211,7 +211,7 @@ xit('DynamoClient 3: scan and delete', async function() {
 
 })
 
-xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -256,8 +256,8 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     assert.equal(dbObjectExists, false)
 })
 
-xit('DBObject 2: should create and get an object requiring vertical split', async function() {
-    this.timeout(20000)
+it('DBObject 2: should create and get an object requiring vertical split', async function() {
+    this.timeout(60000)
 
     // Data
     let testObjID = 'dbobject_test_2'
@@ -325,7 +325,7 @@ xit('DBObject 2: should create and get an object requiring vertical split', asyn
 })
 
 it('DBObject 3: lateral split', async function() {
-    this.timeout(20000)
+    this.timeout(60000)
 
     // Data
     let testObjID = 'dbobject_test_3'
