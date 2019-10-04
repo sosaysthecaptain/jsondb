@@ -27,7 +27,8 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-it('DynamoClient 1: update, get, update, delete', async () => {
+it('DynamoClient 1: update, get, update, delete', async function() {
+    this.timeout(60000)
     let key = getTestKey(1)
 
     // Write
@@ -75,7 +76,7 @@ it('DynamoClient 1: update, get, update, delete', async () => {
     })
 })
 it('DynamoClient 2: batchGet, getPagewise', async function() {
-
+    this.timeout(60000)
     
     await dynamoClient.update({
         tableName: config.tableName,
@@ -172,7 +173,7 @@ it('DynamoClient 2: batchGet, getPagewise', async function() {
 })
 
 it('DynamoClient 3: scan and delete', async function() {
-    this.timeout(10000)
+    this.timeout(60000)
         
 
     await dynamoClient.delete({
@@ -212,6 +213,8 @@ it('DynamoClient 3: scan and delete', async function() {
 })
 
 it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+
+    this.timeout(60000)
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -325,7 +328,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
 })
 
 it('DBObject 3: lateral split', async function() {
-    this.timeout(60000)
+    this.timeout(20000)
 
     // Data
     let testObjID = 'dbobject_test_3'

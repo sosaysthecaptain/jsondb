@@ -3,52 +3,6 @@ Represents a virtual object in memory, as stored in dynamo. Begins as a single n
 as necessary. Each DBObject in reality represents an individual node, except that top level nodes 
 are designated as such upon instantiation, and keep a cache, while child nodes don't.
 
-Structure:
-    dbobject = {
-        data: {}
-        index: {
-            s: 42345
-            key1Name: {
-                s: 425,
-                c: [],
-                p: '5',
-                l: '',
-                subKey1Name: {d: null, s: 235}, // null data just means terminal
-                subKey2Name: {d: null, s: 190}
-            },
-            key2Name: {
-                subKey1Name: {...},
-                subKey2Name: {...}
-            },
-        }
-    }
-
-    // internal_id_of_example_node = {
-    //     d: {
-    //         key_1: {
-    //             d: 'some example data',
-    //             c: null,
-    //         key_2: {
-    //             d: {<multiple keys in here>}
-    //             c: [key_1_direct_child_1_id, key_1_direct_child_2_id]
-    //         },
-    //         key_3: {d: ['these', 'can', 'be', 'arrays', 'too']},
-    //         key_4: {d: {another_key: 'or objects'},
-    //         key_5: {d: 123456789},
-    //         key_6: {d: false}
-    //     },
-    //     l: id_of_lateral_spillover_node,
-    //     c: [id_of_direct_child, another_id_of_direct_child],
-    //     p: permission_level_of_this_node
-    // }
-
-Public methods:
-    - get('path.to.key') - returns data at specified path, omit path to get all, can be array
-    - set({
-        key: value,
-        path.to.deeper.key: anotherValue
-    }) 
-    - sizeOf()
 */
 
 const flatten = require('flat')
