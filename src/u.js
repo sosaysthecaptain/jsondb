@@ -38,7 +38,6 @@ u.TYPE_REFERENCE ='REF'
 u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    // NEXT UP: kill this, replace with above
 
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
-u.DNE_PREFIX = 'DNE'
 u.PATH_SEPARATOR = '__'
 
 u.log = (message, data) => {
@@ -528,16 +527,6 @@ u.updateIndex = (index) => {
             let children = u.getChildren(path, index)
             let nodeSize = u.getSizeOfNodeAtPath(path, index)
             index[path][u.GROUP_SIZE_PREFIX] = nodeSize
-            
-            // If all don't exist, note that
-            let allDNE = true
-            Object.keys(children).forEach((childPath) => {
-                if (!children[childPath][u.DNE_PREFIX]) {
-                    allDNE = false
-                }
-            })
-            
-            index[path][u.DNE_PREFIX] = allDNE
             if (!nodeSize) {
                 delete index[path]
             }

@@ -182,6 +182,7 @@ class DBObject {
         })
         pathsRemaining = _.difference(pathsRemaining, pathsFound)
         if (!pathsRemaining.length) {
+            this._cacheSet(data)
             return u.unpackKeys(data)
         }
         
@@ -226,6 +227,7 @@ class DBObject {
                 data[key] = res[key]
             })
             if (!pathsRemaining.length) {
+                this._cacheSet(data)
                 return u.unpackKeys(data)
             }
         }
@@ -240,6 +242,7 @@ class DBObject {
                 data[key] = dataFromChild[key]
             })
         }
+        this._cacheSet(data)
         return u.unpackKeys(data)
     }
 
@@ -313,9 +316,6 @@ class DBObject {
             console.error(err)
         })
 
-        Object.keys(this.index).forEach((indexKey) => {
-            delete this.index[indexKey][u.DNE_PREFIX]
-        })
         this.indexLoaded = true
 
         u.stopTime('write', {
@@ -430,7 +430,6 @@ class DBObject {
             index[attributePath] = {}
             index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
             index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
-            index[attributePath][u.DNE_PREFIX] = true   // this one doesn't exist yet
         })
 
         // Add intermediate nodes
@@ -544,9 +543,8 @@ class DBObject {
         intermediatePaths.forEach((path) => {
             let order = u.stringPathToArrPath(path).length
             let size = newIndex[path][u.GROUP_SIZE_PREFIX]
-            let dne = newIndex[path][u.DNE_PREFIX]
             candidates[order] = candidates[order] || []
-            candidates[order].push({path, size, order, dne, children: u.getChildren(path, newIndex)})
+            candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
         })
         
         // Look for the largest groups that can be split off intact
@@ -557,7 +555,7 @@ class DBObject {
             if (candidates[depth]) {
                 candidates[depth].sort((a, b) => (a.size < b.size))
                 candidates[depth].forEach((candidate) => {
-                    if ((candidate.size < newNodeSizeLeft) && candidate.DNE) {
+                    if ((candidate.size < newNodeSizeLeft)) {
                         
                         // Migrate each child
                         candidate.children.forEach((childPath) => {
