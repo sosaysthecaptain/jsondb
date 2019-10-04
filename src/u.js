@@ -36,6 +36,7 @@ u.TYPE_REFERENCE ='REF'
 
 
 u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    // NEXT UP: kill this, replace with above
+u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
 
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 u.PATH_SEPARATOR = '__'
@@ -499,7 +500,30 @@ u.getVerticalPointers = (index, idsOnly) => {
     let ids = Object.values(pointers)
     ids = u.dedupe(ids)
     return ids
-    
+}
+
+u.getLateralPointers = (index, idsOnly) => {
+    let paths = Object.keys(index)
+    let pointers = {}
+    let ids = []
+    paths.forEach((path) => {
+        let arrPath = u.stringPathToArrPath(path)
+        let finalKey = arrPath.pop()
+        if (finalKey = u.LARGE_EXT_PREFIX) {
+            if (index[path][u.LARGE_EXT_PREFIX]) {
+                pointerArray = index[path][u.LARGE_EXT_PREFIX]
+                pointers[path] = pointerArray
+                ids = ids.concat(pointerArray)
+
+            }
+        }
+    })
+
+    if (idsOnly) {
+        ids = u.dedupe(ids)
+        return ids
+    }
+    return pointers
 }
 
 // u.whereToFindKeys = (index, keys) => {

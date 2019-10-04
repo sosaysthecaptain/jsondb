@@ -96,6 +96,24 @@ class DBObject {
     }
 
     async destroy() {
+        this.ensureIndexLoaded()
+
+        // Wipe any lateral nodes
+        let lateral = u.getLateralPointers(this.index, true)
+        let keys = []
+        lateral.forEach((id) => {
+            keys.push(u.keyFromID(id))
+        })
+        for (let i = 0; i < keys.length; i++) {
+            let key = keys[i]
+            let data = await this.dynamoClient.delete({
+                tableName: this.tableName,
+                key: key,
+            }).catch((err) => {
+                console.log('failure in DBObject.delete')
+                console.error(err)
+            })
+        }
 
         // Get all children, destroy them
         let childNodes = await this.getChildNodes()
@@ -198,10 +216,19 @@ class DBObject {
             let path = pathsRemaining[i]
             
             // Is the path here?
-            if (this.index[path]) {
+            if (this.index[path] && !this.index[path][u.LARGE_EXT_PREFIX]) {
                 gettableFromHere.push(path)
                 pathsFound.push(path)
             } 
+            
+            // Pointers to large things
+            else if (this.index[path][u.LARGE_EXT_PREFIX]) {
+                let lateralPayloadNodes = await this.index[path][u.LARGE_EXT_PREFIX]
+                data[path] = await this._getLaterallySplitNode(lateralPayloadNodes)
+                pathsFound.push(path)
+            }
+            
+            
             
             // If not, does it belong to a child we have record of? 
             // (othwise its a metapath for something we already have)
@@ -213,8 +240,9 @@ class DBObject {
                     pathsFound.push(path)
                 }
             }
-
         }
+
+
 
         // TODO: lateral reconstruction
 
@@ -362,8 +390,6 @@ class DBObject {
     }
 
     async _getLaterallySplitNode(nodeIDs) {
-        debugger
-
         let keys = []
         nodeIDs.forEach((id) => {
             keys.push(u.keyFromID(id))
@@ -372,12 +398,14 @@ class DBObject {
         let pieces = await this.dynamoClient.batchGet({
             tableName: this.tableName,
             keys: keys,
-            attributes: [u.LARGE_SERIALIZED_PAYLOAD]
+            attributes: [u.LARGE_SERIALIZED_PAYLOAD, u.LARGE_EXT_INDEX]
         })
-        pieces.reverse()
+
+        pieces.sort((a, b) => a[u.LARGE_EXT_INDEX] > b[u.LARGE_EXT_INDEX])
         pieces.forEach((piece) => {
             serialized = serialized.concat(piece[u.LARGE_SERIALIZED_PAYLOAD])
         })
+
         return u.decode(serialized)
     }
 
@@ -519,6 +547,9 @@ class DBObject {
             let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
             let latExIDs = await this._splitLateral(value)
             this._cacheLateralPointerArray(path, latExIDs, newIndex[path][u.SIZE_PREFIX])
+            let attributePairForCache = {}
+            attributePairForCache[path] = value
+            this._cacheSet(attributePairForCache)
             delete newIndex[path]
             delete newAttributes[path]
         }
@@ -620,6 +651,8 @@ class DBObject {
     async _splitLateral(payload) {
         let childIDs = []
         let encoded = u.encode(payload)
+        
+        let index = 0
         while (encoded.length) {
             let encodedAttribute = encoded.slice(0, u.MAX_NODE_SIZE)
             encoded = encoded.slice(u.MAX_NODE_SIZE)
@@ -631,8 +664,11 @@ class DBObject {
 
             let attributes = {}
             attributes[u.LARGE_SERIALIZED_PAYLOAD] = encodedAttribute
+            attributes[u.LARGE_EXT_INDEX] = index
+
             await siblingNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
             childIDs.push(siblingNode.id)
+            index ++
         }
         return childIDs
     }
@@ -694,10 +730,12 @@ class DBObject {
 
         // If path already exists and size not a problem, replace, make space and try again
         Object.keys(attributes).forEach((path) => {
-            let setSuccessfully = setIfFits(path, attributes[path])
-            if (!setSuccessfully) {
-                clearSpace(u.getSize(attributes.path))
-                setIfFits(path, attributes[path])
+            if (path !== u.LARGE_SERIALIZED_PAYLOAD){
+                let setSuccessfully = setIfFits(path, attributes[path])
+                if (!setSuccessfully) {
+                    clearSpace(u.getSize(attributes.path))
+                    setIfFits(path, attributes[path])
+                }
             }
         })
     }

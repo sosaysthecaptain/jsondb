@@ -341,7 +341,6 @@ it('DBObject 3: lateral split', async function() {
     await dbobject.ensureDestroyed()
     await dbobject.create(testObj)
 
-    debugger
     
     // Read key by name from cache
     let read0 = await dbobject.get('giantThing')
@@ -367,6 +366,7 @@ it('DBObject 3: lateral split', async function() {
     let passed2 = _.isEqual(testObj.giantThing, read2)
     assert.equal(passed2, true)
     
+    debugger
 
     // Read entire object
     let read3 = await dbobject.get()
