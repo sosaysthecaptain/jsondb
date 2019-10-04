@@ -67,19 +67,19 @@ u.stopTime = (operation, data) => {
     }
 }
 
-u.getStringOfSize = (size) => {
-    let str = ''
-    let strSize = 0
-    while(strSize < size) {
-        for (let i = 0; i < 100; i++) {
-            str += 'abcdefgh '
-            // str += Math.random() + ' '
-        }
-        strSize = u.getSize(str)
-    }
-    let lastIndex = str.length - (str.length * ((strSize / size) % 1))
-    return str.slice(0, lastIndex)
-}
+// u.getStringOfSize = (size) => {
+//     let str = ''
+//     let strSize = 0
+//     while(strSize < size) {
+//         for (let i = 0; i < 100; i++) {
+//             str += 'abcdefgh '
+//             // str += Math.random() + ' '
+//         }
+//         strSize = u.getSize(str)
+//     }
+//     let lastIndex = str.length - (str.length * ((strSize / size) % 1))
+//     return str.slice(0, lastIndex)
+// }
 
 u.copy = (obj) => {
     return JSON.parse(JSON.stringify(obj))
@@ -158,46 +158,46 @@ u.unpackKeys = (obj) => {
     return obj
 }
 
-u.naturalize = (data) => {
-    u.unpackKeys(data)
-    data = unflatten(data)
-    return data
-}
+// u.naturalize = (data) => {
+//     u.unpackKeys(data)
+//     data = unflatten(data)
+//     return data
+// }
 
 // Where path is array of props
-u.setAttribute = ({obj, path, value}) => {
-    let p = path
-    try {
-        if (p.length === 0) {
-            obj = value
-        } else if (p.length === 1) {
-            obj[p[0]] = value
-        } else if (p.length === 2) {
-            obj[p[0]][p[1]] = value
-        } else if (p.length === 3) {
-            obj[p[0]][p[1]][p[2]] = value
-        } else if (p.length === 4) {
-            obj[p[0]][p[1]][p[2]][p[3]] = value
-        } else if (p.length === 5) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]] = value
-        } else if (p.length === 6) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]] = value
-        } else if (p.length === 7) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]] = value
-        } else if (p.length === 8) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]] = value
-        } else if (p.length === 9) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]] = value
-        } else if (p.length === 10) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]] = value
-        } else if (p.length === 11) {
-            obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]][p[10]] = value
-        }
-    } catch(err) {
-        return false
-    }
-    return value
-}
+// u.setAttribute = ({obj, path, value}) => {
+//     let p = path
+//     try {
+//         if (p.length === 0) {
+//             obj = value
+//         } else if (p.length === 1) {
+//             obj[p[0]] = value
+//         } else if (p.length === 2) {
+//             obj[p[0]][p[1]] = value
+//         } else if (p.length === 3) {
+//             obj[p[0]][p[1]][p[2]] = value
+//         } else if (p.length === 4) {
+//             obj[p[0]][p[1]][p[2]][p[3]] = value
+//         } else if (p.length === 5) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]] = value
+//         } else if (p.length === 6) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]] = value
+//         } else if (p.length === 7) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]] = value
+//         } else if (p.length === 8) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]] = value
+//         } else if (p.length === 9) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]] = value
+//         } else if (p.length === 10) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]] = value
+//         } else if (p.length === 11) {
+//             obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]][p[10]] = value
+//         }
+//     } catch(err) {
+//         return false
+//     }
+//     return value
+// }
 
 u.getAttribute = (obj, p) => {
     try{
@@ -251,80 +251,80 @@ u.getSize = (obj) => {
     }
 }
 
-u.isNodeTerminal = (path, index) => {
-    if (!index[path][u.GROUP_SIZE_PREFIX]) {
-    ret
-    }
-    return (typeof value) !== 'object'
-}
+// u.isNodeTerminal = (path, index) => {
+//     if (!index[path][u.GROUP_SIZE_PREFIX]) {
+//     ret
+//     }
+//     return (typeof value) !== 'object'
+// }
 
 // True in all cases except undefined
-u.pathExists = (path, obj) => {
-    if (!path.length) {
-        return false
-    }
-    let topmost = u.copy(obj)
+// u.pathExists = (path, obj) => {
+//     if (!path.length) {
+//         return false
+//     }
+//     let topmost = u.copy(obj)
         
-    let _path = u.copy(path)
-    for (let i = 0; i < path.length; i++) {
-        let nextKey = _path.shift()
-        if (topmost[nextKey] !== undefined) {
-            topmost = topmost[nextKey]
-        } else {
-            return false
-        }
-    }
-    return true
-}
+//     let _path = u.copy(path)
+//     for (let i = 0; i < path.length; i++) {
+//         let nextKey = _path.shift()
+//         if (topmost[nextKey] !== undefined) {
+//             topmost = topmost[nextKey]
+//         } else {
+//             return false
+//         }
+//     }
+//     return true
+// }
 
 // Iterates through path until we find the first one that exists, then return the one before that
-u.findLowestLevelDNE = (path, obj) => {
-    for (let i = 0; i < path.length; i++) {
-        // let pathToHere = JSON.parse(JSON.stringify(path)).slice(0, i+1)
-        let pathToHere = path.slice(0, i+1)
-        if (!u.pathExists(pathToHere, obj)) {
-            return pathToHere
-        }
-    }
-}
+// u.findLowestLevelDNE = (path, obj) => {
+//     for (let i = 0; i < path.length; i++) {
+//         // let pathToHere = JSON.parse(JSON.stringify(path)).slice(0, i+1)
+//         let pathToHere = path.slice(0, i+1)
+//         if (!u.pathExists(pathToHere, obj)) {
+//             return pathToHere
+//         }
+//     }
+// }
 
-u.listAllSubkeys = (dotSeparatedPath, obj) => {
-    let flattened = flatten(obj)
-    let subkeys = []
-    Object.keys(flattened).forEach((key) => {
-        if (key.includes(dotSeparatedPath)) {
-            subkeys.push(key)
-        }
-    })
-    return subkeys
-}
+// u.listAllSubkeys = (dotSeparatedPath, obj) => {
+//     let flattened = flatten(obj)
+//     let subkeys = []
+//     Object.keys(flattened).forEach((key) => {
+//         if (key.includes(dotSeparatedPath)) {
+//             subkeys.push(key)
+//         }
+//     })
+//     return subkeys
+// }
 
-u.getKeysByDepth = (obj, deepestFirst) => {
-    let flattened = flatten(obj)
-    let sortable = []
-    Object.keys(flattened).forEach((key) => {
-        sortable.push([key, key.split('.').length])
-    })
-    sortable.sort((a, b) => {
-        return (a[1] > b[1])
-    })
-    if (deepestFirst) {
-        sortable.reverse()
-    }
-    let sorted = []
-    sortable.forEach((a) => {
-        if (u.isKeyValid(a[0])) {
-            sorted.push(a[0])
-        }
-    })
-    return sorted
-}
+// u.getKeysByDepth = (obj, deepestFirst) => {
+//     let flattened = flatten(obj)
+//     let sortable = []
+//     Object.keys(flattened).forEach((key) => {
+//         sortable.push([key, key.split('.').length])
+//     })
+//     sortable.sort((a, b) => {
+//         return (a[1] > b[1])
+//     })
+//     if (deepestFirst) {
+//         sortable.reverse()
+//     }
+//     let sorted = []
+//     sortable.forEach((a) => {
+//         if (u.isKeyValid(a[0])) {
+//             sorted.push(a[0])
+//         }
+//     })
+//     return sorted
+// }
 
-u.isKeyValid = (key) => {
-    if (key.length > 1) {
-        return true
-    }
-}
+// u.isKeyValid = (key) => {
+//     if (key.length > 1) {
+//         return true
+//     }
+// }
 
 u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
@@ -339,12 +339,12 @@ u.validateKeys = (attributes) => {
     })
 }
 
-u.stripMeta = (key) => {
-    if (key.slice(-2, -1) === '.') {
-        key = key.slice(0, -2)
-    }
-    return key
-}
+// u.stripMeta = (key) => {
+//     if (key.slice(-2, -1) === '.') {
+//         key = key.slice(0, -2)
+//     }
+//     return key
+// }
 
 u.stringPathToArrPath = (path) => {
     if (typeof path === 'object') {
@@ -370,25 +370,25 @@ u.arrayPathToStringPath = (path, usePathSeparator) => {
     }
 }
 
-u.getPathDepth = (path) => {
-    let arrPath = u.stringPathToArrPath(path)
-    return arrPath.length
-}
+// u.getPathDepth = (path) => {
+//     let arrPath = u.stringPathToArrPath(path)
+//     return arrPath.length
+// }
 
-u.getKeysByOrder = (obj) => {
-    let keys = u.getKeysByDepth(obj, true)
-    let sortedByOrder = {}
-    keys.forEach((path) => {
-        path = u.stripMeta(path)
-        let depth = u.getPathDepth(path)
+// u.getKeysByOrder = (obj) => {
+//     let keys = u.getKeysByDepth(obj, true)
+//     let sortedByOrder = {}
+//     keys.forEach((path) => {
+//         path = u.stripMeta(path)
+//         let depth = u.getPathDepth(path)
 
-        if (!sortedByOrder[depth]) {
-            sortedByOrder[depth] = []
-        }
-        sortedByOrder[depth].push(path)
-    })
-    return sortedByOrder
-}
+//         if (!sortedByOrder[depth]) {
+//             sortedByOrder[depth] = []
+//         }
+//         sortedByOrder[depth].push(path)
+//     })
+//     return sortedByOrder
+// }
 
 u.isMetaPath = (path, index) => {
     if ((index[path][u.EXT_PREFIX] !== undefined) && (path !== u.INDEX_PREFIX)) {
@@ -420,14 +420,6 @@ u.getTerminalIndexPaths = (index) => {
         }
     })
     return terminalPaths
-}
-
-u.buildExhaustiveTree = (obj) => {
-
-}
-
-u.getAncestors = (key, parentObj) => {
-
 }
 
 // Excludes intermediate
@@ -526,10 +518,6 @@ u.getLateralPointers = (index, idsOnly) => {
     return pointers
 }
 
-// u.whereToFindKeys = (index, keys) => {
-//     let pointers = u.getVerticalPointers(index)
-// }
-
 u.updateIndex = (index) => {
 
     // Add any intermediate paths that don't exist yet. For those that do exist, erase their
@@ -589,26 +577,26 @@ u.generateNewID = (withTimestamp) => {
 
 
 // Returns array of keys
-u.sortObj = (obj, fn, reverse) => {
-    let sortable = []
-    Object.keys(obj).forEach((key) => {
-        sortable.push([key, obj[key]])
-    })
-    sortable.sort(fn)
-    if (reverse) {
-        sortable.reverse()
-    }
-    // let sorted = {}
-    let sorted = []
-    sortable.forEach((a) => {
-        let key = a[0]
-        let value = a[1]
-        sorted.push(key)
-        // let value = obj[a[0]]
-        // sorted[key] = value
-    })
-    return sorted
-}
+// u.sortObj = (obj, fn, reverse) => {
+//     let sortable = []
+//     Object.keys(obj).forEach((key) => {
+//         sortable.push([key, obj[key]])
+//     })
+//     sortable.sort(fn)
+//     if (reverse) {
+//         sortable.reverse()
+//     }
+//     // let sorted = {}
+//     let sorted = []
+//     sortable.forEach((a) => {
+//         let key = a[0]
+//         let value = a[1]
+//         sorted.push(key)
+//         // let value = obj[a[0]]
+//         // sorted[key] = value
+//     })
+//     return sorted
+// }
 
 u.dedupe = (arr) => {
     let unique = {}
@@ -619,56 +607,3 @@ u.dedupe = (arr) => {
     })
     return Object.keys(unique)
 }
-
-
-
-// // Recursively walks object, 
-// u.deepTransformKeys = ({obj, shouldTransformKVPair, getNewKey, getNewValue}) => {
-//     getNewKey = getNewKey || ((key) => key)
-//     getNewValue = getNewValue || ((value) => value)
-            
-//     if (obj && typeof obj === 'object') {
-//         let allKeys = Object.keys(obj)
-//         for(let i = 0; i < allKeys.length; i++) {
-//             let parent = obj
-//             let key = allKeys[i]
-//             let value = obj[key]
-//             let newKey, newValue
-
-//             // If not a single-letter key, this is data that needs to go in d, with attendent other metadata
-//             if (key.length > 1) {
-//                 obj['d'] = value
-//                 delete obj[key]
-
-//             } 
-            
-//             // If this a single-letter key, it's metadata, and we don't touch it. 
-//             else {
-//                 newKey = key
-//                 newValue = value
-//                 u.deepTransformKeys({obj: obj[newKey], shouldTransformKVPair, getNewKey, getNewValue})
-//             }
-
-//             // If the property we just changed was an object, apply this function recursively to it
-//             if (typeof obj[newKey] === 'object') {
-//                 u.deepTransformKeys({obj: obj[newKey], shouldTransformKVPair, getNewKey, getNewValue})
-//             }
-
-
-//             // If appropriate, replace obj[key] with new key-value pair
-//             if (shouldTransformKVPair(key, value, parent)) {
-//                 let newKey = getNewKey(key)
-//                 let newValue = getNewValue(value)
-//                 obj[newKey] = newValue
-//                 delete obj[key]
-//             }
-
-//             // If the property we just changed was an object, apply this function recursively to it
-//             if (typeof obj[newKey] === 'object') {
-//                 u.deepTransformKeys({obj: obj[newKey], shouldTransformKVPair, getNewKey, getNewValue})
-//             }
-//         }
-//     }
-//     return obj
-// }
-
