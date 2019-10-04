@@ -509,7 +509,8 @@ u.getVerticalPointers = (index, idsOnly) => {
 
 u.updateIndex = (index) => {
 
-    // Add any intermediate paths that don't exist yet
+    // Add any intermediate paths that don't exist yet. For those that do exist, erase their
+    // size, as we'll recalculate it
     let intermediatePaths = u.getIntermediatePaths(index)
     intermediatePaths.forEach((path) => {
         if (!index[path]) {
@@ -549,20 +550,21 @@ u.updateIndex = (index) => {
     }
 }
 
+// 3 OCT: TAKING THE SIZE HIT FOR NOW, DOES NOT PLAY WELL WITH CHILDREN
 // Removes intermediate data except for links
-u.cleanIndex = (index) => {
-    let intermediatePaths = u.getIntermediatePaths(index)
-    intermediatePaths.forEach((path) => {
-        if (index[path]) {
-            let ext = index[path][u.EXT_PREFIX]
-            delete index[path]
-            if (ext) {
-                index[path] = {}
-                index[path][u.EXT_PREFIX] = ext
-            }
-        }
-    })
-}
+// u.cleanIndex = (index) => {
+//     let intermediatePaths = u.getIntermediatePaths(index)
+//     intermediatePaths.forEach((path) => {
+//         if (index[path]) {
+//             let ext = index[path][u.EXT_PREFIX]
+//             delete index[path]
+//             if (ext) {
+//                 index[path] = {}
+//                 index[path][u.EXT_PREFIX] = ext
+//             }
+//         }
+//     })
+// }
 
 u.generateNewID = (withTimestamp) => {
     let id = u.uuid()

@@ -27,7 +27,7 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-it('DynamoClient 1: update, get, update, delete', async () => {
+xit('DynamoClient 1: update, get, update, delete', async () => {
     let key = getTestKey(1)
 
     // Write
@@ -74,7 +74,7 @@ it('DynamoClient 1: update, get, update, delete', async () => {
         key: key
     })
 })
-it('DynamoClient 2: batchGet, getPagewise', async function() {
+xit('DynamoClient 2: batchGet, getPagewise', async function() {
 
     
     await dynamoClient.update({
@@ -171,7 +171,7 @@ it('DynamoClient 2: batchGet, getPagewise', async function() {
     assert.equal(read4[0].payload, 'hi!')
 })
 
-it('DynamoClient 3: scan and delete', async function() {
+xit('DynamoClient 3: scan and delete', async function() {
     this.timeout(10000)
         
 
@@ -211,7 +211,7 @@ it('DynamoClient 3: scan and delete', async function() {
 
 })
 
-it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -279,7 +279,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
         }
     }
     
-    // Create fresh object
+    // Write a large object
     let dbobject = new jsondb.DBObject(testObjID, {
         dynamoClient: dynamoClient,
         tableName: config.tableName
@@ -287,40 +287,51 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     await dbobject.ensureDestroyed()
     await dbobject.create(testObj)
     
-    // Read one key (from cache)
-    
+    // Read one key of it from cache
     let read0 = await dbobject.get('k1.k1s3')
     let passed0 = _.isEqual(testObj.k1.k1s3, read0)
     assert.equal(passed0, true)
     
-    // Read entire object (from cache)
+    // Read all of it from cache
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(testObj, read1)
     assert.equal(passed1, true)
     
-    // // Clear the variable in memory, make sure we can still get
-    // dbobject = null
-    // dbobject = new jsondb.DBObject(testObjID, {
-    //     dynamoClient: dynamoClient,
-    //     tableName: config.tableName
-    // })
     
-    // // Starting fresh, read one key
-    // let read2 = await dbobject.get('k1.k1s3')
-    // let passed2 = _.isEqual(testObj.k1.k1s3, read2)
-    // assert.equal(passed2, true)
+    // Clear the variable in memory, make sure we can still get
+    dbobject = null
+    dbobject = new jsondb.DBObject(testObjID, {
+        dynamoClient: dynamoClient,
+        tableName: config.tableName
+    })
     
-    // // Read entire object
-    // let read3 = await dbobject.get()
-    // let passed3 = _.isEqual(testObj, read3)
-    // assert.equal(passed3, true)
+    
+    // Starting fresh, read one key
+    let read2 = await dbobject.get('k1.k1s3')
+    let passed2 = _.isEqual(testObj.k1.k1s3, read2)
+    assert.equal(passed2, true)
+    
+    
+    // part 1 complete
+    
+    debugger
+    u.flag = true
+    // Read entire object
+    let read3 = await dbobject.get()
+    let passed3 = _.isEqual(testObj, read3)
+    debugger
+    assert.equal(passed3, true)
+    
+    // part 2 complete
+    
+    // Clean up
+    await dbobject.destroy()
+    let dbObjectExists = await dbobject.destroy()
+    debugger
+    assert.equal(dbObjectExists, false)
+    
+    // part 3 complete
 
-    // debugger
-
-    // // Clean up
-    // await dbobject.destroy()
-    // let dbObjectExists = await dbobject.destroy()
-    // assert.equal(dbObjectExists, false)
 })
 
 

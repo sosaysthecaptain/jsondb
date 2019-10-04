@@ -96,18 +96,29 @@ class DBObject {
     }
 
     async destroy() {
+
+        // Get all children, destroy them
+        let childNodes = await this.getChildNodes()
+        let childIDs = Object.keys(childNodes)
+        for (let i = 0; i < childIDs.length; i++) {
+            let childID = childIDs[i]
+            let childNode = childNodes[childID]
+            await childNode.destroy()
+        }
+        
+        // Then destroy this node
         this.invalidateCache()
         let data = await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {
-            debugger
             console.log('failure in DBObject.delete')
             console.error(err)
         })
         return _.has(data, 'Attributes')
     }
 
+    // Destroys if not destroyed, returns true to confirm object doesn't exist in db
     async ensureDestroyed() {
         let exists = await this.destroy()
         if (!exists) {
@@ -160,7 +171,7 @@ class DBObject {
         let pathsRemaining = u.packKeys(paths)
         let pathsFound = []
 
-        if (u.flag) {debugger}
+        if (u.flag && !this.isSubordinate) {debugger}
         
         // Get what we can from the cache
         let data = {}
@@ -178,10 +189,11 @@ class DBObject {
         
         // Load index, see where requested properties live
         await this.ensureIndexLoaded()
-
+        
         let childNodes = await this.getChildNodes()
         let pointers = u.getVerticalPointers(this.index)
-
+        
+        if (u.flag && !this.isSubordinate) {debugger}
 
         let gettableFromHere = []
         let addresses = {}
@@ -194,6 +206,9 @@ class DBObject {
                 pathsFound.push(path)
             } 
             
+            // MARC RESUME HERE, THURS PM
+            // problem is that pointers has k1s3, but path is k3__k1s3
+
             // If not, does it belong to a child we have record of? 
             // (othwise its a metapath for something we already have)
             else {
@@ -228,6 +243,10 @@ class DBObject {
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
             let dataFromChild = await children[childID].batchGet(addresses[childID])
+            
+            console.log(`getting from ${childID}`)
+            console.log(Object.keys(dataFromChild))
+            
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
@@ -291,9 +310,17 @@ class DBObject {
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
         this._setCachedPointers()
-        let indexCopy = u.copy(this.index)
-        u.cleanIndex(indexCopy)
-        attributes[u.INDEX_PREFIX] = u.encode(indexCopy)
+        // let indexCopy = u.copy(this.index)
+
+        // if (!this.isSubordinate) {
+        //     debugger
+        //     console.log('writing index: ')
+        //     console.log(indexCopy)
+        // }
+        // u.cleanIndex(indexCopy)
+
+
+        attributes[u.INDEX_PREFIX] = u.encode(this.index)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -302,7 +329,6 @@ class DBObject {
             attributes: attributes,
             doNotOverwrite: doNotOverwrite
         }).catch((err) => {
-            debugger
             console.log('failure in DBObject._write')
             console.error(err)
         })
@@ -325,7 +351,6 @@ class DBObject {
             key: this.key,
             attributes: attributes
         }).catch((err) => {
-            debugger
             console.log('failure in DBObject._read')
             console.error(err)
         })
@@ -334,6 +359,9 @@ class DBObject {
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
     async getEntireObject() {
+
+        // if(u.flag) {debugger}
+
         await this.ensureIndexLoaded()
         
         // Get local data
@@ -459,7 +487,9 @@ class DBObject {
             key: this.key,
             attributes: [u.INDEX_PREFIX]
         })
-
+        if (!index) {
+            return
+        }
         this.index = u.decode(index[u.INDEX_PREFIX])
         this.indexLoaded = true
         
@@ -722,7 +752,8 @@ class DBObject {
 
             // Note specifically which children
             this.index[basePath][u.EXT_CHILDREN_PREFIX] = this.index[basePath][u.EXT_CHILDREN_PREFIX] || {}
-            this.index[basePath][u.EXT_CHILDREN_PREFIX][childKey] = pointer
+            // this.index[basePath][u.EXT_CHILDREN_PREFIX][childKey] = pointer
+            this.index[basePath][u.EXT_CHILDREN_PREFIX][path] = pointer
         })
         Object.keys(this.cachedPointers.lateral).forEach((path) => {
             let pointerObject = this.cachedPointers.lateral[path]

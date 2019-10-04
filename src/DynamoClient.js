@@ -34,7 +34,10 @@ class DynamoClient {
             console.log('failure in DynamoClient.get')
             throw(err)
         })
-        return data.Item
+        if (data.Item) {
+            return data.Item
+        }
+        return undefined
     }
 
     // Gets a list by array of keys
