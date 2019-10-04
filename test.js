@@ -27,7 +27,7 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-xit('DynamoClient 1: update, get, update, delete', async () => {
+it('DynamoClient 1: update, get, update, delete', async () => {
     let key = getTestKey(1)
 
     // Write
@@ -74,7 +74,7 @@ xit('DynamoClient 1: update, get, update, delete', async () => {
         key: key
     })
 })
-xit('DynamoClient 2: batchGet, getPagewise', async function() {
+it('DynamoClient 2: batchGet, getPagewise', async function() {
 
     
     await dynamoClient.update({
@@ -171,7 +171,7 @@ xit('DynamoClient 2: batchGet, getPagewise', async function() {
     assert.equal(read4[0].payload, 'hi!')
 })
 
-xit('DynamoClient 3: scan and delete', async function() {
+it('DynamoClient 3: scan and delete', async function() {
     this.timeout(10000)
         
 
@@ -211,7 +211,7 @@ xit('DynamoClient 3: scan and delete', async function() {
 
 })
 
-xit('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
+it('DBObject 1: should create and get a single node object, with and without cache and index', async function() {
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
@@ -311,27 +311,16 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     let passed2 = _.isEqual(testObj.k1.k1s3, read2)
     assert.equal(passed2, true)
     
-    
-    // part 1 complete
-    
-    debugger
-    u.flag = true
+
     // Read entire object
     let read3 = await dbobject.get()
     let passed3 = _.isEqual(testObj, read3)
-    debugger
     assert.equal(passed3, true)
-    
-    // part 2 complete
     
     // Clean up
     await dbobject.destroy()
     let dbObjectExists = await dbobject.destroy()
-    debugger
     assert.equal(dbObjectExists, false)
-    
-    // part 3 complete
-
 })
 
 

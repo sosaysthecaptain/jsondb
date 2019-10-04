@@ -170,8 +170,6 @@ class DBObject {
         }
         let pathsRemaining = u.packKeys(paths)
         let pathsFound = []
-
-        if (u.flag && !this.isSubordinate) {debugger}
         
         // Get what we can from the cache
         let data = {}
@@ -192,8 +190,6 @@ class DBObject {
         
         let childNodes = await this.getChildNodes()
         let pointers = u.getVerticalPointers(this.index)
-        
-        if (u.flag && !this.isSubordinate) {debugger}
 
         let gettableFromHere = []
         let addresses = {}
@@ -206,9 +202,6 @@ class DBObject {
                 pathsFound.push(path)
             } 
             
-            // MARC RESUME HERE, THURS PM
-            // problem is that pointers has k1s3, but path is k3__k1s3
-
             // If not, does it belong to a child we have record of? 
             // (othwise its a metapath for something we already have)
             else {
@@ -243,10 +236,6 @@ class DBObject {
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
             let dataFromChild = await children[childID].batchGet(addresses[childID])
-            
-            console.log(`getting from ${childID}`)
-            console.log(Object.keys(dataFromChild))
-            
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
@@ -310,15 +299,6 @@ class DBObject {
         newIndex = newIndex || this._getNewIndex(attributes)
         this.index = newIndex
         this._setCachedPointers()
-        // let indexCopy = u.copy(this.index)
-
-        // if (!this.isSubordinate) {
-        //     debugger
-        //     console.log('writing index: ')
-        //     console.log(indexCopy)
-        // }
-        // u.cleanIndex(indexCopy)
-
 
         attributes[u.INDEX_PREFIX] = u.encode(this.index)
         
@@ -359,8 +339,6 @@ class DBObject {
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
     async getEntireObject() {
-
-        // if(u.flag) {debugger}
 
         await this.ensureIndexLoaded()
         
