@@ -28,7 +28,7 @@ class DBObject {
         this.isSubordinate = false
         
         // Places to put things
-        this.index = {}
+        this.index = new NodeIndex(this.id)
         this.cache = {}
         this.cacheIndex = {}
         this.cacheSize = 0
@@ -227,16 +227,14 @@ class DBObject {
         attributes = flatten(attributes)
         u.packKeys(attributes)
 
-        let newIndex = this._getNewIndex(attributes)
-        let EXPERIMENTALINDEX = new NodeIndex(this.id)
-        EXPERIMENTALINDEX.build(attributes)
-        debugger
-
+        this.index.build(attributes)
+        
         this._cacheSet(attributes)
         
-        // Handle the split
-        if (newIndex[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
-            return await this._handleSplit(attributes, newIndex)
+        // If oversize, split, otherwise write
+        if (this.index.isOversize()) {
+            debugger
+            return await this._handleSplit(attributes)
         } else {
             return await this._write(attributes, doNotOverwrite)
         }
@@ -264,26 +262,23 @@ class DBObject {
         this.cacheSize -= size
     }
 
-    // TODO: overall size option
-    size(index) {
-        index = index || this.index
-        return this.index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX]
+    size() {
+        if (this.index.size) {
+            return this.index.size()
+        }
+        return 0
     }
 
 
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node
-    async _write(attributes, doNotOverwrite, newIndex) {
+    async _write(attributes, doNotOverwrite) {
         
         u.startTime('write')
-        
-        // Get new & updated index, if not already supplied. Add in any cached pointers 
-        newIndex = newIndex || this._getNewIndex(attributes)
-        this.index = newIndex
-        this._setCachedPointers()
 
-        attributes[u.INDEX_PREFIX] = u.encode(this.index)
+        let writableIndexObject = this.index.write()
+        attributes[u.INDEX_PREFIX] = u.encode(writableIndexObject)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -386,47 +381,6 @@ class DBObject {
         return flat
     }
 
- 
-    // Gets hypothetical index, without setting it
-    _getNewIndex(attributes) {
-        attributes = attributes || {}
-        let originalIndex = u.copy(this.index)
-        let index = u.copy(this.index)
-        
-        let changedKeys = Object.keys(attributes)
-        let keysToDelete = []
-
-        // If new attributes have displaced existing attributes, we first remove those from the index
-        changedKeys.forEach((attributePath) => {  
-            let children = u.getChildren(attributePath, originalIndex)
-            children.forEach((childPath) => {
-                delete index[childPath]
-                keysToDelete.push(childPath)
-            })
-        })
-
-        // Add new keys to index, write new
-        changedKeys.forEach((attributePath) => {
-            index[attributePath] = {}
-            index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
-            index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
-        })
-
-        // Add intermediate nodes
-        u.updateIndex(index)
-
-        // Add the new index, with its updated size, to the data to be written
-        let objectSize = u.getSizeOfNodeAtPath('', index)
-        let indexSize = u.getSize(index)
-
-        index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX][u.LARGE_EXT_PREFIX] = null
-        index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = objectSize + indexSize
-        index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
-        
-        return index
-    }
-
     async ensureIndexLoaded(all) {
         try {
             if (!this.indexLoaded) {
@@ -475,6 +429,8 @@ class DBObject {
     }
 
     _getHypotheticalSize(attributes) {
+
+        // marc-look-here
         let hypotheticalIndex = this._getNewIndex(attributes)
         let currentIndexSize = u.getSize(this.index)
         let newIndexSize = u.getSize(hypotheticalIndex)

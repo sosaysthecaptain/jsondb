@@ -29,7 +29,7 @@ class NodeIndex {
     constructor(id, index) {
         this.id = id
         this.i = index || {}
-        this.meta = {}
+        this.loaded = false
     }
 
     // getBlankIndexObj() {
@@ -68,8 +68,8 @@ class NodeIndex {
                 
         // Add intermediate nodes, including the top level
         this.updateMetaPaths()
+        this.loaded = true
 
-        
         return this.i
     }
 
@@ -150,10 +150,14 @@ class NodeIndex {
         let writtenIndex = {}
         Object.keys(this.i).forEach((path) => {
             let nodeObject = this.i[path]
-            writtenIndex[path] = nodeObject.write(complete)
+            let nodeData = nodeObject.write(complete)
+            if (nodeData) {writtenIndex[path] = nodeData}
         })
         return writtenIndex
     }
+
+    isOversize() {return this.i[INDEX_KEY].size() > u.HARD_LIMIT_NODE_SIZE}
+    isLoaded() {return this.loaded}
 
 }
 
@@ -214,7 +218,15 @@ class IndexEntry {
             if (this.isDefault()) {
                 ret[TYPE_KEY] = NT_DEFAULT
             }
+        } else {
+            // If this node has nothing more interesting to say about itself than that it's a meta node,
+            // it doesn't get to go to dynamo
+            if (this.isMeta() && (Object.keys(ret).length === 1)) {return}
         }
+
+
+
+
         return ret
     }
 
