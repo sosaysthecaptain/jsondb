@@ -60,7 +60,7 @@ class DBObject {
         })
         for (let i = 0; i < keys.length; i++) {
             let key = keys[i]
-            let data = await this.dynamoClient.delete({
+            await this.dynamoClient.delete({
                 tableName: this.tableName,
                 key: key,
             }).catch((err) => {
@@ -80,14 +80,14 @@ class DBObject {
         
         // Then destroy this node
         this.invalidateCache()
-        let data = await this.dynamoClient.delete({
+        let deleted = await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {
             console.log('failure in DBObject.delete')
             console.error(err)
         })
-        return _.has(data, 'Attributes')
+        return _.has(deleted, 'Attributes')
     }
 
     // Destroys if not destroyed, returns true to confirm object doesn't exist in db
@@ -101,30 +101,24 @@ class DBObject {
     }
 
     async get(path) {
-
         await this.ensureIndexLoaded()
-        debugger
+
+        // No path == entire object, gotten by a different methodology
         if (!path) {
             let allKeysFlat = await this.getEntireObject()
             return unflatten(allKeysFlat)
         }
-        let originalPath = path
-        path = u.packKeys(path)
-        let paths = [path]
         
-        // Get those children present on this object
-        let everythingUnderThisPath = u.getChildren(path, this.index)
-        everythingUnderThisPath.forEach((path) => {
-            paths.push(path)
-        })
-        
-        let data = await this.batchGet(paths)
+        try {
+            let data = await this.batchGet(path)
+
+        } catch (err) {debugger}
 
         // We pull out what we want from a naturally formatted object
-        if (originalPath !== '') {
+        if (path !== '') {
             data = unflatten(data)
-            let originalArrPath = u.stringPathToArrPath(originalPath)
-            data = u.getAttribute(data, originalArrPath)
+            let arrPath = u.stringPathToArrPath(path)
+            data = u.getAttribute(data, arrPath)
             return data
         } 
         data = unflatten(data)
@@ -139,88 +133,150 @@ class DBObject {
             paths.filter((a) => a !== u.INDEX_KEY)
         }
 
+        // Organization of information
         if (typeof paths === 'string') {
             paths = [paths]
         }
-        let pathsRemaining = u.packKeys(paths)
-        let pathsFound = []
-        
-        // Get what we can from the cache
-        let data = {}
-        pathsRemaining.forEach((path) => {
-            let fromCache = this._cacheGet(path)
-            if (fromCache) {
-                data[path] = fromCache
-                pathsFound.push(path)
+        paths = u.packKeys(paths)
+        let pathObj = {}
+        paths.forEach((path) => {
+            pathObj[path] = null
+        })
+        paths = pathObj
+
+        // Get all children under this path
+        Object.keys(pathObj).forEach((path) => {
+
+            debugger
+            let children = this.index.getChildren(path)
+            children.forEach((path) => {
+                pathLocations[path] = null
+            })
+        })
+
+        // Find out on which node of the object (here, direct child, or indirect child) each path is located. 
+        let pathsByChild = {}
+        let specialCases = []
+        Object.keys(pathObj).forEach.forEach((path) => {
+            let childID = this.index.getIDForPath(path)
+            if (childID) {
+                if (!pathsByChild[childID]) {pathsByChild[childID] = []}
+                pathsByChild[childID].push(path)
+            } else {
+                specialCases.push(paths)
             }
         })
-        pathsRemaining = _.difference(pathsRemaining, pathsFound)
-        if (!pathsRemaining.length) {
-            this._cacheSet(data)
-            return u.unpackKeys(data)
-        }
-        
-        // Load index, see where requested properties live
-        await this.ensureIndexLoaded()
-        
-        let childNodes = await this.getChildNodes()
-        let pointers = u.getVerticalPointers(this.index)
 
-        let gettableFromHere = []
-        let addresses = {}
-        for (let i = 0; i < pathsRemaining.length; i++) {
-            let path = pathsRemaining[i]
-            
-            // Is the path here?
-            if (this.index[path] && !this.index[path][u.LARGE_EXT_PREFIX]) {
-                gettableFromHere.push(path)
-                pathsFound.push(path)
-            } 
-            
-            // Pointers to large things
-            else if (this.index[path] && this.index[path][u.LARGE_EXT_PREFIX]) {
-                let lateralPayloadNodes = await this.index[path][u.LARGE_EXT_PREFIX]
-                data[path] = await this._getLaterallySplitNode(lateralPayloadNodes)
-                pathsFound.push(path)
-            }
-            
-            // If not, does it belong to a child we have record of? 
-            // (othwise its a metapath for something we already have)
-            else {
-                let childNodeID = pointers[path]
-                if (childNodeID) {
-                    let childNode = childNodes[childNodeID]
-                    data[path] = await childNode.get(path)
-                    pathsFound.push(path)
-                }
-            }
-        }
-        
-        // Get what properties live here, return them if that's all
-        pathsRemaining = _.difference(pathsRemaining, gettableFromHere)
-        if (gettableFromHere.length) {
-            let res = await this._read(gettableFromHere)
-            Object.keys(res).forEach((key) => {
-                data[key] = res[key]
-            })
-            if (!pathsRemaining.length) {
-                this._cacheSet(data)
-                return u.unpackKeys(data)
-            }
-        }
+        // Get locally available paths
+        let localPaths = pathsByChild[this.id]
+        delete pathsByChild[this.id]
+        let data = await this._read(localPaths)
+        debugger
 
-        // Otherwise, get from child nodes
-        let children = await this.getChildNodes()
-        let childKeys = Object.keys(children)
-        for (let i = 0; i < childKeys.length; i++) {
-            let childID = childKeys[i]
-            let dataFromChild = await children[childID].batchGet(addresses[childID])
-            Object.keys(dataFromChild).forEach((key) => {
-                data[key] = dataFromChild[key]
-            })
-        }
+        // If we have outstanding paths to find, instantiate children and use their batchGet
+        let childDBObjectNodes = await this.getChildNodes()
+        Object.keys(childDBObjectNodes).forEach((childNode) => {
+            if (!pathsByChild[childNode.id]) {return}
+            let pathsOnChild = pathsByChild[childNode.id]
+            let dataFromChild = childNode.batchGet(pathsOnChild)
+            data = _.assign({}, data, dataFromChild)
+            delete pathsByChild[childNode.id]
+        })
+
+
+        // TODO: lateral
+
+        // Cache and return
         this._cacheSet(data)
         return u.unpackKeys(data)
+
+
+
+
+
+
+
+
+
+        // let pathsRemaining = u.packKeys(paths)
+        // let pathsFound = []
+        
+        // // Get what we can from the cache
+        // let data = {}
+        // pathsRemaining.forEach((path) => {
+        //     let fromCache = this._cacheGet(path)
+        //     if (fromCache) {
+        //         data[path] = fromCache
+        //         pathsFound.push(path)
+        //     }
+        // })
+        // pathsRemaining = _.difference(pathsRemaining, pathsFound)
+        // if (!pathsRemaining.length) {
+        //     this._cacheSet(data)
+        //     return u.unpackKeys(data)
+        // }
+        
+        // // Load index, see where requested properties live
+        // await this.ensureIndexLoaded()
+        
+        // let childNodes = await this.getChildNodes()
+        // let pointers = u.getVerticalPointers(this.index)
+
+        // let gettableFromHere = []
+        // let addresses = {}
+        // for (let i = 0; i < pathsRemaining.length; i++) {
+        //     let path = pathsRemaining[i]
+            
+        //     // Is the path here?
+        //     if (this.index[path] && !this.index[path][u.LARGE_EXT_PREFIX]) {
+        //         gettableFromHere.push(path)
+        //         pathsFound.push(path)
+        //     } 
+            
+        //     // Pointers to large things
+        //     else if (this.index[path] && this.index[path][u.LARGE_EXT_PREFIX]) {
+        //         let lateralPayloadNodes = await this.index[path][u.LARGE_EXT_PREFIX]
+        //         data[path] = await this._getLaterallySplitNode(lateralPayloadNodes)
+        //         pathsFound.push(path)
+        //     }
+            
+        //     // If not, does it belong to a child we have record of? 
+        //     // (othwise its a metapath for something we already have)
+        //     else {
+        //         let childNodeID = pointers[path]
+        //         if (childNodeID) {
+        //             let childNode = childNodes[childNodeID]
+        //             data[path] = await childNode.get(path)
+        //             pathsFound.push(path)
+        //         }
+        //     }
+        // }
+        
+        // // Get what properties live here, return them if that's all
+        // pathsRemaining = _.difference(pathsRemaining, gettableFromHere)
+        // if (gettableFromHere.length) {
+        //     let res = await this._read(gettableFromHere)
+        //     Object.keys(res).forEach((key) => {
+        //         data[key] = res[key]
+        //     })
+        //     if (!pathsRemaining.length) {
+        //         this._cacheSet(data)
+        //         return u.unpackKeys(data)
+        //     }
+        // }
+
+        // // Otherwise, get from child nodes
+        // let children = await this.getChildNodes()
+        // let childKeys = Object.keys(children)
+        // for (let i = 0; i < childKeys.length; i++) {
+        //     let childID = childKeys[i]
+        //     let dataFromChild = await children[childID].batchGet(addresses[childID])
+        //     Object.keys(dataFromChild).forEach((key) => {
+        //         data[key] = dataFromChild[key]
+        //     })
+        // }
+        // this._cacheSet(data)
+        // return u.unpackKeys(data)
     }
 
     async set(attributes, doNotOverwrite) {        

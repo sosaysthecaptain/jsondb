@@ -96,6 +96,7 @@ class NodeIndex {
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
+        this.i[u.INDEX_KEY].type = NT_META
         this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
         this.i[u.INDEX_KEY].isLateralExtension = false            // fix this too
@@ -110,23 +111,108 @@ class NodeIndex {
         this.loaded = true
     }
 
+    /* Given a path, return:
+        a) this.id, if it's locally available
+        b) direct child ID, if we have positive record of it belonging to a child node
+        c) spillover node ID, if present
+    */
+    getIDForPath(path) {
+        debugger
+        let indexNode = this.i[path]
+        if (indexNode) {
+
+            // If local, return this DBObjectNode's id
+            if (indexNode.isDefault()) {return this.id}
+            
+            // If it's a direct child, return child DBObjectNode's id
+            else if (indexNode.isMeta()) {
+                if (indexNode[CHILDREN_KEY] && Object.values(indexNode[CHILDREN_KEY].includes(path))) {
+                    return indexNode[CHILDREN_KEY][path]
+                }
+            }
+
+            // If a spillover node references it, return that node's id
+            let spilloverID = this.getSpilloverNodeID(path)
+            if (spilloverID) {return spilloverID}
+        }
+
+        Object.keys(this.i).forEach((indexKey) => {
+            let indexNode = this.i[indexKey]
+            if (indexNode.isDefault()) {return this.id}
+
+        })
+    }
+
+    // Returns any spillover node ID for a given path
+    getSpilloverNodeID(path) {
+        if (this.i[path] && this.i[path][SPILLOVER_KEY]) {return this.i[path][SPILLOVER_KEY]}
+        else {
+            let arrPath = u.stringPathToArrPath(path)
+            arrPath.pop()
+            if (!arrPath.length) {return}
+            path = u.arrayPathToStringPath(path)
+            return this.getSpilloverNodeID(path)
+        }
+    }
+
+
+    // Returns all paths stored on this object node
+    // getAvailablePaths() {
+    //     let availablePaths = []
+    //     Object.keys(this.i).forEach((path) => {
+    //         if (path === INDEX_KEY) {return}
+    //         let indexNode = this.i[path]
+    //         if (indexNode.isDefault()) {availablePaths.push(path)}
+    //     })
+    //     return availablePaths
+    // }
+
+    // If return paths explicitly available on children
+    // getPathsAvailableFromChildren() {
+    //     let pathsToKeys = []
+    //     Object.keys(this.i).forEach((path) => {
+    //         if (path === INDEX_KEY) {return}
+    //         let indexNode = this.i[path]
+    //         if (indexNode.isMeta() && indexNode[CHILDREN_KEY]) {
+    //             let childIDs = indexNode[CHILDREN_KEY]
+    //             pathsToKeys[path] = childIDs
+    //         }
+    //     })
+    //     return availablePaths
+    // }
+
+
+
+
+
+
+
     // Returns IndexEntries
     getChildren(path) {
+        let pathsToSearch = []
+        Object.keys(this.i).forEach((path) => {
+            // if (path === u.INDEX_KEY) {return}
+            if (!this.i[path].isMeta()) {pathsToSearch.push(path)}
+        })
+        debugger
         
         // No path == root
         let childKeys = []
         if (path === '') {
-            return Object.keys(this.i)
+            childKeys = pathsToSearch
         }
 
         // For all paths, find those that begin the same but aren't the same
-        Object.keys(this.i).forEach((key) => {
+        pathsToSearch.forEach((key) => {
             if (key.startsWith(path) && (key !== path)) {
-                if (!this.i[key][u.GROUP_SIZE_KEY]) {
-                    childKeys.push(key)
-                }
+                // let node = this.i[key]
+                // if (!node.isMeta()) {childKeys.push(key)}
+                childKeys.push(key)
             }
         })
+
+
+
         return childKeys
     }
 
