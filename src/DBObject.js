@@ -291,7 +291,6 @@ class DBObject {
         
         // If oversize, split, otherwise write
         if (this.index.isOversize()) {
-            debugger
             return await this._handleSplit(attributes)
         } else {
             return await this._write(attributes, doNotOverwrite)
@@ -532,23 +531,34 @@ class DBObject {
     - one massive incoming blob
     - mismatched things, some bigger 
     */
-   async _handleSplit(newAttributes, newIndex) {
-
+   async _handleSplit(newAttributes) {
+        
     // First, deal with anything that requires lateral splitting
-    let indexKeys = Object.keys(newIndex)
-    for (let i = 0; i < indexKeys.length; i++) {
-        let path = indexKeys[i]
-        if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
-            let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-            let latExIDs = await this._splitLateral(value)
-            this._cacheLateralPointerArray(path, latExIDs, newIndex[path][u.SIZE_PREFIX])
-            let attributePairForCache = {}
-            attributePairForCache[path] = value
-            this._cacheSet(attributePairForCache)
-            delete newIndex[path]
-            delete newAttributes[path]
-        }
+    let keysRequiringLateralSplitting = this.index.getOversizeNodes()
+    for (let i = 0; i < keysRequiringLateralSplitting.length; i++) {
+        let path = keysRequiringLateralSplitting[i]
+        let attributeValue = newAttributes[path]
+        let latExIDs = await this._splitLateral(attributeValue)
+        this.index.setLateralExt(path, latExIDs)
+        debugger
     }
+
+
+    debugger
+    // let indexKeys = Object.keys(newIndex)
+    // for (let i = 0; i < indexKeys.length; i++) {
+    //     let path = indexKeys[i]
+    //     if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
+    //         let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
+    //         let latExIDs = await this._splitLateral(value)
+    //         this._cacheLateralPointerArray(path, latExIDs, newIndex[path][u.SIZE_PREFIX])
+    //         let attributePairForCache = {}
+    //         attributePairForCache[path] = value
+    //         this._cacheSet(attributePairForCache)
+    //         delete newIndex[path]
+    //         delete newAttributes[path]
+    //     }
+    // }
     
     let getAmountOver = () => {
         let overBy = u.getSizeOfNodeAtPath('', newIndex) - u.MAX_NODE_SIZE

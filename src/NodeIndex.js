@@ -7,8 +7,9 @@ const u = require('./u')
 TYPE_KEY = 'TYPE'
 SIZE_KEY = 'SIZE'
 PERMISSION_KEY = 'PERM'
-POINTER_KEY = 'POINTER'
-SPILLOVER_KEY = 'SPILLOVER'           // for meta nodes, next place to go look for further keys
+POINTER_KEY = 'POINTER'                   // single vertical pointer
+LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
+SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
 CHILDREN_KEY = 'CHILDREN'
 S3_REF_KEY = 'S3'
 
@@ -56,14 +57,14 @@ class NodeIndex {
         })
                 
         // Add intermediate nodes, including the top level
-        this.updateMetaPaths()
+        this.this.updateMetaNodes()
         this.loaded = true
 
         return this.i
     }
 
     // Updates meta nodes
-    updateMetaPaths() {
+    this.updateMetaNodes() {
 
         // Add meta nodes for any intermediate paths without metanodes, update sizes of all
         let intermediatePaths = u.getIntermediatePaths(this.i)
@@ -96,10 +97,9 @@ class NodeIndex {
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
-        this.i[u.INDEX_KEY].type = NT_META
+        this.i[u.INDEX_KEY].type(NT_META)
         this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
-        this.i[u.INDEX_KEY].isLateralExtension = false            // fix this too
     }
 
     // Fed the raw index object from dynamo, loads into memory and recomputes locally stored values
@@ -107,7 +107,7 @@ class NodeIndex {
         Object.keys(data).forEach((path) => {
             this.i[path] = new IndexEntry(path, data[path])
         })
-        this.updateMetaPaths()
+        this.this.updateMetaNodes()
         this.loaded = true
     }
 
@@ -257,8 +257,28 @@ class NodeIndex {
         return writtenIndex
     }
 
-    isOversize() {return this.i[u.INDEX_KEY].size() > u.HARD_LIMIT_NODE_SIZE}
+    getOversizeNodes() {
+        let oversize = []
+        Object.keys(this.i).forEach((path) => {
+            if (this.i[path].isOversize()) {
+                oversize.push(path)
+            }
+        })
+        return oversize
+    }
+
+    setLateralExt(path, latExIDs) {
+        this.i[path].type(NT_LATERAL_POINTER)
+        this.i[path][LATERAL_POINTER_ARRAY_KEY] = latExIDs
+        this.i[path].size(0)
+        this.this.updateMetaNodes()
+    }
+
     isLoaded() {return this.loaded}
+    isOversize() {
+        if (this.getOversizeNodes().length) {return true}
+        return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE
+    }
 
 }
 
@@ -322,6 +342,11 @@ class IndexEntry {
 
     isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
     isMeta() {return this.data[TYPE_KEY] === NT_META}
+    isOversize() {
+        let isMeta = this.isMeta()
+        let isOver = this.size() > u.HARD_LIMIT_NODE_SIZE
+        if (!isMeta && isOver) {return true}
+    }
 }
 
 module.exports = NodeIndex
