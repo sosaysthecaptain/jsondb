@@ -12,8 +12,6 @@ SPILLOVER_KEY = 'SPILLOVER'           // for meta nodes, next place to go look f
 CHILDREN_KEY = 'CHILDREN'
 S3_REF_KEY = 'S3'
 
-INDEX_KEY = 'I'
-
 NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
 NT_META = 'META'                          // meta node (get children)
 NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
@@ -25,20 +23,11 @@ NT_REF = 'REF'                            // reference to another DBObject
 
 class NodeIndex {
 
-    // Jumpstarts with index read from DB
-    constructor(id, index) {
+    constructor(id) {
         this.id = id
-        this.i = index || {}
+        this.i = {}
         this.loaded = false
     }
-
-    // getBlankIndexObj() {
-    //     return {
-    //         terminal: {},
-    //         meta: {},
-    //         overall: null
-    //     }
-    // }
 
     // Creates or updates the index on the basis of new attributes
     build(attributes) {
@@ -76,30 +65,27 @@ class NodeIndex {
     // Updates meta nodes
     updateMetaPaths() {
 
-        // Add any intermediate paths that don't exist yet. For those that do exist, erase their
-        // size, as we'll recalculate it
+        // Add meta nodes for any intermediate paths without metanodes, update sizes of all
         let intermediatePaths = u.getIntermediatePaths(this.i)
         intermediatePaths.forEach((path) => {
             if (!this.i[path]) {
                 this.i[path] = new IndexEntry(path)
                 this.i[path].type(NT_META)
             }
+            let nodeSize = this.getSizeOfNodeAtPath(path, this.i)
+            this.i[path].size(nodeSize)
         })
 
-        // Update all intermediate path sizes, delete any intermediate paths with no children
+        // Delete any metanodes that no longer have children
         let paths = Object.keys(this.i)
         paths.forEach((path) => {
-            if (path === u.INDEX_PREFIX) return                 // ignore the top level meta node
-            if (this.i[path][u.GROUP_SIZE_KEY]) {
-                // let children = u.getChildren(path, this.i)
-
-                let nodeSize = this.getSizeOfNodeAtPath(path, this.i)
-                this.i[path].size(nodeSize)
-                
-                // If there are no children, actual or as pointers, delete this meta node
-                if (!nodeSize && !this.i[path][CHILDREN_KEY && !this.i[path][SPILLOVER_KEY]]) {
-                    delete this.i[path]
-                }
+            if (path === u.INDEX_KEY) return
+            let node = this.i[path]
+            if (node.isMeta()) {
+                let hasChildren = u.getChildren(path, this.i).length
+                let hasChildrenPointers = node[CHILDREN_KEY]
+                let hasSpilloverPointer = node[SPILLOVER_KEY]
+                if (!hasChildren && !hasChildrenPointers && !hasSpilloverPointer) {delete this.i[path]}
             }
         })
 
@@ -108,11 +94,20 @@ class NodeIndex {
         let indexSize = u.getSize(this.i)
 
         // Update or create the top level index entry
-        this.i[INDEX_KEY] = this.i[INDEX_KEY] || new IndexEntry(INDEX_KEY)
-        this.i[INDEX_KEY].size(objectSize + indexSize)
-        this.i[INDEX_KEY].permission('FIX THIS')
-        this.i[INDEX_KEY].id = this.id
-        this.i[INDEX_KEY].isLateralExtension = false            // fix this too
+        this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
+        this.i[u.INDEX_KEY].size(objectSize + indexSize)
+        this.i[u.INDEX_KEY].permission('FIX THIS')
+        this.i[u.INDEX_KEY].id = this.id
+        this.i[u.INDEX_KEY].isLateralExtension = false            // fix this too
+    }
+
+    // Fed the raw index object from dynamo, loads into memory and recomputes locally stored values
+    loadData(data) {
+        Object.keys(data).forEach((path) => {
+            this.i[path] = new IndexEntry(path, data[path])
+        })
+        this.updateMetaPaths()
+        this.loaded = true
     }
 
     // Returns IndexEntries
@@ -138,9 +133,11 @@ class NodeIndex {
     getSizeOfNodeAtPath(path) {
         let childPaths = this.getChildren(path)
         let size = 0
-
         childPaths.forEach((childPath) => {
-            size += this.i[childPath].size()
+            let child = this.i[childPath]
+            if (!child.isMeta()) {
+                size += child.size()
+            }
         })
         return size
     }
@@ -156,23 +153,21 @@ class NodeIndex {
         return writtenIndex
     }
 
-    isOversize() {return this.i[INDEX_KEY].size() > u.HARD_LIMIT_NODE_SIZE}
+    isOversize() {return this.i[u.INDEX_KEY].size() > u.HARD_LIMIT_NODE_SIZE}
     isLoaded() {return this.loaded}
 
 }
 
-// Record-keeping mechanism for index
-// TYPE_KEY = 'TYPE'
-// SIZE_KEY = 'SIZE'
-// PERMISSION_KEY = 'PERM'
-// POINTER_KEY = 'POINTER'
-// CHILDREN_KEY = 'CHILDREN'
-// S3_REF_KEY = 'S3
 class IndexEntry {
-    constructor(path) {
-        this.writable = {}
-        this.local = {
-            path: path
+    constructor(path, data) {
+        this.data = {}
+        this.metadata = {path}
+
+        // If the index object from the DB has been supplied, instantiate all nodes and recompute meta
+        if (data) {
+            Object.keys(data).forEach((dataKey) => {
+                this.data[dataKey] = data[dataKey]
+            })
         }
     }
 
@@ -184,55 +179,45 @@ class IndexEntry {
     s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
 
     univGetSet(writableKey, value) {
-        if (value) {this.writable[writableKey] = value} 
-        else {return this.writable[writableKey]}
+        if (value) {this.data[writableKey] = value} 
+        else {return this.data[writableKey]}
     }
 
     size(size) {
         if (size !== undefined) {
-            if (this.isDefault()) {this.writable[SIZE_KEY] = size}
-            else if (this.isMeta()) {this.local.groupSize = size}
+            if (this.isDefault()) {this.data[SIZE_KEY] = size}
+            else if (this.isMeta()) {this.metadata.groupSize = size}
         } else {
-            if (this.isDefault()) {return this.writable[SIZE_KEY]} 
-            else if (this.isMeta()) {return this.local.groupSize} 
+            if (this.isDefault()) {return this.data[SIZE_KEY]} 
+            else if (this.isMeta()) {return this.metadata.groupSize} 
             else {return 0}
         }
     }
 
     
-    addChild(childPath, childID) {this.writable[CHILDREN_KEY][childPath] = childID}
-    removeChild(childPath) {delete this.writable[CHILDREN_KEY][childPath]}
-    clearChildren() {this.writable[CHILDREN_KEY] = {}}
+    addChild(childPath, childID) {this.data[CHILDREN_KEY][childPath] = childID}
+    removeChild(childPath) {delete this.data[CHILDREN_KEY][childPath]}
+    clearChildren() {this.data[CHILDREN_KEY] = {}}
     children(children) {
-        if (children) {this.writable[CHILDREN_KEY] = children}
-        else {return this.writable[CHILDREN_KEY]}
+        if (children) {this.data[CHILDREN_KEY] = children}
+        else {return this.data[CHILDREN_KEY]}
     }
 
     write(complete) {
-        let ret = u.copy(this.writable)
+        let ret = u.copy(this.data)
         if (complete) {
-            // Object.keys(this.local).forEach((localKey) => {
-            //     ret[localKey] = this.local[localKey]
-            // })
-
+        
+            // We don't store "default", but here we specify
             if (this.isDefault()) {
                 ret[TYPE_KEY] = NT_DEFAULT
             }
-        } else {
-            // If this node has nothing more interesting to say about itself than that it's a meta node,
-            // it doesn't get to go to dynamo
-            if (this.isMeta() && (Object.keys(ret).length === 1)) {return}
-        }
-
-
-
-
+        } 
         return ret
     }
 
 
-    isDefault() {return (this.writable[TYPE_KEY] === NT_DEFAULT) || (this.writable[TYPE_KEY] === undefined)}
-    isMeta() {return this.writable[TYPE_KEY] === NT_META}
+    isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
+    isMeta() {return this.data[TYPE_KEY] === NT_META}
 }
 
 module.exports = NodeIndex

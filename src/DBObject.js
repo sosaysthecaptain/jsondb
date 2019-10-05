@@ -14,7 +14,7 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor(id, {tableName, dynamoClient}) {
+    constructor(id, {tableName, dynamoClient, isNew}) {
         
         // Information we actually have
         this.id = id,
@@ -28,12 +28,11 @@ class DBObject {
         this.isSubordinate = false
         
         // Places to put things
-        this.index = new NodeIndex(this.id)
+        this.index = new NodeIndex(this.id, isNew)
         this.cache = {}
         this.cacheIndex = {}
         this.cacheSize = 0
         this.cachedDirectChildren = {}
-        this.indexLoaded = false
         this._resetCachedPointers()
     }
 
@@ -43,8 +42,8 @@ class DBObject {
         this.isSubordinate = params.isSubordinate || false
         this.permissionLevel = params.permissionLevel || u.DEFAULT_PERMISSION_LEVEL
 
-        if (initialData[u.INDEX_PREFIX]) {
-            delete initialData[u.INDEX_PREFIX]
+        if (initialData[u.INDEX_KEY]) {
+            delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(initialData)
         return await this.set(initialData, true)
@@ -102,7 +101,9 @@ class DBObject {
     }
 
     async get(path) {
+
         await this.ensureIndexLoaded()
+        debugger
         if (!path) {
             let allKeysFlat = await this.getEntireObject()
             return unflatten(allKeysFlat)
@@ -135,7 +136,7 @@ class DBObject {
         // If called without paths, will get all the paths in the local index only
         if (!paths) {
             paths = Object.keys(this.index)
-            paths.filter((a) => a !== u.INDEX_PREFIX)
+            paths.filter((a) => a !== u.INDEX_KEY)
         }
 
         if (typeof paths === 'string') {
@@ -278,7 +279,7 @@ class DBObject {
         u.startTime('write')
 
         let writableIndexObject = this.index.write()
-        attributes[u.INDEX_PREFIX] = u.encode(writableIndexObject)
+        attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
@@ -318,7 +319,7 @@ class DBObject {
         await this.ensureIndexLoaded()
         
         // Get local data
-        let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_PREFIX)
+        let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_KEY)
         let data = await this.batchGet(paths)
         
         // Get all children. Get data from each and add it
@@ -383,25 +384,40 @@ class DBObject {
 
     async ensureIndexLoaded(all) {
         try {
-            if (!this.indexLoaded) {
-                await this.loadIndex(all)
+            if (!this.index.isLoaded()) {
+                await this.loadIndex()
             }
 
         } catch(err) {debugger}
     }
 
     async loadIndex(all) {
+        let indexData = await this.dynamoClient.get({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: [u.INDEX_KEY]
+        })
+        if (!indexData) {
+            return
+        }
+        let decodedIndexData = u.decode(indexData[u.INDEX_KEY])
+        this.index.loadData(decodedIndexData)
+        return
+
+
+
+        /* OLD STUFF BELOW */
 
         // Get this index, directly via dynamoClient
         let index = await this.dynamoClient.get({
             tableName: this.tableName,
             key: this.key,
-            attributes: [u.INDEX_PREFIX]
+            attributes: [u.INDEX_KEY]
         })
         if (!index) {
             return
         }
-        this.index = u.decode(index[u.INDEX_PREFIX])
+        this.index = u.decode(index[u.INDEX_KEY])
         this.indexLoaded = true
         
         if (!all) {
@@ -414,17 +430,17 @@ class DBObject {
         let indices = await this.dynamoClient.batchGet({
             tableName: this.tableName,
             keys: keys,
-            attributes: [u.INDEX_PREFIX]
+            attributes: [u.INDEX_KEY]
         })
         
         indices.forEach((index) => {
-            index = u.decode(index[u.INDEX_PREFIX])
-            let newNodeID = index[u.INDEX_PREFIX].id
+            index = u.decode(index[u.INDEX_KEY])
+            let newNodeID = index[u.INDEX_KEY].id
             let dbobj = new DBObject(newNodeID, {
                 dynamoClient: this.dynamoClient,
                 tableName: this.tableName
             })
-            this.cachedDirectChildren[index[u.INDEX_PREFIX].id] = dbobj
+            this.cachedDirectChildren[index[u.INDEX_KEY].id] = dbobj
         })
     }
 
@@ -434,7 +450,7 @@ class DBObject {
         let hypotheticalIndex = this._getNewIndex(attributes)
         let currentIndexSize = u.getSize(this.index)
         let newIndexSize = u.getSize(hypotheticalIndex)
-        return hypotheticalIndex[u.INDEX_PREFIX][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
+        return hypotheticalIndex[u.INDEX_KEY][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
 
@@ -662,7 +678,7 @@ class DBObject {
             let pointer = this.cachedPointers.vertical[path]
             let arrPath = u.stringPathToArrPath(path)
             let childKey = arrPath.pop()
-            let basePath = u.INDEX_PREFIX
+            let basePath = u.INDEX_KEY
             if (arrPath.length) {
                 let parentNodePath = u.arrayPathToStringPath(arrPath, true)
                 basePath = parentNodePath

@@ -20,7 +20,7 @@ u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
 u.DEFAULT_PERMISSION_LEVEL = 0
 u.MAX_NESTING_DEPTH = 30
 
-u.INDEX_PREFIX = 'META'
+u.INDEX_KEY = 'META'
 u.PERMISSION_PREFIX = 'P'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
@@ -82,13 +82,13 @@ u.getNodeData = (path, index) => {
 }
 
 u.isMetaPath = (path, index) => {
-    if ((index[path][u.EXT_PREFIX] !== undefined) && (path !== u.INDEX_PREFIX)) {
+    if ((index[path][u.EXT_PREFIX] !== undefined) && (path !== u.INDEX_KEY)) {
         return true
     }
 }
 
 u.isTerminalPath = (index) => {
-    if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_PREFIX)) {
+    if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_KEY)) {
         return true
     }
 }
@@ -225,7 +225,7 @@ u.updateIndex = (index) => {
     // Update all intermediate path sizes, delete any intermediate paths with no children
     let paths = Object.keys(index)
     paths.forEach((path) => {
-        if (path === u.INDEX_PREFIX) return
+        if (path === u.INDEX_KEY) return
         if (index[path][u.GROUP_SIZE_PREFIX]) {
             let children = u.getChildren(path, index)
             let nodeSize = u.getSizeOfNodeAtPath(path, index)
@@ -237,8 +237,8 @@ u.updateIndex = (index) => {
     })
 
     // Update index's top level size, if it's already been instantiated
-    if (index[u.INDEX_PREFIX]) {
-        index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
+    if (index[u.INDEX_KEY]) {
+        index[u.INDEX_KEY][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
     }
 }
 
@@ -410,7 +410,7 @@ u.getSize = (obj) => {
 
 u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
-        let forbidden = [u.INDEX_PREFIX, u.PATH_SEPARATOR]
+        let forbidden = [u.INDEX_KEY, u.PATH_SEPARATOR]
         let arrPath = u.stringPathToArrPath(path)
         arrPath.forEach((part) => {
             forbidden.forEach((forbiddenString) => {
