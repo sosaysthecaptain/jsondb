@@ -117,7 +117,6 @@ class NodeIndex {
         c) spillover node ID, if present
     */
     getIDForPath(path) {
-        debugger
         let indexNode = this.i[path]
         if (indexNode) {
 
@@ -126,6 +125,8 @@ class NodeIndex {
             
             // If it's a direct child, return child DBObjectNode's id
             else if (indexNode.isMeta()) {
+
+                debugger // UNTESTED PAST HERE
                 if (indexNode[CHILDREN_KEY] && Object.values(indexNode[CHILDREN_KEY].includes(path))) {
                     return indexNode[CHILDREN_KEY][path]
                 }
@@ -136,6 +137,7 @@ class NodeIndex {
             if (spilloverID) {return spilloverID}
         }
 
+        // If no node is specified, return all default nodes
         Object.keys(this.i).forEach((indexKey) => {
             let indexNode = this.i[indexKey]
             if (indexNode.isDefault()) {return this.id}
@@ -156,29 +158,50 @@ class NodeIndex {
     }
 
 
-    // Returns all paths stored on this object node
+    // Returns all paths stored on this object node, used by getEntireObject
     // getAvailablePaths() {
     //     let availablePaths = []
     //     Object.keys(this.i).forEach((path) => {
-    //         if (path === INDEX_KEY) {return}
+    //         if (path === u.INDEX_KEY) {return}
     //         let indexNode = this.i[path]
     //         if (indexNode.isDefault()) {availablePaths.push(path)}
     //     })
     //     return availablePaths
     // }
 
-    // If return paths explicitly available on children
-    // getPathsAvailableFromChildren() {
-    //     let pathsToKeys = []
+    // NOPE 
+    // Returns all 
+    // getPathsByID() {
+    //     let pathsToKeys = {}
     //     Object.keys(this.i).forEach((path) => {
-    //         if (path === INDEX_KEY) {return}
+    //         if (path === u.INDEX_KEY) {return}
     //         let indexNode = this.i[path]
-    //         if (indexNode.isMeta() && indexNode[CHILDREN_KEY]) {
+
+    //         // Add locally available
+    //         if (indexNode.isDefault()) {
+    //             pathsToKeys[path] = pathsToKeys[path] || []
+    //             pathsToKeys[path] = this.id
+    //         } 
+            
+    //         // Add direct children
+    //         else if (indexNode.isMeta() && indexNode[CHILDREN_KEY]) {
     //             let childIDs = indexNode[CHILDREN_KEY]
-    //             pathsToKeys[path] = childIDs
+    //             if (childIDs.length) {
+    //                 pathsToKeys[path] = pathsToKeys[path] || []
+    //                 pathsToKeys[path] = childIDs
+    //             }
     //         }
+
+    //         // Add indirect children
+    //         // else {
+    //         //     let spilloverPath = this.getSpilloverNodeID(path)
+    //         //     if (spilloverPath) {
+    //         //         pathsToKeys[path] = pathsToKeys[path] || []
+    //         //         pathsToKeys[path] = [spilloverPath]
+    //         //     }
+    //         // }
     //     })
-    //     return availablePaths
+    //     return pathsToKeys
     // }
 
 
@@ -187,32 +210,27 @@ class NodeIndex {
 
 
 
-    // Returns IndexEntries
+    // Returns IndexEntries under path specified
     getChildren(path) {
         let pathsToSearch = []
         Object.keys(this.i).forEach((path) => {
-            // if (path === u.INDEX_KEY) {return}
+            if (path === u.INDEX_KEY) {return}
             if (!this.i[path].isMeta()) {pathsToSearch.push(path)}
         })
-        debugger
-        
+
         // No path == root
         let childKeys = []
-        if (path === '') {
-            childKeys = pathsToSearch
-        }
+        if (path === '') {return pathsToSearch}
 
-        // For all paths, find those that begin the same but aren't the same
+        // Otherwise, child == starts the same, including 
         pathsToSearch.forEach((key) => {
             if (key.startsWith(path) && (key !== path)) {
-                // let node = this.i[key]
-                // if (!node.isMeta()) {childKeys.push(key)}
                 childKeys.push(key)
             }
         })
 
-
-
+        // Include this path itself, if it's terminal
+        // if (!this.i[path].isMeta()) {childKeys.push(path)}
         return childKeys
     }
 

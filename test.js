@@ -230,16 +230,10 @@ it('DBObject 1: should create and get a single node object, with and without cac
     let passed0 = _.isEqual(basicObj.key1, read0)
     assert.equal(passed0, true)
     
-    // SAT 5 OCT #1
-    debugger
-    
     // Read entire object (from cache)
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
-    
-    // SAT 5 OCT #1
-    debugger
 
     // Clear the variable in memory, make sure we can still get
     dbobject = null

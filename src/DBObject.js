@@ -105,14 +105,14 @@ class DBObject {
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this.getEntireObject()
-            return unflatten(allKeysFlat)
+            try {
+
+                let allKeysFlat = await this.getEntireObject()
+                return unflatten(allKeysFlat)
+            }catch(err){debugger}
         }
         
-        try {
-            let data = await this.batchGet(path)
-
-        } catch (err) {debugger}
+        let data = await this.batchGet(path)
 
         // We pull out what we want from a naturally formatted object
         if (path !== '') {
@@ -126,76 +126,77 @@ class DBObject {
     }
     
     async batchGet(paths) {
-
-        // If called without paths, will get all the paths in the local index only
-        if (!paths) {
-            paths = Object.keys(this.index)
-            paths.filter((a) => a !== u.INDEX_KEY)
-        }
-
-        // Organization of information
-        if (typeof paths === 'string') {
-            paths = [paths]
-        }
-        paths = u.packKeys(paths)
-        let pathObj = {}
-        paths.forEach((path) => {
-            pathObj[path] = null
-        })
-        paths = pathObj
-
-        // Get all children under this path
-        Object.keys(pathObj).forEach((path) => {
-
-            debugger
-            let children = this.index.getChildren(path)
-            children.forEach((path) => {
-                pathLocations[path] = null
-            })
-        })
-
-        // Find out on which node of the object (here, direct child, or indirect child) each path is located. 
-        let pathsByChild = {}
-        let specialCases = []
-        Object.keys(pathObj).forEach.forEach((path) => {
-            let childID = this.index.getIDForPath(path)
-            if (childID) {
-                if (!pathsByChild[childID]) {pathsByChild[childID] = []}
-                pathsByChild[childID].push(path)
-            } else {
-                specialCases.push(paths)
+        let data
+        if (paths) {
+            if (typeof paths === 'string') {
+                paths = [paths]
             }
-        })
-
-        // Get locally available paths
-        let localPaths = pathsByChild[this.id]
-        delete pathsByChild[this.id]
-        let data = await this._read(localPaths)
-        debugger
-
-        // If we have outstanding paths to find, instantiate children and use their batchGet
-        let childDBObjectNodes = await this.getChildNodes()
-        Object.keys(childDBObjectNodes).forEach((childNode) => {
-            if (!pathsByChild[childNode.id]) {return}
-            let pathsOnChild = pathsByChild[childNode.id]
-            let dataFromChild = childNode.batchGet(pathsOnChild)
-            data = _.assign({}, data, dataFromChild)
-            delete pathsByChild[childNode.id]
-        })
-
-
-        // TODO: lateral
-
+            paths = u.packKeys(paths)
+            let pathObj = {}
+            
+            // Get all children under this path. Note that getChildren returns terminal paths themselves
+            paths.forEach((path) => {
+                
+                let children = this.index.getChildren(path)
+                children.forEach((childPath) => {
+                    pathObj[childPath] = null
+                })
+            })
+            
+            // Find out on which node of the object (here, direct child, or indirect child) each path is located. 
+            let pathsByChild = {}
+            let specialCases = []
+            Object.keys(pathObj).forEach((path) => {
+                let childID = this.index.getIDForPath(path)
+                if (childID) {
+                    if (!pathsByChild[childID]) {pathsByChild[childID] = []}
+                    pathsByChild[childID].push(path)
+                } else {
+                    specialCases.push(paths)
+                }
+            })
+            
+            // Get locally available paths
+            let localPaths = pathsByChild[this.id]
+            delete pathsByChild[this.id]
+            data = await this._read(localPaths)
+            
+            // If we have outstanding paths to find, instantiate children and use their batchGet
+            let childDBObjectNodes = await this.getChildNodes()
+            Object.keys(childDBObjectNodes).forEach((childNode) => {
+                if (!pathsByChild[childNode.id]) {return}
+                let pathsOnChild = pathsByChild[childNode.id]
+                let dataFromChild = childNode.batchGet(pathsOnChild)
+                data = _.assign({}, data, dataFromChild)
+                delete pathsByChild[childNode.id]
+            })
+            
+            // TODO: lateral
+            if (specialCases.length) {
+                debugger
+            }
+        } 
+        
+        // If no paths, just don't pass attributes to dynamo
+        else {
+            data = await this._read()
+            
+            // Clean up extra metadata
+            delete data.uid
+            delete data.ts
+            delete data[u.INDEX_KEY]
+        }
+            
         // Cache and return
         this._cacheSet(data)
         return u.unpackKeys(data)
-
-
-
-
-
-
-
+            
+            
+            
+            
+            
+            
+            
 
 
         // let pathsRemaining = u.packKeys(paths)
@@ -373,14 +374,12 @@ class DBObject {
     async getEntireObject() {
 
         await this.ensureIndexLoaded()
-        
-        // Get local data
-        let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_KEY)
-        let data = await this.batchGet(paths)
-        
+
+        // Get everything locally available
+        let data = await this.batchGet()
+
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
-
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
@@ -391,6 +390,22 @@ class DBObject {
         }
 
         return u.unpackKeys(data)
+
+        // let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_KEY)
+        
+        // Get all children. Get data from each and add it
+        // let children = await this.getChildNodes()
+
+        // let childKeys = Object.keys(children)
+        // for (let i = 0; i < childKeys.length; i++) {
+        //     let childID = childKeys[i]
+        //     let dataFromChild = await children[childID].getEntireObject()
+        //     Object.keys(dataFromChild).forEach((key) => {
+        //         data[key] = dataFromChild[key]
+        //     })
+        // }
+
+        // return u.unpackKeys(data)
     }
 
     async _getLaterallySplitNode(nodeIDs) {
