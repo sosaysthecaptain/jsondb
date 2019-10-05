@@ -379,11 +379,20 @@ u.getAttribute = (obj, p) => {
     }
 }
 
+// This is a mess but better than most of the alternatives
 u.getSize = (obj) => {
     try {
+        // Strings/buffers -> length
         if (obj.length) {
             return obj.length
         }
+
+        // Numbers -> stringified length
+        if (typeof obj === 'number') {
+            return JSON.stringify(obj).length
+        }
+
+        // Objects -> stringified length of each
         let size = 0
         Object.keys(obj).forEach((key) => {
             let value = obj[key]

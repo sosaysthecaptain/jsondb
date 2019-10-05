@@ -4,13 +4,15 @@ const _ = require('lodash')
 
 const u = require('./u')
 
-PREFIX_TYPE = 'TYPE'
-PREFIX_SIZE = 'SIZE'
-PREFIX_PERMISSION = 'PERM'
-PREFIX_POINTER = 'POINTER'
-PREFIX_SPILLOVER = 'SPILLOVER'           // for meta nodes, next place to go look for further keys
-PREFIX_CHILDREN = 'CHILDREN'
-PREFIX_S3_REF = 'S3'
+TYPE_KEY = 'TYPE'
+SIZE_KEY = 'SIZE'
+PERMISSION_KEY = 'PERM'
+POINTER_KEY = 'POINTER'
+SPILLOVER_KEY = 'SPILLOVER'           // for meta nodes, next place to go look for further keys
+CHILDREN_KEY = 'CHILDREN'
+S3_REF_KEY = 'S3'
+
+INDEX_KEY = 'I'
 
 NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
 NT_META = 'META'                          // meta node (get children)
@@ -30,188 +32,195 @@ class NodeIndex {
         this.meta = {}
     }
 
+    // getBlankIndexObj() {
+    //     return {
+    //         terminal: {},
+    //         meta: {},
+    //         overall: null
+    //     }
+    // }
+
     // Creates or updates the index on the basis of new attributes
-    build(attributes, dontSet) {
-        debugger
+    build(attributes) {
         attributes = attributes || {}
-        let originalIndex = u.copy(this.i)
-        let index = u.copy(this.i)
         
         let changedKeys = Object.keys(attributes)
         let keysToDelete = []
         
         // If new attributes have displaced existing attributes, we first remove those from the index
-        changedKeys.forEach((attributePath) => {  
-            let children = u.getChildren(attributePath, originalIndex)
+        changedKeys.forEach((path) => {  
+            let children = this.getChildren(path)
             children.forEach((childPath) => {
-                delete index[childPath]
+                delete this.i[childPath]
                 keysToDelete.push(childPath)
             })
         })
         
         // Add new keys to index, write new
-        changedKeys.forEach((attributePath) => {
-            index[attributePath] = {}
-            index[attributePath][u.SIZE_PREFIX] = u.getSize(attributes[attributePath]),
-            index[attributePath][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL
+        changedKeys.forEach((path) => {
+            
+            // If this path does not yet have an index node, create one
+            if (!this.i[path]) {
+                this.i[path] = new IndexEntry(path)
+            }
+            this.i[path].size(u.getSize(attributes[path])) 
         })
+                
+        // Add intermediate nodes, including the top level
+        this.updateMetaPaths()
+
         
-        // Add intermediate nodes
-        u.updateIndex(index)
-        
-        // Add the new index, with its updated size, to the data to be written
-        let objectSize = u.getSizeOfNodeAtPath('', index)
-        let indexSize = u.getSize(index)
-        
-        index[u.INDEX_PREFIX] = {id: this.id}
-        index[u.INDEX_PREFIX][u.LARGE_EXT_PREFIX] = null
-        index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = objectSize + indexSize
-        index[u.INDEX_PREFIX][u.PERMISSION_PREFIX] = u.DEFAULT_PERMISSION_LEVEL     // permission todo
-        
-        debugger
-        
-        if (!dontSet) {
-            this.i = index
-        }
-        return index
+        return this.i
     }
 
     // Updates meta nodes
-    update() {
+    updateMetaPaths() {
 
         // Add any intermediate paths that don't exist yet. For those that do exist, erase their
         // size, as we'll recalculate it
         let intermediatePaths = u.getIntermediatePaths(this.i)
         intermediatePaths.forEach((path) => {
-            if (!index[path]) {
-                index[path] = {}
-                index[path][u.GROUP_SIZE_PREFIX] = -1
-                index[path][u.EXT_PREFIX] = null
+            if (!this.i[path]) {
+                this.i[path] = new IndexEntry(path)
+                this.i[path].type(NT_META)
             }
         })
 
         // Update all intermediate path sizes, delete any intermediate paths with no children
-        let paths = Object.keys(index)
+        let paths = Object.keys(this.i)
         paths.forEach((path) => {
-            if (path === u.INDEX_PREFIX) return
-            if (index[path][u.GROUP_SIZE_PREFIX]) {
-                let children = u.getChildren(path, index)
-                let nodeSize = u.getSizeOfNodeAtPath(path, index)
-                index[path][u.GROUP_SIZE_PREFIX] = nodeSize
-                if (!nodeSize) {
-                    delete index[path]
+            if (path === u.INDEX_PREFIX) return                 // ignore the top level meta node
+            if (this.i[path][u.GROUP_SIZE_KEY]) {
+                // let children = u.getChildren(path, this.i)
+
+                let nodeSize = this.getSizeOfNodeAtPath(path, this.i)
+                this.i[path].size(nodeSize)
+                
+                // If there are no children, actual or as pointers, delete this meta node
+                if (!nodeSize && !this.i[path][CHILDREN_KEY && !this.i[path][SPILLOVER_KEY]]) {
+                    delete this.i[path]
                 }
             }
         })
 
-        // Update index's top level size, if it's already been instantiated
-        if (index[u.INDEX_PREFIX]) {
-            index[u.INDEX_PREFIX][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
-        }
+        // Add the new index, with its updated size, to the data to be written
+        let objectSize = this.getSizeOfNodeAtPath('')
+        let indexSize = u.getSize(this.i)
+
+        // Update or create the top level index entry
+        this.i[INDEX_KEY] = this.i[INDEX_KEY] || new IndexEntry(INDEX_KEY)
+        this.i[INDEX_KEY].size(objectSize + indexSize)
+        this.i[INDEX_KEY].permission('FIX THIS')
+        this.i[INDEX_KEY].id = this.id
+        this.i[INDEX_KEY].isLateralExtension = false            // fix this too
     }
 
+    // Returns IndexEntries
+    getChildren(path) {
+        
+        // No path == root
+        let childKeys = []
+        if (path === '') {
+            return Object.keys(this.i)
+        }
+
+        // For all paths, find those that begin the same but aren't the same
+        Object.keys(this.i).forEach((key) => {
+            if (key.startsWith(path) && (key !== path)) {
+                if (!this.i[key][u.GROUP_SIZE_KEY]) {
+                    childKeys.push(key)
+                }
+            }
+        })
+        return childKeys
+    }
+
+    getSizeOfNodeAtPath(path) {
+        let childPaths = this.getChildren(path)
+        let size = 0
+
+        childPaths.forEach((childPath) => {
+            size += this.i[childPath].size()
+        })
+        return size
+    }
+
+    // Output index as object
+    write(complete) {
+        let writtenIndex = {}
+        Object.keys(this.i).forEach((path) => {
+            let nodeObject = this.i[path]
+            writtenIndex[path] = nodeObject.write(complete)
+        })
+        return writtenIndex
+    }
 
 }
 
 // Record-keeping mechanism for index
-// PREFIX_TYPE = 'TYPE'
-// PREFIX_SIZE = 'SIZE'
-// PREFIX_PERMISSION = 'PERM'
-// PREFIX_POINTER = 'POINTER'
-// PREFIX_CHILDREN = 'CHILDREN'
-// PREFIX_S3_REF = 'S3
+// TYPE_KEY = 'TYPE'
+// SIZE_KEY = 'SIZE'
+// PERMISSION_KEY = 'PERM'
+// POINTER_KEY = 'POINTER'
+// CHILDREN_KEY = 'CHILDREN'
+// S3_REF_KEY = 'S3
 class IndexEntry {
-    constructor({path, permission, type}) {
-        
-        // Things that go to the DB
-        this[PREFIX_TYPE] = type || NT_DEFAULT
-        this[PREFIX_PERMISSION] = permission 
-        this[PREFIX_SIZE] = null
-        this[PREFIX_SPILLOVER] = null
-        this[PREFIX_POINTER] = null
-        this[PREFIX_CHILDREN] = []
-        this[PREFIX_S3_REF] = null
-
-        // Things for local use only
-        this.path = path
-        this.sizeOfChildren = null
-    }
-
-    data() {
-        let data = {}
-        data[] = this[PREFIX_TYPE]
-
-        return {
-            path: this.path,
-            type: this[PREFIX_TYPE],
-            permission: this[PREFIX_PERMISSION],
-            size: this.getSize(),
-            pointer: this.pointer(),
-            terminal: this.isTerminal
-        }
-        return data
-    }
-
-    // What data we want to write to the DB
-
-    writable() {
-        let data = {}
-        data[PREFIX_TYPE] = this[PREFIX_TYPE]
-
-        if (this[PERMISSION_PREFIX]) {
-            data[PERMISSION_PREFIX] = this[PERMISSION_PREFIX]
-        }
-
-        // Terminal: record size
-        if (this[PREFIX_TYPE] === NT_DEFAULT) {
-            data[SIZE_PREFIX] = this.size()
-        }
-
-        // Meta nodes store lateral pointers, in addition to path-specific pointers
-        if (this[PREFIX_TYPE] === NT_META) {
-            data[PREFIX_SPILLOVER] = this[PREFIX_SPILLOVER]
-            data[PREFIX_CHILDREN] = this[PREFIX_CHILDREN]
-        }
-
-        // Pointers
-        if ((this[PREFIX_TYPE] === NT_VERTICAL_POINTER )|| (this[PREFIX_TYPE] === NT_LATERAL_POINTER )) {
-            data[PREFIX_POINTER] = this[PREFIX_POINTER]
-        }
-        
-        // Files
-        if ((this[PREFIX_TYPE] === NT_FILE_LINK )|| (this[PREFIX_TYPE] === NT_FILE_BUFFER )) {
-            data[PREFIX_S3_REF] = this[PREFIX_S3_REF]
-        }
-        return data
-    }
-
-    setType(type) {
-        this[PREFIX_TYPE] = type
-    }
-
-    setSize(size) {
-        if (this[PREFIX_TYPE] === NT_DEFAULT) {
-            this._size = size
-        } else if (this[PREFIX_TYPE] === NT_META) {
-            this._sizeOfChildren = size
+    constructor(path) {
+        this.writable = {}
+        this.local = {
+            path: path
         }
     }
 
-    size(index) {
-        if (this[PREFIX_TYPE] === NT_DEFAULT) {
-            return this._size
-        } else if (this[PREFIX_TYPE] === NT_META) {
-            return this._sizeOfChildren
+
+    type(type) {return this.univGetSet('TYPE', type)}
+    size(size) {return this.univGetSet('S', size)}
+    permission(permission) {return this.univGetSet('P', permission)}
+    pointer(pointer) {return this.univGetSet('PTR', pointer)}
+    s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
+
+    univGetSet(writableKey, value) {
+        if (value) {this.writable[writableKey] = value} 
+        else {return this.writable[writableKey]}
+    }
+
+    size(size) {
+        if (size !== undefined) {
+            if (this.isDefault()) {this.writable[SIZE_KEY] = size}
+            else if (this.isMeta()) {this.local.groupSize = size}
         } else {
-            return 0
+            if (this.isDefault()) {return this.writable[SIZE_KEY]} 
+            else if (this.isMeta()) {return this.local.groupSize} 
+            else {return 0}
         }
     }
 
-    pointer() {
-        return thisthis[PREFIX_POINTER]
+    
+    addChild(childPath, childID) {this.writable[CHILDREN_KEY][childPath] = childID}
+    removeChild(childPath) {delete this.writable[CHILDREN_KEY][childPath]}
+    clearChildren() {this.writable[CHILDREN_KEY] = {}}
+    children(children) {
+        if (children) {this.writable[CHILDREN_KEY] = children}
+        else {return this.writable[CHILDREN_KEY]}
     }
-    
-    
+
+    write(complete) {
+        let ret = u.copy(this.writable)
+        if (complete) {
+            // Object.keys(this.local).forEach((localKey) => {
+            //     ret[localKey] = this.local[localKey]
+            // })
+
+            if (this.isDefault()) {
+                ret[TYPE_KEY] = NT_DEFAULT
+            }
+        }
+        return ret
+    }
+
+
+    isDefault() {return (this.writable[TYPE_KEY] === NT_DEFAULT) || (this.writable[TYPE_KEY] === undefined)}
+    isMeta() {return this.writable[TYPE_KEY] === NT_META}
 }
 
 module.exports = NodeIndex
