@@ -10,7 +10,7 @@ PERMISSION_KEY = 'PERM'
 POINTER_KEY = 'POINTER'                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
-CHILDREN_KEY = 'CHILDREN'
+// CHILDREN_KEY = 'CHILDREN'
 S3_REF_KEY = 'S3'
 
 NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
@@ -84,9 +84,10 @@ class NodeIndex {
             let node = this.i[path]
             if (node.isMeta()) {
                 let hasChildren = u.getChildren(path, this.i).length
-                let hasChildrenPointers = node[CHILDREN_KEY]
+                // let hasChildrenPointers = node[CHILDREN_KEY]
                 let hasSpilloverPointer = node[SPILLOVER_KEY]
-                if (!hasChildren && !hasChildrenPointers && !hasSpilloverPointer) {delete this.i[path]}
+                // if (!hasChildren && !hasChildrenPointers && !hasSpilloverPointer) {delete this.i[path]}
+                if (!hasChildren && !hasSpilloverPointer) {delete this.i[path]}
             }
         })
 
@@ -362,8 +363,8 @@ class NodeIndex {
             if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
                 parentNode.data[SPILLOVER_KEY].push(pointer)
             }
-            parentNode.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
-            parentNode.data[CHILDREN_KEY][path] = pointer
+            // parentNode.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
+            // parentNode.data[CHILDREN_KEY][path] = pointer
             
             this.updateMetaNodes()
             
@@ -381,6 +382,8 @@ class NodeIndex {
     }
 
     getSize() {return this.i[u.INDEX_KEY].size()}
+    
+    subordinate(isSubordinate) {return this.i[u.INDEX_KEY].subordinate(isSubordinate)}
 
 }
 
@@ -402,6 +405,7 @@ class IndexEntry {
     permission(permission) {return this.univGetSet('P', permission)}
     pointer(pointer) {return this.univGetSet('PTR', pointer)}
     s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
+    subordinate(isSubordinate) {return this.univGetSet('SUBORD', isSubordinate)}
 
     univGetSet(writableKey, value) {
         if (value) {this.data[writableKey] = value} 
@@ -420,13 +424,13 @@ class IndexEntry {
     }
 
     
-    addChild(childPath, childID) {this.data[CHILDREN_KEY][childPath] = childID}
-    removeChild(childPath) {delete this.data[CHILDREN_KEY][childPath]}
-    clearChildren() {this.data[CHILDREN_KEY] = {}}
-    children(children) {
-        if (children) {this.data[CHILDREN_KEY] = children}
-        else {return this.data[CHILDREN_KEY]}
-    }
+    // addChild(childPath, childID) {this.data[CHILDREN_KEY][childPath] = childID}
+    // removeChild(childPath) {delete this.data[CHILDREN_KEY][childPath]}
+    // clearChildren() {this.data[CHILDREN_KEY] = {}}
+    // children(children) {
+    //     if (children) {this.data[CHILDREN_KEY] = children}
+    //     else {return this.data[CHILDREN_KEY]}
+    // }
 
     write(complete) {
         let ret = u.copy(this.data)
@@ -453,19 +457,20 @@ class IndexEntry {
         }
     }
 
-    getChildIDs() {
-        if (this.isMeta() && this.data[CHILDREN_KEY]) {
-            return Object.values(this.data[CHILDREN_KEY])
-        } else {return []}
-    }
+    // getChildIDs() {
+    //     if (this.isMeta() && this.data[CHILDREN_KEY]) {
+    //         return Object.values(this.data[CHILDREN_KEY])
+    //     } else {return []}
+    // }
 
+    // SUN AM NOTE TO SELF: CHANGE FORMAT IF WE KEEP NO CHILDREN_KEY
     getAllVerticalPointers() {
         let vps = []
         let pointer = this.getVerticalPointer()
         if (pointer) {vps.push(pointer)}
 
-        let childIDs = this.getChildIDs()
-        if (childIDs.length) {vps = vps.concat(childIDs)}
+        // let childIDs = this.getChildIDs()
+        // if (childIDs.length) {vps = vps.concat(childIDs)}
 
         // spillover?
         return vps

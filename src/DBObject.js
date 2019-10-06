@@ -50,7 +50,7 @@ class DBObject {
     }
 
     async destroy() {
-        this.ensureIndexLoaded()
+        await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
         let lateral = u.getLateralPointers(this.index, true)
@@ -127,6 +127,7 @@ class DBObject {
     }
     
     async batchGet(paths) {
+        await this.ensureIndexLoaded()
         let data
         if (paths) {
             if (typeof paths === 'string') {
@@ -154,6 +155,8 @@ class DBObject {
                     if (!pathsByChild[childID]) {pathsByChild[childID] = []}
                     pathsByChild[childID].push(path)
                 } else {
+                    if (!this.isSubordinate) {debugger}
+
                     specialCases.push(paths)
                 }
             })
@@ -171,20 +174,20 @@ class DBObject {
             let childDBObjectNodes = await this.getChildNodes()
             let childObjectKeys = Object.keys(childDBObjectNodes)
             for (let i = 0; i < childObjectKeys.length; i++) {
-                let childKey = childObjectKeys[i]
-                let childNode = childDBObjectNodes[childKey]
-                if (pathsByChild[childNode.id]) {
-                    let pathsOnChild = pathsByChild[childNode.id]
+                let childID = childObjectKeys[i]
+                if (pathsByChild[childID]) {
+                    let pathsOnChild = pathsByChild[childID]
+                    let childNode = childDBObjectNodes[childID]
                     let dataFromChild = await childNode.batchGet(pathsOnChild)
                     data = _.assign({}, data, dataFromChild)
                 }
-                delete pathsByChild[childNode.id]
+                delete pathsByChild[childID]
             }
 
             // TODO: lateral
-            if (specialCases.length) {
-                debugger
-            }
+            // if (specialCases.length) {
+            //     debugger
+            // }
         } 
         
         // If no paths, just don't pass attributes to dynamo
@@ -296,7 +299,6 @@ class DBObject {
         u.packKeys(attributes)
 
         this.index.build(attributes)
-        
         this._cacheSet(attributes)
         
         // If oversize, split, otherwise write
@@ -339,11 +341,13 @@ class DBObject {
 
     /*  INTERNAL METHODS */
 
-    // Writes given attributes to this specific node
+    // Writes given attributes to this specific node, assumes index is prepared
     async _write(attributes, doNotOverwrite) {
         
         u.startTime('write')
 
+        debugger
+        this.index.subordinate(this.isSubordinate)
         let writableIndexObject = this.index.write()
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
         
@@ -462,26 +466,18 @@ class DBObject {
         return flat
     }
 
-    async ensureIndexLoaded(all) {
-        try {
-            if (!this.index.isLoaded()) {
-                await this.loadIndex()
-            }
+    async ensureIndexLoaded() {if (!this.index.isLoaded()) {await this.loadIndex()}}
 
-        } catch(err) {debugger}
-    }
-
-    async loadIndex(all) {
+    async loadIndex() {
         let indexData = await this.dynamoClient.get({
             tableName: this.tableName,
             key: this.key,
             attributes: [u.INDEX_KEY]
         })
-        if (!indexData) {
-            return
-        }
+        if (!indexData) {return}
         let decodedIndexData = u.decode(indexData[u.INDEX_KEY])
         this.index.loadData(decodedIndexData)
+        this.isSubordinate = this.index.subordinate()
         return
     }
 
@@ -590,16 +586,6 @@ class DBObject {
     // Write the remaining new attributes
     await this.set(newAttributes)
 }
-
-    // Given appropriately sized chunk of attributes, returns index of new node
-    // async _splitVertical(newNodeID, attributes) {
-    //     let childNode = new DBObject(newNodeID, {
-    //         dynamoClient: this.dynamoClient,
-    //         tableName: this.tableName
-    //     })
-    //     await childNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
-    //     return childNode
-    // }
 
     // Given an oversize load, returns ordered array of IDs of all the children splitting it up
     async _splitLateral(payload) {
