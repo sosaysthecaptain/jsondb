@@ -258,7 +258,7 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     assert.equal(dbObjectExists, false)
 })
 
-it('DBObject 2: should create and get an object requiring vertical split', async function() {
+xit('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(60000)
 
     // Data
@@ -327,7 +327,7 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     assert.equal(dbObjectExists, false)
 })
 
-xit('DBObject 3: lateral split', async function() {
+it('DBObject 3: lateral split', async function() {
     this.timeout(20000)
 
     // Data
@@ -344,7 +344,6 @@ xit('DBObject 3: lateral split', async function() {
     await dbobject.ensureDestroyed()
     await dbobject.create(testObj)
 
-    
     // Read key by name from cache
     let read0 = await dbobject.get('giantThing')
     let passed0 = _.isEqual(testObj.giantThing, read0)
@@ -369,8 +368,7 @@ xit('DBObject 3: lateral split', async function() {
     let passed2 = _.isEqual(testObj.giantThing, read2)
     assert.equal(passed2, true)
     
-    debugger
-
+    
     // Read entire object
     let read3 = await dbobject.get()
     let passed3 = _.isEqual(testObj, read3)

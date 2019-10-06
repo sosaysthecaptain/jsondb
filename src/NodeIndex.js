@@ -129,6 +129,7 @@ class NodeIndex {
         a) this.id, if it's locally available
         b) direct child ID, if we have positive record of it belonging to a child node
         c) spillover node ID, if present
+        NOTE LATERAL IS HANDLED SEPARATELY
     */
     getIDForPath(path) {
         let indexNode = this.i[path]
@@ -141,8 +142,6 @@ class NodeIndex {
             else if (indexNode.getVerticalPointer()) {
                 return indexNode.getVerticalPointer()
             }
-
-            debugger // untested past here
 
             // If a spillover node references it, return that node's id
             let spilloverID = this.getSpilloverNodeID(path)
@@ -223,26 +222,16 @@ class NodeIndex {
 
 
     // Returns all non-meta IndexEntries under path specified
-    getChildren(path) {
-        
-        // If this itself a terminal node, return it
-
-        // MARC RESUME HERE
-        // debugger
-        // if (this.i[path] && this.i[path].isDefault()) {return [path]}
-        // if (this.i[path].isDefault()) {
-        //     return [path]
-        // }
-        
+    getChildren(path) {    
         let pathsToSearch = []
-        Object.keys(this.i).forEach((path) => {
-            if (path === u.INDEX_KEY) {return}
-            if (!this.i[path].isMeta()) {pathsToSearch.push(path)}
+        Object.keys(this.i).forEach((p) => {
+            if (p === u.INDEX_KEY) {return}
+            if (!this.i[p].isMeta()) {pathsToSearch.push(p)}
         })
 
         // No path == root
         let childKeys = []
-        if (path === '') {return pathsToSearch}
+        if (!path) {return pathsToSearch}
 
         // Otherwise, child == starts the same, including 
         pathsToSearch.forEach((key) => {
@@ -253,7 +242,7 @@ class NodeIndex {
         return childKeys
     }
 
-    // 
+    // Locally present only
     getTerminalChildren(path) {
         let res = []
         let allNonMeta = this.getChildren(path)
@@ -277,6 +266,22 @@ class NodeIndex {
             }
         })
         return size
+    }
+
+    // True if nothing is not in some way represented on this node
+    arePathsAccountedFor(paths) {
+        paths.forEach((path) => {if (!this.i[path]) {return false} else {return true}})
+    }
+
+    // TODO: account for lateral extension of a node 
+    isThisTheBottom() {
+        // Object.keys(this.i).forEach((path) => {
+        //     let node = this.i[path]
+        //     let isTerminal = node.isTerminal()
+        //     let isMeta = node.isMeta()
+        //     if (!isTerminal && !isMeta) {return false}
+        // })
+        return true
     }
 
     getNodeAtPath(path) {return this.i[path]}
@@ -334,14 +339,15 @@ class NodeIndex {
 
     setLateralExt(path, latExIDs) {
         this.i[path].type(NT_LATERAL_POINTER)
-        this.i[path][LATERAL_POINTER_ARRAY_KEY] = latExIDs
+        this.i[path].data[LATERAL_POINTER_ARRAY_KEY] = latExIDs
         this.i[path].size(0)
         this.updateMetaNodes()
     }
 
+    // AUDIT?
     getLateralPointers(path) {
         if ((this.i[path]) && (this.i[path].type() === NT_LATERAL_POINTER)) {
-            return this.i[path][LATERAL_POINTER_ARRAY_KEY]
+            return this.i[path].data[LATERAL_POINTER_ARRAY_KEY]
         }
     }
 
@@ -365,8 +371,6 @@ class NodeIndex {
             node.data[POINTER_KEY] = node[POINTER_KEY] || {}
             node.data[POINTER_KEY] = pointer
             node.size(0)
-
-            debugger
             
             // Add child to parent, add spillover. DO WE WANT SPILLOVER? TEST WITH LOTS OF LAT KEYS
             let arrPath = u.stringPathToArrPath(path)
@@ -393,9 +397,10 @@ class NodeIndex {
     // REMOVE VERTICAL POINTER? DELETING THINGS BACKTRACKING UPSTREAM?
 
     isLoaded() {return this.loaded}
-    isOversize() {
+    isOversize() {return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE}
+    
+    hasOversizeKeys() {
         if (this.getOversizeNodes().length) {return true}
-        return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE
     }
 
     getSize() {return this.i[u.INDEX_KEY].size()}
@@ -440,15 +445,6 @@ class IndexEntry {
         }
     }
 
-    
-    // addChild(childPath, childID) {this.data[CHILDREN_KEY][childPath] = childID}
-    // removeChild(childPath) {delete this.data[CHILDREN_KEY][childPath]}
-    // clearChildren() {this.data[CHILDREN_KEY] = {}}
-    // children(children) {
-    //     if (children) {this.data[CHILDREN_KEY] = children}
-    //     else {return this.data[CHILDREN_KEY]}
-    // }
-
     write(complete) {
         let ret = u.copy(this.data)
         if (complete) {
@@ -463,22 +459,15 @@ class IndexEntry {
 
     isOversize() {
         let isMeta = this.isMeta()
-        let isOver = this.size() > u.HARD_LIMIT_NODE_SIZE
+        let isOver = this.size() > (u.HARD_LIMIT_NODE_SIZE + u.INDEX_MARGIN)
         if (!isMeta && isOver) {return true}
     }
     getPath() {return this.metadata.path}
 
-    getVerticalPointer() {
-        if (this.type() === NT_VERTICAL_POINTER) {
-            return this.data[POINTER_KEY]
-        }
+    getLateralPointers() {
+        if (this.type() === NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}
     }
-
-    // getChildIDs() {
-    //     if (this.isMeta() && this.data[CHILDREN_KEY]) {
-    //         return Object.values(this.data[CHILDREN_KEY])
-    //     } else {return []}
-    // }
+    getVerticalPointer() {if (this.type() === NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
 
     // SUN AM NOTE TO SELF: CHANGE FORMAT IF WE KEEP NO CHILDREN_KEY
     getAllVerticalPointers() {
@@ -495,6 +484,9 @@ class IndexEntry {
 
     isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
     isMeta() {return this.data[TYPE_KEY] === NT_META}
+    
+    // isVertical() {if (this.data[TYPE_KEY] === NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
+    // isLateral() {if (this.data[TYPE_KEY] === NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}}
 }
 
 module.exports = NodeIndex

@@ -33,7 +33,6 @@ class DBObject {
         this.cacheIndex = {}
         this.cacheSize = 0
         this.cachedDirectChildren = {}
-        this._resetCachedPointers()
     }
 
     // Creates a new object in the database
@@ -53,9 +52,9 @@ class DBObject {
         await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
-        let lateral = this.index.getAllLateralPointers()
-        for (let i = 0; i < lateral.length; i++) {
-            let key = lateral[i]
+        let lateralIDs = this.index.getAllLateralPointers()
+        for (let i = 0; i < lateralIDs.length; i++) {
+            let key = u.keyFromID(lateralIDs[i])
             await this.dynamoClient.delete({
                 tableName: this.tableName,
                 key: key,
@@ -120,7 +119,11 @@ class DBObject {
     
     async batchGet(paths) {
         await this.ensureIndexLoaded()
-        let data
+        let data = {}
+
+        // Does this node go further than what we have reference of in the local index?
+        if (!paths && this.index.isThisTheBottom()) {paths = this.index.getChildren()}
+
         if (paths) {
             if (typeof paths === 'string') {
                 paths = [paths]
@@ -137,7 +140,12 @@ class DBObject {
                 })
             })
 
-            // Find out on which node of the object (here, direct child, or indirect child) each path is located. 
+            // Get what we can from the cache
+            Object.keys(pathObj).forEach((path) => {
+                data[path] = this._cacheGet(path)
+            })
+
+            // Location of key—-here, on direct child, gettable from direct child
             let pathsByChild = {}
             let specialCases = []
             Object.keys(pathObj).forEach((path) => {
@@ -146,23 +154,29 @@ class DBObject {
                 if (childID) {
                     if (!pathsByChild[childID]) {pathsByChild[childID] = []}
                     pathsByChild[childID].push(path)
-                } else {
-                    if (!this.isSubordinate) {debugger}
-
-                    specialCases.push(paths)
-                }
+                } else {specialCases.push(paths)}
             })
             
-            // Get locally available paths
+            // Read local
             let localPaths = pathsByChild[this.id]
             if (localPaths) {
                 delete pathsByChild[this.id]
-                data = await this._read(localPaths)
-            } else {
-                data = {}
+                let dataFromLocal = await this._read(localPaths)
+                data = _.assign({}, data, dataFromLocal)
+            }
+
+            // Lateral reconstruction
+            for (let i = 0; i < specialCases.length; i++) {
+                let path = specialCases[i]
+                let latPtrs = this.index.getLateralPointers(path)
+                if (latPtrs) {
+                    let lateralData = {}
+                    lateralData[path] = await this._reconstructLaterallySplitNode(latPtrs)
+                    data = _.assign({}, data, lateralData)
+                }
             }
             
-            // If we have outstanding paths to find, instantiate children and use their batchGet
+            // Everything non-local, via batchGet of direct children
             let childDBObjectNodes = await this.getChildNodes()
             let childObjectKeys = Object.keys(childDBObjectNodes)
             for (let i = 0; i < childObjectKeys.length; i++) {
@@ -175,18 +189,11 @@ class DBObject {
                 }
                 delete pathsByChild[childID]
             }
-
-            // TODO: lateral
-            // if (specialCases.length) {
-            //     debugger
-            // }
         } 
         
-        // If no paths, just don't pass attributes to dynamo
+        // No paths: just dump from dynamo and clean up
         else {
             data = await this._read()
-            
-            // Clean up extra metadata
             delete data.uid
             delete data.ts
             delete data[u.INDEX_KEY]
@@ -195,97 +202,9 @@ class DBObject {
         // Cache and return
         this._cacheSet(data)
         return u.unpackKeys(data)
-            
-            
-            
-            
-            
-            
-            
-
-
-        // let pathsRemaining = u.packKeys(paths)
-        // let pathsFound = []
-        
-        // // Get what we can from the cache
-        // let data = {}
-        // pathsRemaining.forEach((path) => {
-        //     let fromCache = this._cacheGet(path)
-        //     if (fromCache) {
-        //         data[path] = fromCache
-        //         pathsFound.push(path)
-        //     }
-        // })
-        // pathsRemaining = _.difference(pathsRemaining, pathsFound)
-        // if (!pathsRemaining.length) {
-        //     this._cacheSet(data)
-        //     return u.unpackKeys(data)
-        // }
-        
-        // // Load index, see where requested properties live
-        // await this.ensureIndexLoaded()
-        
-        // let childNodes = await this.getChildNodes()
-        // let pointers = u.getVerticalPointers(this.index)
-
-        // let gettableFromHere = []
-        // let addresses = {}
-        // for (let i = 0; i < pathsRemaining.length; i++) {
-        //     let path = pathsRemaining[i]
-            
-        //     // Is the path here?
-        //     if (this.index[path] && !this.index[path][u.LARGE_EXT_PREFIX]) {
-        //         gettableFromHere.push(path)
-        //         pathsFound.push(path)
-        //     } 
-            
-        //     // Pointers to large things
-        //     else if (this.index[path] && this.index[path][u.LARGE_EXT_PREFIX]) {
-        //         let lateralPayloadNodes = await this.index[path][u.LARGE_EXT_PREFIX]
-        //         data[path] = await this._getLaterallySplitNode(lateralPayloadNodes)
-        //         pathsFound.push(path)
-        //     }
-            
-        //     // If not, does it belong to a child we have record of? 
-        //     // (othwise its a metapath for something we already have)
-        //     else {
-        //         let childNodeID = pointers[path]
-        //         if (childNodeID) {
-        //             let childNode = childNodes[childNodeID]
-        //             data[path] = await childNode.get(path)
-        //             pathsFound.push(path)
-        //         }
-        //     }
-        // }
-        
-        // // Get what properties live here, return them if that's all
-        // pathsRemaining = _.difference(pathsRemaining, gettableFromHere)
-        // if (gettableFromHere.length) {
-        //     let res = await this._read(gettableFromHere)
-        //     Object.keys(res).forEach((key) => {
-        //         data[key] = res[key]
-        //     })
-        //     if (!pathsRemaining.length) {
-        //         this._cacheSet(data)
-        //         return u.unpackKeys(data)
-        //     }
-        // }
-
-        // // Otherwise, get from child nodes
-        // let children = await this.getChildNodes()
-        // let childKeys = Object.keys(children)
-        // for (let i = 0; i < childKeys.length; i++) {
-        //     let childID = childKeys[i]
-        //     let dataFromChild = await children[childID].batchGet(addresses[childID])
-        //     Object.keys(dataFromChild).forEach((key) => {
-        //         data[key] = dataFromChild[key]
-        //     })
-        // }
-        // this._cacheSet(data)
-        // return u.unpackKeys(data)
     }
 
-    async set(attributes, doNotOverwrite) {        
+    async set(attributes, doNotOverwrite) {
         u.validateKeys(attributes)
         attributes = flatten(attributes)
         u.packKeys(attributes)
@@ -294,7 +213,7 @@ class DBObject {
         this._cacheSet(attributes)
         
         // If oversize, split, otherwise write
-        if (this.index.isOversize()) {
+        if (this.index.isOversize() || this.index.hasOversizeKeys()) {
             return await this._handleSplit(attributes)
         } else {
             return await this._write(attributes, doNotOverwrite)
@@ -344,8 +263,7 @@ class DBObject {
         let data = await this.dynamoClient.update({
             tableName: this.tableName,
             key: this.key,
-            attributes: attributes,
-            doNotOverwrite: doNotOverwrite
+            attributes: attributes
         }).catch((err) => {
             console.log('failure in DBObject._write')
             console.error(err)
@@ -392,25 +310,9 @@ class DBObject {
         }
 
         return u.unpackKeys(data)
-
-        // let paths = Object.keys(this.index).filter((a) => a !== u.INDEX_KEY)
-        
-        // Get all children. Get data from each and add it
-        // let children = await this.getChildNodes()
-
-        // let childKeys = Object.keys(children)
-        // for (let i = 0; i < childKeys.length; i++) {
-        //     let childID = childKeys[i]
-        //     let dataFromChild = await children[childID].getEntireObject()
-        //     Object.keys(dataFromChild).forEach((key) => {
-        //         data[key] = dataFromChild[key]
-        //     })
-        // }
-
-        // return u.unpackKeys(data)
     }
 
-    async _getLaterallySplitNode(nodeIDs) {
+    async _reconstructLaterallySplitNode(nodeIDs) {
         let keys = []
         nodeIDs.forEach((id) => {
             keys.push(u.keyFromID(id))
@@ -479,104 +381,110 @@ class DBObject {
         return hypotheticalIndex[u.INDEX_KEY][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
-   async _handleSplit(newAttributes) {
+    async _handleSplit(newAttributes) {
         
-    // First, deal with anything that requires lateral splitting
-    let keysRequiringLateralSplitting = this.index.getOversizeNodes()
-    for (let i = 0; i < keysRequiringLateralSplitting.length; i++) {
-        let path = keysRequiringLateralSplitting[i]
-        let attributeValue = newAttributes[path]
-        let latExIDs = await this._splitLateral(attributeValue)
-        this.index.setLateralExt(path, latExIDs)
-        debugger
-    }
-    
-    let getAmountOver = () => {
-        let overBy = this.index.getSize() - u.MAX_NODE_SIZE
-        if (overBy > 0) {
-            return overBy
-        }
-        return 0
-    }
-
-    // Lifts off as large a single vertical chunk as possible
-    let pullOffNextBestNode = async () => {
-        
-        let newNodeID = u.generateNewID()
-        let newNodeSizeLeft = u.MAX_NODE_SIZE
-        let overBy = getAmountOver()
-        let attributesForNewNode = {}
-        
-        
-        let moveNodeToNewIndex = (indexEntry) => {
-            let attributesToAdd = this.index.getTerminalChildren(indexEntry.getPath())
-            // attributesToAdd.push(indexEntry.getPath())
-            attributesToAdd.forEach((key) => {
-                attributesForNewNode[key] = newAttributes[key]
-                delete newAttributes[key]
-            })
-            // let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
-            newNodeSizeLeft -= indexEntry.size()
-            overBy -= indexEntry.size()
+        /* LATERAL SPLIT */
+        let keysRequiringLateralSplitting = this.index.getOversizeNodes()
+        for (let i = 0; i < keysRequiringLateralSplitting.length; i++) {
+            let path = keysRequiringLateralSplitting[i]
+            let attributeValue = newAttributes[path]
+            let latExIDs = await this._splitLateral(attributeValue)
+            delete newAttributes[path]
+            this.index.setLateralExt(path, latExIDs)
+            this.index.updateMetaNodes()
         }
         
-        // Group metanodes by order
-        let metaNodePaths = this.index.getMetaNodes()
-        let candidates = {}
-        metaNodePaths.forEach((path) => {
-            let order = u.stringPathToArrPath(path).length
-            candidates[order] = candidates[order] || []
-            candidates[order].push(this.index.getNodeAtPath(path))
-        })
-        
-        // Look for the largest groups that can be split off intact
-        for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
-            if (candidates[depth]) {
-                candidates[depth].sort((a, b) => (a.size() < b.size()))
-                candidates[depth].forEach((candidate) => {
-                    if ((candidate.size() < newNodeSizeLeft)) {
-                        moveNodeToNewIndex(candidate)
-                    }
+        /* VERTICAL SPLIT */
+        let doVerticalSplit = async () => {
+            let getAmountOver = () => {
+                let overBy = this.index.getSize() - (u.MAX_NODE_SIZE + u.INDEX_MARGIN)
+                if (overBy > 0) {
+                    return overBy
+                }
+                return 0
+            }
+            
+            // Lifts off as large a single vertical chunk as possible
+            let pullOffNextBestNode = async () => {
+                
+                let newNodeID = u.generateNewID()
+                let newNodeSizeLeft = u.MAX_NODE_SIZE
+                let overBy = getAmountOver()
+                let attributesForNewNode = {}
+                
+                
+                let moveNodeToNewIndex = (indexEntry) => {
+                    let attributesToAdd = this.index.getTerminalChildren(indexEntry.getPath())
+                    // attributesToAdd.push(indexEntry.getPath())
+                    attributesToAdd.forEach((key) => {
+                        attributesForNewNode[key] = newAttributes[key]
+                        delete newAttributes[key]
+                    })
+                    // let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
+                    newNodeSizeLeft -= indexEntry.size()
+                    overBy -= indexEntry.size()
+                }
+                
+                // Group metanodes by order
+                let metaNodePaths = this.index.getMetaNodes()
+                let candidates = {}
+                metaNodePaths.forEach((path) => {
+                    let order = u.stringPathToArrPath(path).length
+                    candidates[order] = candidates[order] || []
+                    candidates[order].push(this.index.getNodeAtPath(path))
                 })
                 
+                // Look for the largest groups that can be split off intact
+                for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
+                    if (candidates[depth]) {
+                        candidates[depth].sort((a, b) => (a.size() < b.size()))
+                        candidates[depth].forEach((candidate) => {
+                            if ((candidate.size() < newNodeSizeLeft)) {
+                                moveNodeToNewIndex(candidate)
+                            }
+                        })
+                        
+                    }
+                }
+                
+                // If we're still over, iterate terminal nodes and add new attributes one by one
+                if (overBy > u.INDEX_MARGIN) {
+                    let allTerminal = this.index.getTerminalNodes()
+                    allTerminal.forEach((path) => {
+                        let candidate = this.index.getNodeAtPath(path)
+                        if (candidate.size() < newNodeSizeLeft) {
+                            moveNodeToNewIndex(candidate)
+                        }
+                    })
+                }
+                
+                // Create the new node
+                let newNode = new DBObject(newNodeID, {
+                    dynamoClient: this.dynamoClient,
+                    tableName: this.tableName
+                })
+                let pathsOnNewNode = Object.keys(attributesForNewNode)
+                console.log(pathsOnNewNode)
+                await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
+                
+                this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
+                return newNode
+            }
+            
+            // Until current node has been depopulated sufficiently to fit, split off new nodes
+            while (getAmountOver() > 0) {
+                let newNode = await pullOffNextBestNode()
+                this.cachedDirectChildren[newNode.id] = newNode
             }
         }
 
-        // If we're still over, iterate terminal nodes and add new attributes one by one
-        if (overBy > 0) {
-            let allTerminal = this.index.getTerminalNodes()
-            allTerminal.forEach((path) => {
-                let candidate = this.index.getNodeAtPath(path)
-                if (candidate.size() < newNodeSizeLeft) {
-                    moveNodeToNewIndex(candidate)
-                }
-            })
-        }
-
-        // Create the new node
-        let newNode = new DBObject(newNodeID, {
-            dynamoClient: this.dynamoClient,
-            tableName: this.tableName
-        })
-        let pathsOnNewNode = Object.keys(attributesForNewNode)
-        console.log(pathsOnNewNode)
-        await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
+        if (this.index.isOversize()) {await doVerticalSplit()}
         
-        this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
-        return newNode
-    }
-
-    // Until current node has been depopulated sufficiently to fit, split off new nodes
-    while (getAmountOver() > 0) {
-        let newNode = await pullOffNextBestNode()
-        this.cachedDirectChildren[newNode.id] = newNode
-    }
-
-    // Write the remaining new attributes
-    await this.set(newAttributes)
+        // Write the remaining new attributes
+        await this.set(newAttributes)
 }
 
-    // Given an oversize load, returns ordered array of IDs of all the children splitting it up
+    // Manually divvies up overside load
     async _splitLateral(payload) {
         let childIDs = []
         let encoded = u.encode(payload)
@@ -585,18 +493,21 @@ class DBObject {
         while (encoded.length) {
             let encodedAttribute = encoded.slice(0, u.MAX_NODE_SIZE)
             encoded = encoded.slice(u.MAX_NODE_SIZE)
-            let newNodeID = u.generateNewID()
-            let siblingNode = new DBObject(newNodeID, {
-                dynamoClient: this.dynamoClient,
-                tableName: this.tableName
-            })
-
+            let subNodeID = u.generateNewID()
+            let subNodeKey = u.keyFromID(subNodeID)
             let attributes = {}
             attributes[u.LARGE_SERIALIZED_PAYLOAD] = encodedAttribute
             attributes[u.LARGE_EXT_INDEX] = index
 
-            await siblingNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
-            childIDs.push(siblingNode.id)
+            await this.dynamoClient.update({
+                tableName: this.tableName,
+                key: subNodeKey,
+                attributes: attributes
+            }).catch((err) => {
+                console.log('failure in DBObject._splitLateral')
+                console.error(err)
+            })
+            childIDs.push(subNodeID)
             index ++
         }
         return childIDs
@@ -667,205 +578,8 @@ class DBObject {
                 }
             }
         })
-    }
+    }  
 
-    // Pointers are generated before the index is refreshed, and thus need to be cached
-    _cacheVerticalPointer(pathOfAttributeMoving, pointer) {
-        this.cachedPointers.vertical[pathOfAttributeMoving] = pointer
-    }
-
-    _cacheLateralPointerArray(pathOfAttributeMoving, pointerArray, size) {
-        this.cachedPointers.lateral[pathOfAttributeMoving] = {pointers: pointerArray, size}
-    }
-
-    _setCachedPointers() {
-        Object.keys(this.cachedPointers.vertical).forEach((path) => {
-            let pointer = this.cachedPointers.vertical[path]
-            let arrPath = u.stringPathToArrPath(path)
-            let childKey = arrPath.pop()
-            let basePath = u.INDEX_KEY
-            if (arrPath.length) {
-                let parentNodePath = u.arrayPathToStringPath(arrPath, true)
-                basePath = parentNodePath
-            }
-            
-            // Note on the parent node that this node has children at address
-            this.index[basePath] = this.index[basePath] || {}
-            this.index[basePath][u.EXT_PREFIX] = pointer
-
-            // Note specifically which children
-            this.index[basePath][u.EXT_CHILDREN_PREFIX] = this.index[basePath][u.EXT_CHILDREN_PREFIX] || {}
-            // this.index[basePath][u.EXT_CHILDREN_PREFIX][childKey] = pointer
-            this.index[basePath][u.EXT_CHILDREN_PREFIX][path] = pointer
-        })
-        Object.keys(this.cachedPointers.lateral).forEach((path) => {
-            let pointerObject = this.cachedPointers.lateral[path]
-            this.index[path] = {}
-            this.index[path][u.LARGE_EXT_PREFIX] = pointerObject.pointers
-        })
-        this._resetCachedPointers()
-    }
-
-    _resetCachedPointers() {
-        this.cachedPointers = {lateral: {}, vertical: {}}
-    }
-
-    _getPointers() {
-        return u.getPointers(this.index)
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-    /*  **************************************************    */
-
-
-
-
-
-
-
-
-    // key() {
-    //     return this.Key
-    // }
-
-    // // Loads and caches entire object from DB for subsequent retrieval
-    // async ensure_loaded() {
-    //     if (this.data) {
-    //         return this.data
-    //     }
-    //     let get_params = {
-    //         table_name: this.TableName,
-    //         key: this.Key
-    //     }
-    //     this.data = await db.get_item(get_params)
-    // }
-
-    // // Updates specified params or else the entire object
-    // async update(params_to_update) {
-        
-    //     // If specific params not specified, upload everything
-    //     if (!params_to_update) {
-    //         params_to_update = this.data
-    //     }
-        
-    //     let set_params = {
-    //         table_name: this.TableName,
-    //         key: this.Key,
-    //         attributes: params_to_update
-    //     }
-    //     let returned_data = await db.update_item(set_params)
-        
-    //     // Set this.data either in entirety or only the modified params only
-    //     if (!this.data) {
-    //         this.data = returned_data
-    //     } else {
-    //         Object.keys(returned_data).forEach((key) => {
-    //             this.data[key] = returned_data[key]
-    //         })
-    //     }
-    //     return this.data
-    // }
-    
-
-    // async get(key) {
-    //     if (this.Key[key]) {
-    //         return this.Key[key]
-    //     }
-
-    //     let is_secret = this.is_key_secret(key)
-    //     await this.ensure_current_user_can_view(is_secret)
-    //     await this.ensure_loaded(key)
-    //     return data[key]
-    // }
-
-    // // Designate keys as secret in config. For now, we're putting everything secret in "secret"
-    // async set(key, value) {
-    //     if (this.Key[key]) {
-    //         throw new Error('This key cannot be set')
-    //     }
-        
-    //     let is_secret = this.is_key_secret(key)
-    //     await this.ensure_current_user_can_edit(is_secret)
-    //     let key_value_pair = {}
-    //     key_value_pair[key] = value
-    //     await this.update(key_value_pair)
-    //     return this.data[key]
-    // }
-
-    // async raw() {
-    //     await this.ensure_loaded()
-
-    //     // Returns those keys in data permitted by user's permission level
-    //     let get_all_allowed_data = () => {
-
-    //         if (this.current_user_can_view(true)) {
-    //             return this.data
-    //         } else if (this.current_user_can_view()) {
-    //             let permitted_data = u.filter_object(this.data, (key) => {
-    //                 return !this.is_key_secret(key)
-    //             })
-    //             return permitted_data 
-    //         }
-    //     }
-    //     let data = get_all_allowed_data()
-    //     return data
-    // }
-
-
-
-    // // Secret params are designated in config
-    // is_key_secret(key) {
-    //     return key.includes(config.SECRET_KEY_SUFFIX)
-    // }
-
-    // /*
-    // PERMISSION METHODS
-    // ensure_can_view and ensure_can_edit are superclassed for specific restriction
-    // */
-    
-    // // Throws an error if the current user cannot view this object
-    // async ensure_current_user_can_view(sensitive) {
-    //     if (!this.current_user_can_view(sensitive)) {
-    //         this.throw_unauthorized_error()
-    //     }
-    // }
-    
-    // async ensure_current_user_can_edit(sensitive) {
-    //     if (!this.current_user_can_edit(sensitive)) {
-    //         this.throw_unauthorized_error()
-    //     }
-    // }
-
-    // async current_user_can_view(sensitive) {
-    //     return true
-    // }
-    
-    // async current_user_can_edit(sensitive) {
-    //     return true
-    // }
-
-    // throw_unauthorized_error() {
-    //     throw new Error('Current user does not have required permissions')
-    // }
 }
 
 module.exports = DBObject

@@ -16,6 +16,7 @@ module.exports = u
 u.HARD_LIMIT_NODE_SIZE = 395 * 1024
 u.MAX_NODE_SIZE = 300 * 1024
 u.IDEAL_NODE_SIZE = 200 * 1024
+u.INDEX_MARGIN = 5 * 1024
 u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
 u.DEFAULT_PERMISSION_LEVEL = 0
 u.MAX_NESTING_DEPTH = 30
@@ -25,32 +26,32 @@ u.PERMISSION_PREFIX = 'P'
 u.SIZE_PREFIX = 'S'
 u.GROUP_SIZE_PREFIX = 'SG'
 u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
-u.EXT_CHILDREN_PREFIX = 'CHILDREN'
+// u.EXT_CHILDREN_PREFIX = 'CHILDREN'
 
-u.NODE_TYPE_KEY = 'META_TYPE'
-u.TYPE_LATERAL_SPLIT = 'LAT_SPLIT'
-u.TYPE_COLLECTION = 'COL'
-u.TYPE_FILE_LINK = 'FILE_LINK'
-u.TYPE_FILE_BUFFER = 'FILE_BUF'
-u.TYPE_REFERENCE ='REF'
+// u.NODE_TYPE_KEY = 'META_TYPE'
+// u.TYPE_LATERAL_SPLIT = 'LAT_SPLIT'
+// u.TYPE_COLLECTION = 'COL'
+// u.TYPE_FILE_LINK = 'FILE_LINK'
+// u.TYPE_FILE_BUFFER = 'FILE_BUF'
+// u.TYPE_REFERENCE ='REF'
 
 
-u.LARGE_EXT_PREFIX = 'META_LARGE_EXT'    // NEXT UP: kill this, replace with above
+// 
 u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
-
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
+
 u.PATH_SEPARATOR = '__'
 
 
-u.NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
-u.NT_META = 'META'                          // meta node (get children)
-u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
-u.NT_VERTICAL_NONSPECIFIC = 'VP_NONSPEC'    // possible vertical pointer
-u.NT_LAT_POINTER = 'LP'                     // large, laterally-extended node
-u.NT_COLLECTION = 'COLLECT'                 // collection
-u.NT_FILE_LINK = 'FILE_LINK'                // file, link
-u.NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
-u.NT_REF = 'REF'                            // reference to another DBObject
+// u.NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
+// u.NT_META = 'META'                          // meta node (get children)
+// u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
+// u.NT_VERTICAL_NONSPECIFIC = 'VP_NONSPEC'    // possible vertical pointer
+// u.NT_LAT_POINTER = 'LP'                     // large, laterally-extended node
+// u.NT_COLLECTION = 'COLLECT'                 // collection
+// u.NT_FILE_LINK = 'FILE_LINK'                // file, link
+// u.NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
+// u.NT_REF = 'REF'                            // reference to another DBObject
 
 
 /* NODE & INDEXING UTILITIES */
@@ -185,29 +186,29 @@ u.getVerticalPointers = (index, idsOnly) => {
     return ids
 }
 
-u.getLateralPointers = (index, idsOnly) => {
-    let paths = Object.keys(index)
-    let pointers = {}
-    let ids = []
-    paths.forEach((path) => {
-        let arrPath = u.stringPathToArrPath(path)
-        let finalKey = arrPath.pop()
-        if (finalKey = u.LARGE_EXT_PREFIX) {
-            if (index[path][u.LARGE_EXT_PREFIX]) {
-                pointerArray = index[path][u.LARGE_EXT_PREFIX]
-                pointers[path] = pointerArray
-                ids = ids.concat(pointerArray)
+// u.getLateralPointers = (index, idsOnly) => {
+//     let paths = Object.keys(index)
+//     let pointers = {}
+//     let ids = []
+//     paths.forEach((path) => {
+//         let arrPath = u.stringPathToArrPath(path)
+//         let finalKey = arrPath.pop()
+//         if (finalKey = u.LARGE_EXT_PREFIX) {
+//             if (index[path][u.LARGE_EXT_PREFIX]) {
+//                 pointerArray = index[path][u.LARGE_EXT_PREFIX]
+//                 pointers[path] = pointerArray
+//                 ids = ids.concat(pointerArray)
 
-            }
-        }
-    })
+//             }
+//         }
+//     })
 
-    if (idsOnly) {
-        ids = u.dedupe(ids)
-        return ids
-    }
-    return pointers
-}
+//     if (idsOnly) {
+//         ids = u.dedupe(ids)
+//         return ids
+//     }
+//     return pointers
+// }
 
 u.updateIndex = (index) => {
 
