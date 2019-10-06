@@ -287,28 +287,17 @@ it('DBObject 2: should create and get an object requiring vertical split', async
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
-    // await dbobject.ensureDestroyed()
-    // await dbobject.create(testObj)
-    
-    debugger
-    // SUN 1030: START, treat as already written
+    await dbobject.ensureDestroyed()
+    await dbobject.create(testObj)
 
     // Read one key of it from cache
     let read0 = await dbobject.get('k1.k1s3')
     let passed0 = _.isEqual(testObj.k1.k1s3, read0)
-    
-    debugger
-    // SUN 1030: MIDPOINT
-    
     assert.equal(passed0, true)
-
     
     // Read all of it from cache
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(testObj, read1)
-    
-    debugger
-    // SUN 1030: END
 
     assert.equal(passed1, true)
     
@@ -320,17 +309,17 @@ it('DBObject 2: should create and get an object requiring vertical split', async
         tableName: config.tableName
     })
     
-    
     // Starting fresh, read one key
     let read2 = await dbobject.get('k1.k1s3')
     let passed2 = _.isEqual(testObj.k1.k1s3, read2)
     assert.equal(passed2, true)
     
-
+    
     // Read entire object
     let read3 = await dbobject.get()
     let passed3 = _.isEqual(testObj, read3)
     assert.equal(passed3, true)
+    
     
     // Clean up
     await dbobject.destroy()

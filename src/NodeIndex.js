@@ -339,6 +339,21 @@ class NodeIndex {
         this.updateMetaNodes()
     }
 
+    getLateralPointers(path) {
+        if ((this.i[path]) && (this.i[path].type() === NT_LATERAL_POINTER)) {
+            return this.i[path][LATERAL_POINTER_ARRAY_KEY]
+        }
+    }
+
+    getAllLateralPointers() {
+        let allLateralPointers = []
+        Object.keys(this.i).forEach((path) => {
+            let lateralAtPath = this.getLateralPointers(path)
+            if (lateralAtPath) {allLateralPointers = allLateralPointers.concat(lateralAtPath)}
+        })
+        return allLateralPointers
+    }
+
     // Updates children and spillover pointers, recomputes, will handle downstream nodes needing deletion
     setVerticalPointer(pointer, paths) {
         paths.forEach((path) => {
@@ -350,6 +365,8 @@ class NodeIndex {
             node.data[POINTER_KEY] = node[POINTER_KEY] || {}
             node.data[POINTER_KEY] = pointer
             node.size(0)
+
+            debugger
             
             // Add child to parent, add spillover. DO WE WANT SPILLOVER? TEST WITH LOTS OF LAT KEYS
             let arrPath = u.stringPathToArrPath(path)

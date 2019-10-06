@@ -53,18 +53,14 @@ class DBObject {
         await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
-        let lateral = u.getLateralPointers(this.index, true)
-        let keys = []
-        lateral.forEach((id) => {
-            keys.push(u.keyFromID(id))
-        })
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i]
+        let lateral = this.index.getAllLateralPointers()
+        for (let i = 0; i < lateral.length; i++) {
+            let key = lateral[i]
             await this.dynamoClient.delete({
                 tableName: this.tableName,
                 key: key,
             }).catch((err) => {
-                console.log('failure in DBObject.delete')
+                console.log('failure in DBObject.delete, lateral pointers')
                 console.error(err)
             })
         }
@@ -105,17 +101,13 @@ class DBObject {
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            try {
-
-                let allKeysFlat = await this.getEntireObject()
-                return unflatten(allKeysFlat)
-            }catch(err){debugger}
+            let allKeysFlat = await this.getEntireObject()
+            return unflatten(allKeysFlat)
         }
         
+        // Otherwise use batchGet and pull out path from naturally formatted object
         let data = await this.batchGet(path)
-        debugger
         
-        // We pull out what we want from a naturally formatted object
         if (path !== '') {
             data = unflatten(data)
             let arrPath = u.stringPathToArrPath(path)
@@ -343,10 +335,7 @@ class DBObject {
 
     // Writes given attributes to this specific node, assumes index is prepared
     async _write(attributes, doNotOverwrite) {
-        
         u.startTime('write')
-
-        debugger
         this.index.subordinate(this.isSubordinate)
         let writableIndexObject = this.index.write()
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
