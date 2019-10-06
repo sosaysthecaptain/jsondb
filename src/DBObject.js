@@ -58,10 +58,7 @@ class DBObject {
             await this.dynamoClient.delete({
                 tableName: this.tableName,
                 key: key,
-            }).catch((err) => {
-                console.log('failure in DBObject.delete, lateral pointers')
-                console.error(err)
-            })
+            }).catch((err) => {u.error('failure in DBObject.delete, lateral pointers', err)})
         }
 
         // Get all children, destroy them
@@ -78,10 +75,7 @@ class DBObject {
         let deleted = await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
-        }).catch((err) => {
-            console.log('failure in DBObject.delete')
-            console.error(err)
-        })
+        }).catch((err) => {u.error('failure in DBObject.delete', err)})
         return _.has(deleted, 'Attributes')
     }
 
@@ -284,10 +278,7 @@ class DBObject {
             tableName: this.tableName,
             key: this.key,
             attributes: attributes
-        }).catch((err) => {
-            console.log('failure in DBObject._read')
-            console.error(err)
-        })
+        }).catch((err) => {u.error('failure in DBObject._read', err)})
         return data
     }
 
@@ -465,7 +456,6 @@ class DBObject {
                     tableName: this.tableName
                 })
                 let pathsOnNewNode = Object.keys(attributesForNewNode)
-                console.log(pathsOnNewNode)
                 await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
                 
                 this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
@@ -504,10 +494,7 @@ class DBObject {
                 tableName: this.tableName,
                 key: subNodeKey,
                 attributes: attributes
-            }).catch((err) => {
-                console.log('failure in DBObject._splitLateral')
-                console.error(err)
-            })
+            }).catch((err) => {u.error('failure in DBObject._splitLateral', err)})
             childIDs.push(subNodeID)
             index ++
         }

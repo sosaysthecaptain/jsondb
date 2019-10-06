@@ -253,6 +253,10 @@ u.log = (message, data) => {
         }
     }
 }
+u.error = (msg, err) => {
+    console.log(msg)
+    console.log(err)
+}
 
 let timedOperations = {}
 u.startTime = (operation) => {

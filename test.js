@@ -27,7 +27,7 @@ let dynamoClient = new DynamoClient({
 // })
 
 
-xit('DynamoClient 1: update, get, update, delete', async function() {
+it('DynamoClient 1: update, get, update, delete', async function() {
     this.timeout(60000)
     let key = getTestKey(1)
 
@@ -75,7 +75,7 @@ xit('DynamoClient 1: update, get, update, delete', async function() {
         key: key
     })
 })
-xit('DynamoClient 2: batchGet, getPagewise', async function() {
+it('DynamoClient 2: batchGet, getPagewise', async function() {
     this.timeout(60000)
     
     await dynamoClient.update({
@@ -172,7 +172,7 @@ xit('DynamoClient 2: batchGet, getPagewise', async function() {
     assert.equal(read4[0].payload, 'hi!')
 })
 
-xit('DynamoClient 3: scan and delete', async function() {
+it('DynamoClient 3: scan and delete', async function() {
     this.timeout(60000)
         
 
@@ -310,10 +310,8 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     })
     
     // Starting fresh, read one key
-    debugger
     let read2 = await dbobject.get('k1.k1s3')
     let passed2 = _.isEqual(testObj.k1.k1s3, read2)
-    debugger
     assert.equal(passed2, true)
     
     
