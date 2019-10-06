@@ -258,7 +258,7 @@ xit('DBObject 1: should create and get a single node object, with and without ca
     assert.equal(dbObjectExists, false)
 })
 
-xit('DBObject 2: should create and get an object requiring vertical split', async function() {
+it('DBObject 2: should create and get an object requiring vertical split', async function() {
     this.timeout(60000)
 
     // Data
@@ -326,7 +326,7 @@ xit('DBObject 2: should create and get an object requiring vertical split', asyn
     assert.equal(dbObjectExists, false)
 })
 
-it('DBObject 3: lateral split', async function() {
+xit('DBObject 3: lateral split', async function() {
     this.timeout(20000)
 
     // Data

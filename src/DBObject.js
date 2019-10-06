@@ -473,45 +473,6 @@ class DBObject {
         let decodedIndexData = u.decode(indexData[u.INDEX_KEY])
         this.index.loadData(decodedIndexData)
         return
-
-
-
-        /* OLD STUFF BELOW */
-
-        // // Get this index, directly via dynamoClient
-        // let index = await this.dynamoClient.get({
-        //     tableName: this.tableName,
-        //     key: this.key,
-        //     attributes: [u.INDEX_KEY]
-        // })
-        // if (!index) {
-        //     return
-        // }
-        // this.index = u.decode(index[u.INDEX_KEY])
-        // this.indexLoaded = true
-        
-        // if (!all) {
-        //     return this.index
-        // }
-
-        // // If we want all indexes, get all pointers, instantiate all objects, add their indices
-        // let allPointers = u.getVerticalPointers(this.index, true)
-        // let keys = Object.values(allPointers.vertical)
-        // let indices = await this.dynamoClient.batchGet({
-        //     tableName: this.tableName,
-        //     keys: keys,
-        //     attributes: [u.INDEX_KEY]
-        // })
-        
-        // indices.forEach((index) => {
-        //     index = u.decode(index[u.INDEX_KEY])
-        //     let newNodeID = index[u.INDEX_KEY].id
-        //     let dbobj = new DBObject(newNodeID, {
-        //         dynamoClient: this.dynamoClient,
-        //         tableName: this.tableName
-        //     })
-        //     this.cachedDirectChildren[index[u.INDEX_KEY].id] = dbobj
-        // })
     }
 
     _getHypotheticalSize(attributes) {
@@ -523,14 +484,6 @@ class DBObject {
         return hypotheticalIndex[u.INDEX_KEY][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
-
-    /*
-    Scenarios:
-    - lots of little stuff
-    - one massive incoming piece
-    - one massive incoming blob
-    - mismatched things, some bigger 
-    */
    async _handleSplit(newAttributes) {
         
     // First, deal with anything that requires lateral splitting
@@ -542,23 +495,6 @@ class DBObject {
         this.index.setLateralExt(path, latExIDs)
         debugger
     }
-
-
-    debugger
-    // let indexKeys = Object.keys(newIndex)
-    // for (let i = 0; i < indexKeys.length; i++) {
-    //     let path = indexKeys[i]
-    //     if (newIndex[path][u.SIZE_PREFIX] > u.HARD_LIMIT_NODE_SIZE) {
-    //         let value = u.getAttribute(newAttributes, u.stringPathToArrPath(path))
-    //         let latExIDs = await this._splitLateral(value)
-    //         this._cacheLateralPointerArray(path, latExIDs, newIndex[path][u.SIZE_PREFIX])
-    //         let attributePairForCache = {}
-    //         attributePairForCache[path] = value
-    //         this._cacheSet(attributePairForCache)
-    //         delete newIndex[path]
-    //         delete newAttributes[path]
-    //     }
-    // }
     
     let getAmountOver = () => {
         let overBy = this.index.getSize() - u.MAX_NODE_SIZE
@@ -570,19 +506,20 @@ class DBObject {
 
     // Lifts off as large a single vertical chunk as possible
     let pullOffNextBestNode = async () => {
+        
         let newNodeID = u.generateNewID()
         let newNodeSizeLeft = u.MAX_NODE_SIZE
         let overBy = getAmountOver()
+        let attributesForNewNode = {}
         
         
         let moveNodeToNewIndex = (indexEntry) => {
-            let attributeKeysForNewNode = this.index.getChildren(indexEntry.getPath())
-            let attributesForNewNode = {}
-            attributeKeysForNewNode.forEach((key) => {
+            let attributesToAdd = this.index.getChildren(indexEntry.getPath())
+            attributesToAdd.forEach((key) => {
                 attributesForNewNode[key] = newAttributes[key]
                 delete newAttributes[key]
             })
-            this.index.deleteNode(indexEntry.getPath())
+            let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
             newNodeSizeLeft -= indexEntry.size()
             overBy -= indexEntry.size()
         }
@@ -594,11 +531,9 @@ class DBObject {
             let order = u.stringPathToArrPath(path).length
             candidates[order] = candidates[order] || []
             candidates[order].push(this.index.getNodeAtPath(path))
-            // candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
         })
         
         // Look for the largest groups that can be split off intact
-        let newNodeAttributes = {}
         for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
             if (candidates[depth]) {
                 candidates[depth].sort((a, b) => (a.size() < b.size()))
@@ -627,8 +562,11 @@ class DBObject {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        await newNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
-
+        debugger
+        await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
+        
+        let pathsOnNewNode = Object.keys(attributesForNewNode)
+        this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
         return newNode
     }
 

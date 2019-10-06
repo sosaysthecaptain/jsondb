@@ -96,8 +96,8 @@ class NodeIndex {
 
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
-        this.i[u.INDEX_KEY].size(objectSize + indexSize)
         this.i[u.INDEX_KEY].type(NT_META)
+        this.i[u.INDEX_KEY].size(objectSize + indexSize)
         this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
     }
@@ -111,12 +111,17 @@ class NodeIndex {
         this.loaded = true
     }
 
+    // TODO: DELETE NODES UNDER IT
     deleteNode(path) {
+        let downstreamToAudit = []
         let children = this.getChildren(path)
         children.forEach((childPath) => {
+            downstreamToAudit = downstreamToAudit.concat(this.i[childPath].pointers())
             delete this.i[childPath]
         })
+        delete this.i[path]
         this.updateMetaNodes()
+        return downstreamToAudit
     }
 
     /* Given a path, return:
@@ -300,6 +305,29 @@ class NodeIndex {
         this.updateMetaNodes()
     }
 
+    // Updates children and spillover pointers
+    setVerticalPointer(pointer, paths) {
+        paths.forEach((path) => {
+            let node = this.i[path]
+            node.type(NT_VERTICAL_POINTER)
+            node[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
+            node[CHILDREN_KEY][path] = pointer
+            node.size(0)
+            
+            let arrPath = u.stringPathToArrPath(path)
+            arrPath.pop()
+            let parentPath = u.arrayPathToStringPath(arrPath)
+            let parentNode = this.i[parentPath]
+            parentNode[SPILLOVER_KEY] = node[SPILLOVER_KEY] || []
+            if (!parentNode[SPILLOVER_KEY].includes(pointer)) {
+                parentNode[SPILLOVER_KEY].push(pointer)
+            }
+        })
+
+    }
+
+    // REMOVE VERTICAL POINTER? DELETING THINGS BACKTRACKING UPSTREAM?
+
     isLoaded() {return this.loaded}
     isOversize() {
         if (this.getOversizeNodes().length) {return true}
@@ -376,6 +404,13 @@ class IndexEntry {
         if (!isMeta && isOver) {return true}
     }
     getPath() {return this.metadata.path}
+
+    // All children, spillover, and lateral
+    pointers() {
+        let pointers = []
+        // TODO
+        return pointers
+    }
 }
 
 module.exports = NodeIndex
