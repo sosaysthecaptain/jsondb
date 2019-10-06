@@ -142,7 +142,8 @@ class DBObject {
 
             // Get what we can from the cache
             Object.keys(pathObj).forEach((path) => {
-                data[path] = this._cacheGet(path)
+                let fromCache = this._cacheGet(path)
+                if (fromCache) {data[path] = fromCache}
             })
 
             // Location of key—-here, on direct child, gettable from direct child
