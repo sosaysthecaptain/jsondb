@@ -57,14 +57,14 @@ class NodeIndex {
         })
                 
         // Add intermediate nodes, including the top level
-        this.this.updateMetaNodes()
+        this.updateMetaNodes()
         this.loaded = true
 
         return this.i
     }
 
     // Updates meta nodes
-    this.updateMetaNodes() {
+    updateMetaNodes() {
 
         // Add meta nodes for any intermediate paths without metanodes, update sizes of all
         let intermediatePaths = u.getIntermediatePaths(this.i)
@@ -107,8 +107,16 @@ class NodeIndex {
         Object.keys(data).forEach((path) => {
             this.i[path] = new IndexEntry(path, data[path])
         })
-        this.this.updateMetaNodes()
+        this.updateMetaNodes()
         this.loaded = true
+    }
+
+    deleteNode(path) {
+        let children = this.getChildren(path)
+        children.forEach((childPath) => {
+            delete this.i[childPath]
+        })
+        this.updateMetaNodes()
     }
 
     /* Given a path, return:
@@ -246,6 +254,24 @@ class NodeIndex {
         return size
     }
 
+    getNodeAtPath(path) {return this.i[path]}
+
+    getMetaNodes() {
+        let metaNodes = []
+        Object.keys(this.i).forEach((path) => {
+            if (this.i[path].isMeta() && (path !== u.INDEX_KEY)) {metaNodes.push(path)}
+        })
+        return metaNodes
+    }
+
+    getTerminalNodes() {
+        let terminal = []
+        Object.keys(this.i).forEach((path) => {
+            if (this.i[path].isDefault() && (path !== u.INDEX_KEY)) {terminal.push(path)}
+        })
+        return terminal
+    }
+
     // Output index as object
     write(complete) {
         let writtenIndex = {}
@@ -271,7 +297,7 @@ class NodeIndex {
         this.i[path].type(NT_LATERAL_POINTER)
         this.i[path][LATERAL_POINTER_ARRAY_KEY] = latExIDs
         this.i[path].size(0)
-        this.this.updateMetaNodes()
+        this.updateMetaNodes()
     }
 
     isLoaded() {return this.loaded}
@@ -279,6 +305,8 @@ class NodeIndex {
         if (this.getOversizeNodes().length) {return true}
         return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE
     }
+
+    getSize() {return this.i[u.INDEX_KEY].size()}
 
 }
 
@@ -347,6 +375,7 @@ class IndexEntry {
         let isOver = this.size() > u.HARD_LIMIT_NODE_SIZE
         if (!isMeta && isOver) {return true}
     }
+    getPath() {return this.metadata.path}
 }
 
 module.exports = NodeIndex

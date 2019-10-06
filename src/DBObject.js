@@ -478,40 +478,40 @@ class DBObject {
 
         /* OLD STUFF BELOW */
 
-        // Get this index, directly via dynamoClient
-        let index = await this.dynamoClient.get({
-            tableName: this.tableName,
-            key: this.key,
-            attributes: [u.INDEX_KEY]
-        })
-        if (!index) {
-            return
-        }
-        this.index = u.decode(index[u.INDEX_KEY])
-        this.indexLoaded = true
+        // // Get this index, directly via dynamoClient
+        // let index = await this.dynamoClient.get({
+        //     tableName: this.tableName,
+        //     key: this.key,
+        //     attributes: [u.INDEX_KEY]
+        // })
+        // if (!index) {
+        //     return
+        // }
+        // this.index = u.decode(index[u.INDEX_KEY])
+        // this.indexLoaded = true
         
-        if (!all) {
-            return this.index
-        }
+        // if (!all) {
+        //     return this.index
+        // }
 
-        // If we want all indexes, get all pointers, instantiate all objects, add their indices
-        let allPointers = u.getVerticalPointers(this.index, true)
-        let keys = Object.values(allPointers.vertical)
-        let indices = await this.dynamoClient.batchGet({
-            tableName: this.tableName,
-            keys: keys,
-            attributes: [u.INDEX_KEY]
-        })
+        // // If we want all indexes, get all pointers, instantiate all objects, add their indices
+        // let allPointers = u.getVerticalPointers(this.index, true)
+        // let keys = Object.values(allPointers.vertical)
+        // let indices = await this.dynamoClient.batchGet({
+        //     tableName: this.tableName,
+        //     keys: keys,
+        //     attributes: [u.INDEX_KEY]
+        // })
         
-        indices.forEach((index) => {
-            index = u.decode(index[u.INDEX_KEY])
-            let newNodeID = index[u.INDEX_KEY].id
-            let dbobj = new DBObject(newNodeID, {
-                dynamoClient: this.dynamoClient,
-                tableName: this.tableName
-            })
-            this.cachedDirectChildren[index[u.INDEX_KEY].id] = dbobj
-        })
+        // indices.forEach((index) => {
+        //     index = u.decode(index[u.INDEX_KEY])
+        //     let newNodeID = index[u.INDEX_KEY].id
+        //     let dbobj = new DBObject(newNodeID, {
+        //         dynamoClient: this.dynamoClient,
+        //         tableName: this.tableName
+        //     })
+        //     this.cachedDirectChildren[index[u.INDEX_KEY].id] = dbobj
+        // })
     }
 
     _getHypotheticalSize(attributes) {
@@ -561,7 +561,7 @@ class DBObject {
     // }
     
     let getAmountOver = () => {
-        let overBy = u.getSizeOfNodeAtPath('', newIndex) - u.MAX_NODE_SIZE
+        let overBy = this.index.getSize() - u.MAX_NODE_SIZE
         if (overBy > 0) {
             return overBy
         }
@@ -571,63 +571,63 @@ class DBObject {
     // Lifts off as large a single vertical chunk as possible
     let pullOffNextBestNode = async () => {
         let newNodeID = u.generateNewID()
+        let newNodeSizeLeft = u.MAX_NODE_SIZE
         let overBy = getAmountOver()
-
-        // Get data on intermediate groupings
-        let intermediatePaths = u.getIntermediatePaths(newIndex)
+        
+        
+        let moveNodeToNewIndex = (indexEntry) => {
+            let attributeKeysForNewNode = this.index.getChildren(indexEntry.getPath())
+            let attributesForNewNode = {}
+            attributeKeysForNewNode.forEach((key) => {
+                attributesForNewNode[key] = newAttributes[key]
+                delete newAttributes[key]
+            })
+            this.index.deleteNode(indexEntry.getPath())
+            newNodeSizeLeft -= indexEntry.size()
+            overBy -= indexEntry.size()
+        }
+        
+        // Group metanodes by order
+        let metaNodePaths = this.index.getMetaNodes()
         let candidates = {}
-        intermediatePaths.forEach((path) => {
+        metaNodePaths.forEach((path) => {
             let order = u.stringPathToArrPath(path).length
-            let size = newIndex[path][u.GROUP_SIZE_PREFIX]
             candidates[order] = candidates[order] || []
-            candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
+            candidates[order].push(this.index.getNodeAtPath(path))
+            // candidates[order].push({path, size, order, children: u.getChildren(path, newIndex)})
         })
         
         // Look for the largest groups that can be split off intact
-        // NOTE: for now, only moving attributes not yet written
-        let newNodeSizeLeft = u.MAX_NODE_SIZE
         let newNodeAttributes = {}
         for (let depth = 0; depth < u.MAX_NESTING_DEPTH; depth++) {
             if (candidates[depth]) {
-                candidates[depth].sort((a, b) => (a.size < b.size))
+                candidates[depth].sort((a, b) => (a.size() < b.size()))
                 candidates[depth].forEach((candidate) => {
-                    if ((candidate.size < newNodeSizeLeft)) {
-                        
-                        // Migrate each child
-                        candidate.children.forEach((childPath) => {
-                            newNodeAttributes[childPath] = newAttributes[childPath]
-                            delete newAttributes[childPath]
-                            delete newIndex[childPath]
-                            this._cacheVerticalPointer(childPath, newNodeID)
-                        })
-                        delete newIndex[candidate.path]
-                        newNodeSizeLeft -= candidate.size
-                        overBy -= candidate.size
+                    if ((candidate.size() < newNodeSizeLeft)) {
+                        moveNodeToNewIndex(candidate)
                     }
                 })
                 
             }
         }
 
-        // If we're still over, add new attributes one by one
+        // If we're still over, iterate terminal nodes and add new attributes one by one
         if (overBy > 0) {
-            Object.keys(newAttributes).forEach((attributePath) => {
-                if (newIndex[attributePath][u.SIZE_PREFIX] < newNodeSizeLeft) {
-                    let value = newAttributes[attributePath]
-                    let size = newIndex[attributePath][u.SIZE_PREFIX]
-                    newNodeAttributes[attributePath] = value
-                    delete newIndex[attributePath]
-                    delete newAttributes[attributePath]
-                    u.updateIndex(newIndex)
-                    overBy -= size
-                    newNodeSizeLeft -= size
-                    this._cacheVerticalPointer(attributePath, newNodeID)
+            let allTerminal = this.index.getTerminalNodes()
+            allTerminal.forEach((path) => {
+                let candidate = this.index.getNodeAtPath(path)
+                if (candidate.size() < newNodeSizeLeft) {
+                    moveNodeToNewIndex(candidate)
                 }
             })
         }
 
         // Create the new node
-        let newNode = await this._splitVertical(newNodeID, newNodeAttributes)
+        let newNode = new DBObject(newNodeID, {
+            dynamoClient: this.dynamoClient,
+            tableName: this.tableName
+        })
+        await newNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
 
         return newNode
     }
@@ -643,14 +643,14 @@ class DBObject {
 }
 
     // Given appropriately sized chunk of attributes, returns index of new node
-    async _splitVertical(newNodeID, attributes) {
-        let childNode = new DBObject(newNodeID, {
-            dynamoClient: this.dynamoClient,
-            tableName: this.tableName
-        })
-        await childNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
-        return childNode
-    }
+    // async _splitVertical(newNodeID, attributes) {
+    //     let childNode = new DBObject(newNodeID, {
+    //         dynamoClient: this.dynamoClient,
+    //         tableName: this.tableName
+    //     })
+    //     await childNode.create(attributes, {permissionLevel: this.permissionLevel, isSubordinate: true})
+    //     return childNode
+    // }
 
     // Given an oversize load, returns ordered array of IDs of all the children splitting it up
     async _splitLateral(payload) {
