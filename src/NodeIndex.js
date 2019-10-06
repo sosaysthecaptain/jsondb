@@ -223,7 +223,7 @@ class NodeIndex {
 
 
 
-    // Returns IndexEntries under path specified
+    // Returns all non-meta IndexEntries under path specified
     getChildren(path) {
         let pathsToSearch = []
         Object.keys(this.i).forEach((path) => {
@@ -241,10 +241,19 @@ class NodeIndex {
                 childKeys.push(key)
             }
         })
-
-        // Include this path itself, if it's terminal
-        // if (!this.i[path].isMeta()) {childKeys.push(path)}
         return childKeys
+    }
+
+    getTerminalChildren(path) {
+        let allNonMeta = this.getChildren(path)
+        let res = []
+        allNonMeta.forEach((path) => {
+            let node = this.i[path]
+            if (node.isDefault()) {
+                res.push(path)
+            }
+        })
+        return res
     }
 
     getSizeOfNodeAtPath(path) {
@@ -305,23 +314,28 @@ class NodeIndex {
         this.updateMetaNodes()
     }
 
-    // Updates children and spillover pointers
+    // Updates children and spillover pointers, recomputes, will handle downstream nodes needing deletion
     setVerticalPointer(pointer, paths) {
         paths.forEach((path) => {
             let node = this.i[path]
+            node = node || new IndexNode(path)
             node.type(NT_VERTICAL_POINTER)
-            node[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
-            node[CHILDREN_KEY][path] = pointer
+            node.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
+            node.data[CHILDREN_KEY][path] = pointer
             node.size(0)
             
             let arrPath = u.stringPathToArrPath(path)
             arrPath.pop()
             let parentPath = u.arrayPathToStringPath(arrPath)
-            let parentNode = this.i[parentPath]
-            parentNode[SPILLOVER_KEY] = node[SPILLOVER_KEY] || []
-            if (!parentNode[SPILLOVER_KEY].includes(pointer)) {
-                parentNode[SPILLOVER_KEY].push(pointer)
+            let parentNode = this.i[u.INDEX_KEY]
+            if (arrPath.length) {
+                parentNode = this.i[parentPath]
             }
+            parentNode.data[SPILLOVER_KEY] = node[SPILLOVER_KEY] || []
+            if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
+                parentNode.data[SPILLOVER_KEY].push(pointer)
+            }
+            this.updateMetaNodes()
         })
 
     }

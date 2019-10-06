@@ -514,12 +514,13 @@ class DBObject {
         
         
         let moveNodeToNewIndex = (indexEntry) => {
-            let attributesToAdd = this.index.getChildren(indexEntry.getPath())
+            let attributesToAdd = this.index.getTerminalChildren(indexEntry.getPath())
+            attributesToAdd.push(indexEntry.getPath())
             attributesToAdd.forEach((key) => {
                 attributesForNewNode[key] = newAttributes[key]
                 delete newAttributes[key]
             })
-            let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
+            // let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
             newNodeSizeLeft -= indexEntry.size()
             overBy -= indexEntry.size()
         }
@@ -562,10 +563,11 @@ class DBObject {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
+        let pathsOnNewNode = Object.keys(attributesForNewNode)
+        console.log(pathsOnNewNode)
         debugger
         await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
         
-        let pathsOnNewNode = Object.keys(attributesForNewNode)
         this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
         return newNode
     }
