@@ -405,7 +405,7 @@ class NodeIndex {
 
     getSize() {return this.i[u.INDEX_KEY].size()}
     
-    subordinate(isSubordinate) {return this.i[u.INDEX_KEY].subordinate(isSubordinate)}
+    parent(parent) {return this.i[u.INDEX_KEY].parent(parent)}
 
 }
 
@@ -427,7 +427,7 @@ class IndexEntry {
     permission(permission) {return this.univGetSet('P', permission)}
     pointer(pointer) {return this.univGetSet('PTR', pointer)}
     s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
-    subordinate(isSubordinate) {return this.univGetSet('SUBORD', isSubordinate)}
+    parent(parent) {return this.univGetSet('PARENT', parent)}
 
     univGetSet(writableKey, value) {
         if (value) {this.data[writableKey] = value} 

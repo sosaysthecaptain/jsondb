@@ -25,7 +25,7 @@ class DBObject {
         // Default assumptions about information we don't have yet
         this.permissionLevel = u.DEFAULT_PERMISSION_LEVEL
         this.maximumCacheSize = u.MAXIMUM_CACHE_SIZE
-        this.isSubordinate = false
+        this.parent = null
         
         // Places to put things
         this.index = new NodeIndex(this.id, isNew)
@@ -38,7 +38,7 @@ class DBObject {
     // Creates a new object in the database
     async create(initialData, params) {
         params = params || {}
-        this.isSubordinate = params.isSubordinate || false
+        this.parent = params.parent || null
         this.permissionLevel = params.permissionLevel || u.DEFAULT_PERMISSION_LEVEL
 
         if (initialData[u.INDEX_KEY]) {
@@ -94,7 +94,7 @@ class DBObject {
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this.getEntireObject()
+            let allKeysFlat = await this._getEntireObject()
             return unflatten(allKeysFlat)
         }
         
@@ -244,13 +244,27 @@ class DBObject {
         return 0
     }
 
+    async ensureIndexLoaded() {if (!this.index.isLoaded()) {await this.loadIndex()}}
+    async loadIndex() {
+        let indexData = await this.dynamoClient.get({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: [u.INDEX_KEY]
+        })
+        if (!indexData) {return}
+        let decodedIndexData = u.decode(indexData[u.INDEX_KEY])
+        this.index.loadData(decodedIndexData)
+        this.parent = this.index.parent()
+        return
+    }
+
 
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node, assumes index is prepared
     async _write(attributes, doNotOverwrite) {
         u.startTime('write')
-        this.index.subordinate(this.isSubordinate)
+        this.index.parent(this.parent)
         let writableIndexObject = this.index.write()
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
         
@@ -283,7 +297,7 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async getEntireObject() {
+    async _getEntireObject() {
 
         await this.ensureIndexLoaded()
 
@@ -295,7 +309,7 @@ class DBObject {
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID].getEntireObject()
+            let dataFromChild = await children[childID]._getEntireObject()
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
@@ -341,36 +355,6 @@ class DBObject {
             dbobjects[id] = this.cachedDirectChildren[id]
         })
         return dbobjects
-    }
-
-    _formatAttributes(attributes) {
-        let flat = flatten(attributes)
-        u.packKeys(flat)
-        return flat
-    }
-
-    async ensureIndexLoaded() {if (!this.index.isLoaded()) {await this.loadIndex()}}
-
-    async loadIndex() {
-        let indexData = await this.dynamoClient.get({
-            tableName: this.tableName,
-            key: this.key,
-            attributes: [u.INDEX_KEY]
-        })
-        if (!indexData) {return}
-        let decodedIndexData = u.decode(indexData[u.INDEX_KEY])
-        this.index.loadData(decodedIndexData)
-        this.isSubordinate = this.index.subordinate()
-        return
-    }
-
-    _getHypotheticalSize(attributes) {
-
-        // marc-look-here
-        let hypotheticalIndex = this._getNewIndex(attributes)
-        let currentIndexSize = u.getSize(this.index)
-        let newIndexSize = u.getSize(hypotheticalIndex)
-        return hypotheticalIndex[u.INDEX_KEY][u.SIZE_PREFIX] - currentIndexSize + newIndexSize
     }
 
     async _handleSplit(newAttributes) {
@@ -456,8 +440,10 @@ class DBObject {
                     tableName: this.tableName
                 })
                 let pathsOnNewNode = Object.keys(attributesForNewNode)
-                await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
-                
+                await newNode.create(attributesForNewNode, {
+                    permissionLevel: this.permissionLevel, 
+                    parent: this.id
+                })
                 this.index.setVerticalPointer(newNode.id, pathsOnNewNode)
                 return newNode
             }
@@ -512,7 +498,7 @@ class DBObject {
 
     // Sets to cache if space, ejects oldest things if not
     _cacheSet(attributes) {
-        if (this.isSubordinate) {return}
+        if (this.parent) {return}
         let setIfFits = (key, value) => {
             let size = (u.getSize(value))
             let indexRecord
