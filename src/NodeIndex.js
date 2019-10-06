@@ -137,13 +137,11 @@ class NodeIndex {
             if (indexNode.isDefault()) {return this.id}
             
             // If it's a direct child, return child DBObjectNode's id
-            else if (indexNode.isMeta()) {
-
-                debugger // UNTESTED PAST HERE
-                if (indexNode[CHILDREN_KEY] && Object.values(indexNode[CHILDREN_KEY].includes(path))) {
-                    return indexNode[CHILDREN_KEY][path]
-                }
+            else if (indexNode.getVerticalPointer()) {
+                return indexNode.getVerticalPointer()
             }
+
+            debugger // untested past here
 
             // If a spillover node references it, return that node's id
             let spilloverID = this.getSpilloverNodeID(path)
@@ -225,6 +223,16 @@ class NodeIndex {
 
     // Returns all non-meta IndexEntries under path specified
     getChildren(path) {
+        
+        // If this itself a terminal node, return it
+
+        // MARC RESUME HERE
+        // debugger
+        // if (this.i[path] && this.i[path].isDefault()) {return [path]}
+        // if (this.i[path].isDefault()) {
+        //     return [path]
+        // }
+        
         let pathsToSearch = []
         Object.keys(this.i).forEach((path) => {
             if (path === u.INDEX_KEY) {return}
@@ -244,15 +252,17 @@ class NodeIndex {
         return childKeys
     }
 
+    // 
     getTerminalChildren(path) {
-        let allNonMeta = this.getChildren(path)
         let res = []
+        let allNonMeta = this.getChildren(path)
         allNonMeta.forEach((path) => {
             let node = this.i[path]
             if (node.isDefault()) {
                 res.push(path)
             }
         })
+        if (this.i[path].isDefault()) {res.push(path)}
         return res
     }
 
@@ -307,6 +317,20 @@ class NodeIndex {
         return oversize
     }
 
+    // Used for generic instantiation of all subNodes
+    getAllVerticalPointers() {
+        let vps = []
+        Object.keys(this.i).forEach((path) => {
+            let node = this.i[path]
+            let pointer = node.getVerticalPointer()
+            if (pointer) {vps.push(pointer)}
+            let childrenPointers = node.getAllVerticalPointers()
+            if (childrenPointers.length) {vps = vps.concat(childrenPointers)}
+        })
+        vps = u.dedupe(vps)
+        return vps
+    }
+
     setLateralExt(path, latExIDs) {
         this.i[path].type(NT_LATERAL_POINTER)
         this.i[path][LATERAL_POINTER_ARRAY_KEY] = latExIDs
@@ -317,13 +341,16 @@ class NodeIndex {
     // Updates children and spillover pointers, recomputes, will handle downstream nodes needing deletion
     setVerticalPointer(pointer, paths) {
         paths.forEach((path) => {
+
+            // Set the node to pointer type and set its pointer
             let node = this.i[path]
             node = node || new IndexNode(path)
             node.type(NT_VERTICAL_POINTER)
-            node.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
-            node.data[CHILDREN_KEY][path] = pointer
+            node.data[POINTER_KEY] = node[POINTER_KEY] || {}
+            node.data[POINTER_KEY] = pointer
             node.size(0)
             
+            // Add child to parent, add spillover. DO WE WANT SPILLOVER? TEST WITH LOTS OF LAT KEYS
             let arrPath = u.stringPathToArrPath(path)
             arrPath.pop()
             let parentPath = u.arrayPathToStringPath(arrPath)
@@ -335,7 +362,12 @@ class NodeIndex {
             if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
                 parentNode.data[SPILLOVER_KEY].push(pointer)
             }
+            parentNode.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
+            parentNode.data[CHILDREN_KEY][path] = pointer
+            
             this.updateMetaNodes()
+            
+            // THIS IS WRONG: CHILDREN GOES ON PARENT, POINTER ON CHILD
         })
 
     }
@@ -367,7 +399,6 @@ class IndexEntry {
 
 
     type(type) {return this.univGetSet('TYPE', type)}
-    size(size) {return this.univGetSet('S', size)}
     permission(permission) {return this.univGetSet('P', permission)}
     pointer(pointer) {return this.univGetSet('PTR', pointer)}
     s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
@@ -379,8 +410,8 @@ class IndexEntry {
 
     size(size) {
         if (size !== undefined) {
-            if (this.isDefault()) {this.data[SIZE_KEY] = size}
-            else if (this.isMeta()) {this.metadata.groupSize = size}
+            if (this.isMeta()) {this.metadata.groupSize = size}
+            else {this.data[SIZE_KEY] = size}
         } else {
             if (this.isDefault()) {return this.data[SIZE_KEY]} 
             else if (this.isMeta()) {return this.metadata.groupSize} 
@@ -409,9 +440,6 @@ class IndexEntry {
         return ret
     }
 
-
-    isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
-    isMeta() {return this.data[TYPE_KEY] === NT_META}
     isOversize() {
         let isMeta = this.isMeta()
         let isOver = this.size() > u.HARD_LIMIT_NODE_SIZE
@@ -419,12 +447,32 @@ class IndexEntry {
     }
     getPath() {return this.metadata.path}
 
-    // All children, spillover, and lateral
-    pointers() {
-        let pointers = []
-        // TODO
-        return pointers
+    getVerticalPointer() {
+        if (this.type() === NT_VERTICAL_POINTER) {
+            return this.data[POINTER_KEY]
+        }
     }
+
+    getChildIDs() {
+        if (this.isMeta() && this.data[CHILDREN_KEY]) {
+            return Object.values(this.data[CHILDREN_KEY])
+        } else {return []}
+    }
+
+    getAllVerticalPointers() {
+        let vps = []
+        let pointer = this.getVerticalPointer()
+        if (pointer) {vps.push(pointer)}
+
+        let childIDs = this.getChildIDs()
+        if (childIDs.length) {vps = vps.concat(childIDs)}
+
+        // spillover?
+        return vps
+    }
+
+    isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
+    isMeta() {return this.data[TYPE_KEY] === NT_META}
 }
 
 module.exports = NodeIndex

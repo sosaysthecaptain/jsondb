@@ -113,7 +113,8 @@ class DBObject {
         }
         
         let data = await this.batchGet(path)
-
+        debugger
+        
         // We pull out what we want from a naturally formatted object
         if (path !== '') {
             data = unflatten(data)
@@ -134,19 +135,20 @@ class DBObject {
             paths = u.packKeys(paths)
             let pathObj = {}
             
-            // Get all children under this path. Note that getChildren returns terminal paths themselves
+            // Add this path and all its children to an object
             paths.forEach((path) => {
-                
+                pathObj[path] = null
                 let children = this.index.getChildren(path)
                 children.forEach((childPath) => {
                     pathObj[childPath] = null
                 })
             })
-            
+
             // Find out on which node of the object (here, direct child, or indirect child) each path is located. 
             let pathsByChild = {}
             let specialCases = []
             Object.keys(pathObj).forEach((path) => {
+
                 let childID = this.index.getIDForPath(path)
                 if (childID) {
                     if (!pathsByChild[childID]) {pathsByChild[childID] = []}
@@ -158,19 +160,27 @@ class DBObject {
             
             // Get locally available paths
             let localPaths = pathsByChild[this.id]
-            delete pathsByChild[this.id]
-            data = await this._read(localPaths)
+            if (localPaths) {
+                delete pathsByChild[this.id]
+                data = await this._read(localPaths)
+            } else {
+                data = {}
+            }
             
             // If we have outstanding paths to find, instantiate children and use their batchGet
             let childDBObjectNodes = await this.getChildNodes()
-            Object.keys(childDBObjectNodes).forEach((childNode) => {
-                if (!pathsByChild[childNode.id]) {return}
-                let pathsOnChild = pathsByChild[childNode.id]
-                let dataFromChild = childNode.batchGet(pathsOnChild)
-                data = _.assign({}, data, dataFromChild)
+            let childObjectKeys = Object.keys(childDBObjectNodes)
+            for (let i = 0; i < childObjectKeys.length; i++) {
+                let childKey = childObjectKeys[i]
+                let childNode = childDBObjectNodes[childKey]
+                if (pathsByChild[childNode.id]) {
+                    let pathsOnChild = pathsByChild[childNode.id]
+                    let dataFromChild = await childNode.batchGet(pathsOnChild)
+                    data = _.assign({}, data, dataFromChild)
+                }
                 delete pathsByChild[childNode.id]
-            })
-            
+            }
+
             // TODO: lateral
             if (specialCases.length) {
                 debugger
@@ -430,7 +440,7 @@ class DBObject {
     // Instantiates all child nodes
     async getChildNodes() {
         await this.ensureIndexLoaded()
-        let ids = u.getVerticalPointers(this.index, true)
+        let ids = this.index.getAllVerticalPointers()
         let dbobjects = {}
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {
@@ -515,7 +525,7 @@ class DBObject {
         
         let moveNodeToNewIndex = (indexEntry) => {
             let attributesToAdd = this.index.getTerminalChildren(indexEntry.getPath())
-            attributesToAdd.push(indexEntry.getPath())
+            // attributesToAdd.push(indexEntry.getPath())
             attributesToAdd.forEach((key) => {
                 attributesForNewNode[key] = newAttributes[key]
                 delete newAttributes[key]
@@ -565,7 +575,6 @@ class DBObject {
         })
         let pathsOnNewNode = Object.keys(attributesForNewNode)
         console.log(pathsOnNewNode)
-        debugger
         await newNode.create(attributesForNewNode, {permissionLevel: this.permissionLevel, isSubordinate: true})
         
         this.index.setVerticalPointer(newNode.id, pathsOnNewNode)

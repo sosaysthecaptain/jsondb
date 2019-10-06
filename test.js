@@ -294,10 +294,14 @@ it('DBObject 2: should create and get an object requiring vertical split', async
     let read0 = await dbobject.get('k1.k1s3')
     let passed0 = _.isEqual(testObj.k1.k1s3, read0)
     assert.equal(passed0, true)
+
+    debugger
     
     // Read all of it from cache
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(testObj, read1)
+    debugger
+    // SUN AM 2
     assert.equal(passed1, true)
     
     
