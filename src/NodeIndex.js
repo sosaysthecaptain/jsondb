@@ -1,5 +1,3 @@
-const flatten = require('flat')
-const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
 const u = require('./u')
@@ -10,7 +8,6 @@ PERMISSION_KEY = 'PERM'
 POINTER_KEY = 'POINTER'                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
-// CHILDREN_KEY = 'CHILDREN'
 S3_REF_KEY = 'S3'
 
 NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)

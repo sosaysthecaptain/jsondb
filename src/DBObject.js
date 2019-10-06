@@ -9,7 +9,7 @@ const flatten = require('flat')
 const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
-const DynamoClient = require('./DynamoClient')
+// const DynamoClient = require('./DynamoClient')
 const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
@@ -104,7 +104,8 @@ class DBObject {
         if (path !== '') {
             data = unflatten(data)
             let arrPath = u.stringPathToArrPath(path)
-            data = u.getAttribute(data, arrPath)
+            data = _.get(data, arrPath)
+            
             return data
         } 
         data = unflatten(data)

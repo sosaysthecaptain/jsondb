@@ -1,9 +1,9 @@
 const LOGGING_ON = false
 const LOG_METRICS = false
 
-const dynoItemSize = require('dyno-item-size')
-const flatten = require('flat')
-const unflatten = require('flat').unflatten
+// const dynoItemSize = require('dyno-item-size')
+// const flatten = require('flat')
+// const unflatten = require('flat').unflatten
 const uuidv4 = require('uuid/v4')
 const base64url = require('base64url')
 const _ = require('lodash')
@@ -22,97 +22,15 @@ u.DEFAULT_PERMISSION_LEVEL = 0
 u.MAX_NESTING_DEPTH = 30
 
 u.INDEX_KEY = 'META'
-u.PERMISSION_PREFIX = 'P'
-u.SIZE_PREFIX = 'S'
-u.GROUP_SIZE_PREFIX = 'SG'
-u.EXT_PREFIX = 'EXT'                // denotes meta node and specifies pointer to further children
-// u.EXT_CHILDREN_PREFIX = 'CHILDREN'
 
-// u.NODE_TYPE_KEY = 'META_TYPE'
-// u.TYPE_LATERAL_SPLIT = 'LAT_SPLIT'
-// u.TYPE_COLLECTION = 'COL'
-// u.TYPE_FILE_LINK = 'FILE_LINK'
-// u.TYPE_FILE_BUFFER = 'FILE_BUF'
-// u.TYPE_REFERENCE ='REF'
-
-
-// 
 u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 
 u.PATH_SEPARATOR = '__'
 
 
-// u.NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
-// u.NT_META = 'META'                          // meta node (get children)
-// u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
-// u.NT_VERTICAL_NONSPECIFIC = 'VP_NONSPEC'    // possible vertical pointer
-// u.NT_LAT_POINTER = 'LP'                     // large, laterally-extended node
-// u.NT_COLLECTION = 'COLLECT'                 // collection
-// u.NT_FILE_LINK = 'FILE_LINK'                // file, link
-// u.NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
-// u.NT_REF = 'REF'                            // reference to another DBObject
-
-
 /* NODE & INDEXING UTILITIES */
 
-u.getNodeData = (path, index) => {
-    let indexNode = index[path]
-    let data = {
-        type: u.NT_DEFAULT,
-        size: indexNode[u.SIZE_PREFIX],
-        permission: u.DEFAULT_PERMISSION_LEVEL,                 // TODO
-        content: null,
-        pointer: null,
-        s3Link: null,
-
-    }
-    
-    // Data not stored here
-    if (!indexNode) {
-        return undefined
-    }
-    
-    // Lateral pointer
-    if (!indexNode[u.NOTE_TYPE_KEY] === u.NT_META) {
-        data.type = u.NT_META
-        data.size = indexNode[u.GROUP_SIZE_PREFIX]
-    }
-    
-    // Vertical pointer
-}
-
-u.isMetaPath = (path, index) => {
-    if ((index[path][u.EXT_PREFIX] !== undefined) && (path !== u.INDEX_KEY)) {
-        return true
-    }
-}
-
-u.isTerminalPath = (index) => {
-    if (index[key][u.SIZE_PREFIX]  && (key !== u.INDEX_KEY)) {
-        return true
-    }
-}
-
-u.getMetaIndexPaths = (index) => {
-    let metaPaths = []
-    Object.keys(index).forEach((key) => {
-        if (u.isMetaPath(key, index)) {
-            metaPaths.push(key)
-        }
-    })
-    return metaPaths
-}
-
-u.getTerminalIndexPaths = (index) => {
-    let terminalPaths = []
-    Object.keys(index).forEach((key) => {
-        if (u.isTerminalPath(key, index)) {
-            terminalPaths.push(key)
-        }
-    })
-    return terminalPaths
-}
 
 // Excludes intermediate
 u.getChildren = (attributePath, parentObj) => {
@@ -123,26 +41,13 @@ u.getChildren = (attributePath, parentObj) => {
 
     Object.keys(parentObj).forEach((key) => {
         if (key.startsWith(attributePath) && (key !== attributePath)) {
-            if (!parentObj[key][u.GROUP_SIZE_PREFIX]) {
-                childKeys.push(key)
-            }
+            childKeys.push(key)
         }
     })
     return childKeys
 }
 
-// Sums sizes of terminal nodes. Only terminal nodes have sizes
-u.getSizeOfNodeAtPath = (attributePath, index) => {
-    let nodePaths = u.getChildren(attributePath, index)
-    let size = 0
-    nodePaths.forEach((path) => {
-        if (index[path][u.SIZE_PREFIX]) {
-            size += index[path][u.SIZE_PREFIX]
-        }
-    })
-    return size
-}
-
+// For instance, {key: {subkey: 'sdfsdfs'}} => ['key', 'key.subkey']
 u.getIntermediatePaths = (obj) => {
     let usesSeparator = false
     let intermediateKeys = []
@@ -165,83 +70,6 @@ u.getIntermediatePaths = (obj) => {
     return intermediateKeys
 }
 
-u.getVerticalPointers = (index, idsOnly) => {
-    let pointers = {}
-    let metaPaths = u.getMetaIndexPaths(index)
-    metaPaths.forEach((path) => {
-        let node = index[path]
-        if (node[u.EXT_PREFIX]) {
-            pointers[path] = node[u.EXT_PREFIX]
-        }
-        if (node[u.EXT_CHILDREN_PREFIX]) {
-            children = node[u.EXT_CHILDREN_PREFIX]
-            pointers = _.assign({}, pointers, children)
-        }
-    })
-    if (!idsOnly) {
-        return pointers
-    }
-    let ids = Object.values(pointers)
-    ids = u.dedupe(ids)
-    return ids
-}
-
-// u.getLateralPointers = (index, idsOnly) => {
-//     let paths = Object.keys(index)
-//     let pointers = {}
-//     let ids = []
-//     paths.forEach((path) => {
-//         let arrPath = u.stringPathToArrPath(path)
-//         let finalKey = arrPath.pop()
-//         if (finalKey = u.LARGE_EXT_PREFIX) {
-//             if (index[path][u.LARGE_EXT_PREFIX]) {
-//                 pointerArray = index[path][u.LARGE_EXT_PREFIX]
-//                 pointers[path] = pointerArray
-//                 ids = ids.concat(pointerArray)
-
-//             }
-//         }
-//     })
-
-//     if (idsOnly) {
-//         ids = u.dedupe(ids)
-//         return ids
-//     }
-//     return pointers
-// }
-
-u.updateIndex = (index) => {
-
-    // Add any intermediate paths that don't exist yet. For those that do exist, erase their
-    // size, as we'll recalculate it
-    let intermediatePaths = u.getIntermediatePaths(index)
-    intermediatePaths.forEach((path) => {
-        if (!index[path]) {
-            index[path] = {}
-            index[path][u.GROUP_SIZE_PREFIX] = -1
-            index[path][u.EXT_PREFIX] = null
-        }
-    })
-
-    // Update all intermediate path sizes, delete any intermediate paths with no children
-    let paths = Object.keys(index)
-    paths.forEach((path) => {
-        if (path === u.INDEX_KEY) return
-        if (index[path][u.GROUP_SIZE_PREFIX]) {
-            let children = u.getChildren(path, index)
-            let nodeSize = u.getSizeOfNodeAtPath(path, index)
-            index[path][u.GROUP_SIZE_PREFIX] = nodeSize
-            if (!nodeSize) {
-                delete index[path]
-            }
-        }
-    })
-
-    // Update index's top level size, if it's already been instantiated
-    if (index[u.INDEX_KEY]) {
-        index[u.INDEX_KEY][u.GROUP_SIZE_PREFIX] = u.getSizeOfNodeAtPath('', index)
-    }
-}
 
 /* SMALLER UTILITIES */
 
@@ -352,38 +180,6 @@ u.unpackKeys = (obj) => {
     return obj
 }
 
-u.getAttribute = (obj, p) => {
-    try{
-        if (p.length === 0) {
-            return obj
-        } else if (p.length === 1) {
-            return obj[p[0]]
-        } else if (p.length === 2) {
-            return obj[p[0]][p[1]]
-        } else if (p.length === 3) {
-            return obj[p[0]][p[1]][p[2]]
-        } else if (p.length === 4) {
-            return obj[p[0]][p[1]][p[2]][p[3]]
-        } else if (p.length === 5) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]]
-        } else if (p.length === 6) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]]
-        } else if (p.length === 7) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]]
-        } else if (p.length === 8) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]]
-        } else if (p.length === 9) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]]
-        } else if (p.length === 10) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]]
-        } else if (p.length === 11) {
-            return obj[p[0]][p[1]][p[2]][p[3]][p[4]][p[5]][p[6]][p[7]][p[8]][p[9]][p[10]]
-        }
-    } catch (err) {
-        return undefined
-    }
-}
-
 // This is a mess but better than most of the alternatives
 u.getSize = (obj) => {
     try {
@@ -449,28 +245,6 @@ u.arrayPathToStringPath = (path, usePathSeparator) => {
         return path.join(u.PATH_SEPARATOR)
     }
 }
-
-// u.getPathDepth = (path) => {
-//     let arrPath = u.stringPathToArrPath(path)
-//     return arrPath.length
-// }
-
-// u.getKeysByOrder = (obj) => {
-//     let keys = u.getKeysByDepth(obj, true)
-//     let sortedByOrder = {}
-//     keys.forEach((path) => {
-//         path = u.stripMeta(path)
-//         let depth = u.getPathDepth(path)
-
-//         if (!sortedByOrder[depth]) {
-//             sortedByOrder[depth] = []
-//         }
-//         sortedByOrder[depth].push(path)
-//     })
-//     return sortedByOrder
-// }
-
-
 
 u.generateNewID = (withTimestamp) => {
     let id = u.uuid()
