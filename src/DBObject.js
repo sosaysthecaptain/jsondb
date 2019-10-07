@@ -77,6 +77,7 @@ class DBObject {
             key: this.key,
         }).catch((err) => {u.error('failure in DBObject.delete', err)})
         return _.has(deleted, 'Attributes')
+        return true
     }
 
     // Destroys if not destroyed, returns true to confirm object doesn't exist in db
@@ -220,7 +221,11 @@ class DBObject {
         u.startTime('modify ' + path)
         let obj = await this.get(path)
         fn(obj)
-        let res = this.set({path: obj})
+
+        let attributes = {}
+        attributes[path] = obj
+
+        let res = this.set(attributes)
         u.stopTime('modify ' + path)
         return res
     }

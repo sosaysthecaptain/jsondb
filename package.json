@@ -4,8 +4,9 @@
   "description": "DynamoDB abstraction layer to let you work easily and efficiently with giant virtual objects",
   "main": "index.js",
   "scripts": {
-    "test": "mocha",
-    "debuggerTest": "mocha --inspect-brk test.js"
+    "test": "mocha --recursive",
+    "testEx1": "mocha test/dynamoClient.js",
+    "testEx2": "mocha --inspect-brk test/dynamoClient.js"
   },
   "repository": {
     "type": "git",

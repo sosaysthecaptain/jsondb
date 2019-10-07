@@ -263,3 +263,34 @@ u.dedupe = (arr) => {
     })
     return Object.keys(unique)
 }
+
+
+/* TEST UTILS */
+
+u.getVerifiableString = (length, multiplier) => {
+    multiplier = multiplier || 1
+    let str = ''
+    let i = 0
+    while(str.length < length) {
+        str += String(i * multiplier) + ' '
+        i++
+    }
+    return str.trim()
+}
+
+u.verifyString = (str, multiplier) => {
+    multiplier = multiplier || 1
+    let split = str.split(' ')
+    let index = 0
+    split.forEach((num) => {
+        num = Number(num)
+        if (num !== index * multiplier) {
+            return false
+        }
+        index++
+    })
+    if (index !== split.length) {
+        return false
+    }
+    return true
+}

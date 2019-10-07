@@ -137,14 +137,14 @@ class DynamoClient {
             }
         }
     */
-    async update({tableName, key, attributes, doNotOverwrite}) {
+    async update({tableName, key, attributes, doNotOverwrite, read}) {
 
         if (doNotOverwrite) {
             if (await this.checkExists({tableName, key})) {
                 throw new Error('Object already exists at specified key')
             }
         }
-
+        
         let ExpressionAttributeValues = {}
         let UpdateExpression = 'set '
         let index = 0
@@ -156,12 +156,15 @@ class DynamoClient {
         })
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
+        let returnValues = 'NONE'
+        if (read) {returnValues = 'ALL_NEW'
+    }
         let params = {
             TableName: tableName,
             Key: key,
             UpdateExpression: UpdateExpression,
             ExpressionAttributeValues: ExpressionAttributeValues,
-            ReturnValues: 'ALL_NEW',
+            ReturnValues: returnValues,
         }
         
         let data = await this.dynamo.updateItem(params).promise().catch((err) => {
@@ -174,8 +177,7 @@ class DynamoClient {
     async delete({tableName, key}) {
         let params = {
             TableName: tableName,
-            Key: key,
-            ReturnValues: 'ALL_OLD'
+            Key: key
         }
         let data = await this.dynamo.deleteItem(params).promise().catch((err) => {
             console.log('failure in DynamoClient.delete')
