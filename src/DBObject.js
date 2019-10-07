@@ -194,18 +194,18 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set(attributes, doNotOverwrite) {
+    async set(attributesOriginal, doNotOverwrite) {
+        let attributes = u.copy(attributesOriginal)
         u.validateKeys(attributes)
+        u.processAttributes(attributes)
         attributes = flatten(attributes)
         u.packKeys(attributes)
-        u.processAttributes(attributes)
         await this.getChildNodes()
 
         // Identify nodes that need to be deleted, delete them
         let changedPaths = this.index.getPathsToDelete(attributes)
         if (changedPaths.length) {
             await this.handleDeletions(changedPaths)
-            debugger
             this._cacheUnsetDeleted(changedPaths)
         }
 
@@ -331,7 +331,6 @@ class DBObject {
 
     // Recursive, use cache on top level
     async handleDeletions(keysToDelete) {
-        debugger
         if (this.parent) {
             await this.ensureIndexLoaded()
         }
@@ -369,7 +368,6 @@ class DBObject {
 
         // If this is subordinate and we've deleted the last entry, delete the entire node
         if (this.parent) {
-            debugger
             keysToDelete.forEach((path) => {
                 delete this.index.i[path]
             })

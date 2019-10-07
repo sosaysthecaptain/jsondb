@@ -49,9 +49,7 @@ it('DBObject_basic: should create and get a single node object, with and without
     assert.equal(passed2, true)
     
     // Read entire object
-    debugger
     let read3 = await dbobject.get()
-    debugger
     let passed3 = _.isEqual(basicObj, read3)
     assert.equal(passed3, true)
 
@@ -66,7 +64,7 @@ it('DBObject_basic: modify', async function() {
     // Data
     let testObjID = 'dbobject_test_4'
     let testObj = {
-        array: ['one', 'two', 'three'],
+        arr: ['one', 'two', 'three'],
         bystander: 'something else'
     }
     
@@ -76,21 +74,22 @@ it('DBObject_basic: modify', async function() {
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
+
     await dbobject.create(testObj)
 
     // Sanity check
-    let read0 = await dbobject.get('array')
-    let passed0 = _.isEqual(testObj.array, read0)
+    let read0 = await dbobject.get('arr')
+    let passed0 = _.isEqual(testObj.arr, read0)
     assert.equal(passed0, true)
-    debugger
     
     // modify
-    await dbobject.modify('array', (obj) => {
+    await dbobject.modify('arr', (obj) => {
         obj.push('four')
     })
     
     // Read again
-    let read1 = await dbobject.get('array')
+    let read1 = await dbobject.get('arr')
+    debugger
     let passed1 = _.isEqual(['one', 'two', 'three', 'four'], read1)
     debugger
     assert.equal(passed1, true)
