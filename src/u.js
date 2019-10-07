@@ -264,6 +264,36 @@ u.dedupe = (arr) => {
     return Object.keys(unique)
 }
 
+u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
+u.packageArray = (arr) => {
+    if (arr instanceof Array) {
+        return u.ARRAY_PACKAGE_PREFACE + JSON.stringify(arr)} else {return arr}
+}
+
+u.unpackageArray = (package) => {
+    package = package.slice(u.ARRAY_PACKAGE_PREFACE.length)
+    return JSON.parse(package)
+}
+u.processAttributes = (attributes) => {
+    Object.keys(attributes).forEach((key) => {
+        let value = attributes[key]
+        if ((value instanceof Array)) {
+            attributes[key] = u.packageArray(value)
+        }
+    })
+    return attributes
+}
+
+u.processReturn = (attributes) => {
+    Object.keys(attributes).forEach((key) => {
+        let value = attributes[key]
+        if ((typeof value === 'string') && (value.startsWith(u.ARRAY_PACKAGE_PREFACE))) {
+            value = u.unpackageArray(value)
+            attributes[key] = JSON.parse(package)
+        }
+    })
+    return attributes
+}
 
 /* TEST UTILS */
 

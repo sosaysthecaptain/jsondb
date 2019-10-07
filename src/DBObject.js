@@ -189,6 +189,7 @@ class DBObject {
         }
             
         // Cache and return
+        u.processReturn(data)
         this._cacheSet(data)
         return u.unpackKeys(data)
     }
@@ -197,6 +198,7 @@ class DBObject {
         u.validateKeys(attributes)
         attributes = flatten(attributes)
         u.packKeys(attributes)
+        u.processAttributes(attributes)
         await this.getChildNodes()
 
         // Identify nodes that need to be deleted, delete them
