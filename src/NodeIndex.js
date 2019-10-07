@@ -25,6 +25,7 @@ class NodeIndex {
         this.id = id
         this.i = {}
         this.loaded = false
+        this.toDeleteCache = {}
     }
 
     // Creates or updates the index on the basis of new attributes
@@ -32,17 +33,20 @@ class NodeIndex {
         attributes = attributes || {}
         
         let changedKeys = Object.keys(attributes)
-        let keysToDelete = []
         
-        // If new attributes have displaced existing attributes, we first remove those from the index
+        // If new attributes have displaced existing attributes, remove from list and make record
         changedKeys.forEach((path) => {  
             let children = this.getChildren(path)
+            children.push(path)
             children.forEach((childPath) => {
+                let thingAlreadyAtThisNode = this.getNodeAtPath(childPath)
+                if (thingAlreadyAtThisNode) {
+                    this.toDeleteCache[childPath] = thingAlreadyAtThisNode
+                }
                 delete this.i[childPath]
-                keysToDelete.push(childPath)
             })
         })
-        
+
         // Add new keys to index, write new
         changedKeys.forEach((path) => {
             
@@ -151,6 +155,36 @@ class NodeIndex {
             if (indexNode.isDefault()) {return this.id}
 
         })
+    }
+
+    getNodesByType(paths) {
+        let data = {
+            local: {},
+            lateral: {},
+            s3: {},
+            collection: {},
+            reference: {},
+            elsewhere: {}
+        }
+        paths.forEach((path) => {
+            debugger
+            let node = this.getNodeAtPath(path)
+            let type = node.type()
+            if (type === NT_DEFAULT) {
+                data.local[path] = node
+            } else if (type === NT_VERTICAL_POINTER) {
+                data.elsewhere[path] = node
+            } else if (type === NT_LATERAL_POINTER) {
+                data.lateral[path] = node
+            } else if (type === NT_COLLECTION) {
+                data.collection[path = node]
+            } else if ((type === NT_FILE_LINK) || (type === NT_FILE_BUFFER)) {
+                data.s3[path] = node
+            } else if (type === NT_REF) {
+                data.ref[path] = node
+            }
+        })
+        return data
     }
 
     // Returns any spillover node ID for a given path
@@ -271,7 +305,7 @@ class NodeIndex {
     }
 
     // TODO: account for lateral extension of a node 
-    isThisTheBottom() {
+    isTheBottom() {
         // Object.keys(this.i).forEach((path) => {
         //     let node = this.i[path]
         //     let isTerminal = node.isTerminal()

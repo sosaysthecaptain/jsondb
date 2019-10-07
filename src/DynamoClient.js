@@ -157,8 +157,7 @@ class DynamoClient {
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
         let returnValues = 'NONE'
-        if (read) {returnValues = 'ALL_NEW'
-    }
+        if (read) {returnValues = 'ALL_NEW'}
         let params = {
             TableName: tableName,
             Key: key,
@@ -172,6 +171,31 @@ class DynamoClient {
             throw(err)
         })
         return data.Attributes
+    }
+
+    async deleteAttributes({tableName, key, attributes}) {
+        debugger
+
+        let UpdateExpression = ''
+        let index = 0
+        attributes((attributeKey) => {
+            updateExpression += 'REMOVE ' + attributeKey
+        })
+        UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
+        
+        let params = {
+            TableName: tableName,
+            Key: key,
+            UpdateExpression: UpdateExpression,
+            ReturnValues: 'NONE'
+        }
+        
+        let data = await this.dynamo.updateItem(params).promise().catch((err) => {
+            console.log('failure in DynamoClient.deleteAttributes')
+            throw(err)
+        })
+        debugger
+        return data
     }
 
     async delete({tableName, key}) {

@@ -53,13 +53,7 @@ class DBObject {
 
         // Wipe any lateral nodes
         let lateralIDs = this.index.getAllLateralPointers()
-        for (let i = 0; i < lateralIDs.length; i++) {
-            let key = u.keyFromID(lateralIDs[i])
-            await this.dynamoClient.delete({
-                tableName: this.tableName,
-                key: key,
-            }).catch((err) => {u.error('failure in DBObject.delete, lateral pointers', err)})
-        }
+        await this._deleteLateral(lateralIds)
 
         // Get all children, destroy them
         let childNodes = await this.getChildNodes()
@@ -72,15 +66,13 @@ class DBObject {
         
         // Then destroy this node
         this.invalidateCache()
-        let deleted = await this.dynamoClient.delete({
+        await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {u.error('failure in DBObject.delete', err)})
-        return _.has(deleted, 'Attributes')
         return true
     }
 
-    // Destroys if not destroyed, returns true to confirm object doesn't exist in db
     async ensureDestroyed() {
         let exists = await this.destroy()
         if (!exists) {
@@ -118,7 +110,7 @@ class DBObject {
         let data = {}
 
         // Does this node go further than what we have reference of in the local index?
-        if (!paths && this.index.isThisTheBottom()) {paths = this.index.getChildren()}
+        if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
 
         if (paths) {
             if (typeof paths === 'string') {
@@ -206,8 +198,22 @@ class DBObject {
         attributes = flatten(attributes)
         u.packKeys(attributes)
 
+        await this.getChildNodes()      // instantiated now, so we can delete things if need be
         this.index.build(attributes)
+        this._cacheUnsetDeleted()
+        
+        
+        // Handle deletions, apart from the ordinary writing process
+        let changedPaths = Object.keys(this.index.toDeleteCache)
+        if (changedPaths.length) {
+
+            debugger
+            await this.handleDeletions(changedPaths)
+        }
+        
         this._cacheSet(attributes)
+
+
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
@@ -322,6 +328,47 @@ class DBObject {
         }
 
         return u.unpackKeys(data)
+    }
+
+    // Recursive, use cache on top level
+    async handleDeletions(keysToDelete) {
+        if (!keysToDelete) {
+            keysToDelete = Object.keys(this.index.toDeleteCache)
+        }
+        let condemned = this.index.getNodesByType(keysToDelete)
+        
+        debugger
+        
+        // Local deletions only relevant on child nodes
+        if (this.parent && !this.index.isTheBottom()) {
+            await this.dynamoClient.deleteAttributes({
+                tableName: this.tableName,
+                key: subNodeKey,
+                attributes: Object.keys(condemned.local)
+            }).catch((err) => {u.error('failure in DBObject._splitLateral', err)})
+        }
+        
+        // Lateral
+        await this._deleteLateral(condemned.lateral)
+        
+        // Elsewhere
+        await this.cachedDirectChildren[path].handleDeletions(condemned.elsewhere)
+
+        // TODO: COLLECTION, FILE, REF
+        Object.keys(this.index.toDeleteCache).forEach((path) => {
+            delete this.index.i[path]
+        })
+        this.index.toDeleteCache = {}
+    }
+
+    async _deleteLateral(lateralIDs) {
+        for (let i = 0; i < lateralIDs.length; i++) {
+            let key = u.keyFromID(lateralIDs[i])
+            await this.dynamoClient.delete({
+                tableName: this.tableName,
+                key: key,
+            }).catch((err) => {u.error('failure in DBObject._deleteLateral', err)})
+        }
     }
 
     async _reconstructLaterallySplitNode(nodeIDs) {
@@ -559,6 +606,12 @@ class DBObject {
             }
         })
     }  
+
+    _cacheUnsetDeleted() {
+        Object.keys(this.index.toDeleteCache).forEach((path) => {
+            delete this.cache[path]
+        })
+    }
 
 }
 
