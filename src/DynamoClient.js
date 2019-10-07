@@ -174,8 +174,6 @@ class DynamoClient {
     }
 
     async deleteAttributes({tableName, key, attributes}) {
-        debugger
-
         let UpdateExpression = ''
         attributes.forEach((attributeKey) => {
             UpdateExpression += 'REMOVE ' + attributeKey + ', '
@@ -194,7 +192,6 @@ class DynamoClient {
             console.log('failure in DynamoClient.deleteAttributes')
             throw(err)
         })
-        debugger
         return data
     }
 

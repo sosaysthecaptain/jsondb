@@ -60,8 +60,6 @@ it('DBObject_lateral: one large key split laterally', async function() {
     
     // Clean up
     await dbobject.destroy()
-    let dbObjectExists = await dbobject.destroy()
-    assert.equal(dbObjectExists, false)
 })
 
 

@@ -49,7 +49,6 @@ class DBObject {
     }
 
     async destroy() {
-        debugger
         await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
@@ -202,7 +201,7 @@ class DBObject {
 
         // Identify nodes that need to be deleted, delete them
         let changedPaths = this.index.getPathsToDelete(attributes)
-        if (changedPaths) {
+        if (changedPaths.length) {
             await this.handleDeletions(changedPaths)
             debugger
             this._cacheUnsetDeleted(changedPaths)
@@ -330,6 +329,7 @@ class DBObject {
 
     // Recursive, use cache on top level
     async handleDeletions(keysToDelete) {
+        debugger
         if (this.parent) {
             await this.ensureIndexLoaded()
         }

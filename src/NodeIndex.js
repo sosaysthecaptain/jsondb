@@ -50,7 +50,7 @@ class NodeIndex {
         let changedKeys = Object.keys(attributes)
         let toDelete = this.getPathsToDelete(attributes)
         toDelete.forEach((path) => {
-            delete this.i[childPath]
+            delete this.i[path]
         })
 
         // Add new keys to index, write new
