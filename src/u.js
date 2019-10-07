@@ -248,6 +248,14 @@ u.arrayPathToStringPath = (path, usePathSeparator) => {
     }
 }
 
+u.getParentPath = (path) => {
+    let arrPath = u.stringPathToArrPath(path)
+    arrPath.pop()
+    if (arrPath.length) {
+        return u.arrayPathToStringPath(path)
+    }
+}
+
 u.generateNewID = (withTimestamp) => {
     let id = u.uuid()
     if (withTimestamp) {

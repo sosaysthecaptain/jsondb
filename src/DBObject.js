@@ -45,7 +45,7 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(initialData)
-        return await this.set(initialData, true)
+        return await this.set(initialData, {doNotOverwrite: true})
     }
 
     async destroy() {
@@ -194,7 +194,8 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set(attributesOriginal, doNotOverwrite) {
+    async set(attributesOriginal, params={}) {
+        let {doNotOverwrite, permission} = params
         let attributes = u.copy(attributesOriginal)
         u.validateKeys(attributes)
         u.processAttributes(attributes)
@@ -210,7 +211,7 @@ class DBObject {
         }
 
         // Update the index
-        this.index.build(attributes)
+        this.index.build(attributes, permission)
         this._cacheSet(attributes)
         
         
@@ -428,6 +429,11 @@ class DBObject {
         return dbobjects
     }
 
+    // marc-look
+    async _permissionFilterAttribute(attributes, permission) {
+        return attributes
+    }
+
     async _handleSplit(newAttributes) {
         
         /* LATERAL SPLIT */
@@ -504,6 +510,8 @@ class DBObject {
                         }
                     })
                 }
+
+                // TODO: SPILLOVER WOULD BE DEALT WITH HERE, IF THIS OBJECT HELD NOTHING BUT POINTERS
                 
                 // Create the new node
                 let newNode = new DBObject(newNodeID, {

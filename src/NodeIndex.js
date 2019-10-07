@@ -43,7 +43,7 @@ class NodeIndex {
     }
 
     // Creates or updates the index on the basis of new attributes
-    build(attributes) {
+    build(attributes, permission) {
         attributes = attributes || {}
 
         // Strike displaced nodes from index, they should already have been deleted
@@ -61,6 +61,7 @@ class NodeIndex {
                 this.i[path] = new IndexEntry(path)
             }
             this.i[path].size(u.getSize(attributes[path])) 
+            if (permission) {this.i[path].permission(permission)}
         })
                 
         // Add intermediate nodes, including the top level
@@ -106,7 +107,7 @@ class NodeIndex {
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].type(NT_META)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
-        this.i[u.INDEX_KEY].permission('FIX THIS')
+        // this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
     }
 
@@ -203,6 +204,8 @@ class NodeIndex {
             return this.getSpilloverNodeID(path)
         }
     }
+
+    getMetaIndex() {return this.i[u.INDEX_KEY]}
 
 
     // Returns all paths stored on this object node, used by getEntireObject
@@ -321,6 +324,24 @@ class NodeIndex {
     }
 
     getNodeAtPath(path) {return this.i[path]}
+
+    getNodePermission(path) {
+        if (!path) {
+            // marc-look
+            debugger
+            let topLevelPermission = this.metaIndex().permission()
+            topLevelPermission = topLevelPermission || 0
+            return topLevelPermission
+        }   
+
+        let node = this.getNodeAtPath(path)
+        let writtenPermission = node.permission()
+        if (writtenPermission) {return writtenPermission}
+        else {
+            let parentPath = u.getParentPath(path)
+            return (this.getNodePermission(parentPath))
+        }
+    }
 
     getMetaNodes() {
         let metaNodes = []
@@ -442,7 +463,6 @@ class NodeIndex {
     getSize() {return this.i[u.INDEX_KEY].size()}
     
     parent(parent) {return this.i[u.INDEX_KEY].parent(parent)}
-
 }
 
 class IndexEntry {
@@ -459,11 +479,11 @@ class IndexEntry {
     }
 
 
-    type(type) {return this.univGetSet('TYPE', type)}
-    permission(permission) {return this.univGetSet('P', permission)}
-    pointer(pointer) {return this.univGetSet('PTR', pointer)}
-    s3Ref(s3Ref) {return this.univGetSet('S3', s3Ref)}
+    type(type) {return this.univGetSet(TYPE_KEY, type)}
+    // pointer(pointer) {return this.univGetSet(POINTER_KEY, pointer)}
+    s3Ref(s3Ref) {return this.univGetSet(S3_REF_KEY, s3Ref)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
+    permission(permission) {return this.univGetSet(PERMISSION_KEY, permission)}
 
     univGetSet(writableKey, value) {
         if (value) {this.data[writableKey] = value} 
