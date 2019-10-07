@@ -49,11 +49,12 @@ class DBObject {
     }
 
     async destroy() {
+        debugger
         await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
         let lateralIDs = this.index.getAllLateralPointers()
-        await this._deleteLateral(lateralIds)
+        await this._deleteLateral(lateralIDs)
 
         // Get all children, destroy them
         let childNodes = await this.getChildNodes()
@@ -66,11 +67,11 @@ class DBObject {
         
         // Then destroy this node
         this.invalidateCache()
-        await this.dynamoClient.delete({
+        let data = await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {u.error('failure in DBObject.delete', err)})
-        return true
+        return data.Attributes
     }
 
     async ensureDestroyed() {
@@ -197,23 +198,20 @@ class DBObject {
         u.validateKeys(attributes)
         attributes = flatten(attributes)
         u.packKeys(attributes)
+        await this.getChildNodes()
 
-        await this.getChildNodes()      // instantiated now, so we can delete things if need be
-        this.index.build(attributes)
-        this._cacheUnsetDeleted()
-        
-        
-        // Handle deletions, apart from the ordinary writing process
-        let changedPaths = Object.keys(this.index.toDeleteCache)
-        if (changedPaths.length) {
-
-            debugger
+        // Identify nodes that need to be deleted, delete them
+        let changedPaths = this.index.getPathsToDelete(attributes)
+        if (changedPaths) {
             await this.handleDeletions(changedPaths)
+            debugger
+            this._cacheUnsetDeleted(changedPaths)
         }
-        
+
+        // Update the index
+        this.index.build(attributes)
         this._cacheSet(attributes)
-
-
+        
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
@@ -332,33 +330,53 @@ class DBObject {
 
     // Recursive, use cache on top level
     async handleDeletions(keysToDelete) {
-        if (!keysToDelete) {
-            keysToDelete = Object.keys(this.index.toDeleteCache)
+        if (this.parent) {
+            await this.ensureIndexLoaded()
         }
         let condemned = this.index.getNodesByType(keysToDelete)
-        
-        debugger
-        
-        // Local deletions only relevant on child nodes
-        if (this.parent && !this.index.isTheBottom()) {
+        if (Object.keys(condemned.local).length) {
             await this.dynamoClient.deleteAttributes({
                 tableName: this.tableName,
-                key: subNodeKey,
+                key: this.key,
                 attributes: Object.keys(condemned.local)
             }).catch((err) => {u.error('failure in DBObject._splitLateral', err)})
         }
         
         // Lateral
-        await this._deleteLateral(condemned.lateral)
+        let idsToDelete = []
+        Object.keys(condemned.lateral).forEach((path) => {
+            let node = condemned.lateral[path]
+            idsToDelete = idsToDelete.concat(node.getLateralPointers())
+        })
+        await this._deleteLateral(idsToDelete)
         
         // Elsewhere
-        await this.cachedDirectChildren[path].handleDeletions(condemned.elsewhere)
+        let childNodesWithShitToDelete = {}
+        Object.keys(condemned.elsewhere).forEach((path) => {
+            let node = condemned.elsewhere[path]
+            let pointer = node.getVerticalPointer()
+            childNodesWithShitToDelete[pointer] = childNodesWithShitToDelete[pointer] || [] 
+            childNodesWithShitToDelete[pointer].push(path)
+        })
+        let pointers = Object.keys(childNodesWithShitToDelete)
+        for (let i = 0; i < pointers.length; i++) {
+            let pointer = pointers[i]
+            let paths = childNodesWithShitToDelete[pointer]
+            await this.cachedDirectChildren[pointer].handleDeletions(paths)
+        }
+
+        // If this is subordinate and we've deleted the last entry, delete the entire node
+        if (this.parent) {
+            debugger
+            keysToDelete.forEach((path) => {
+                delete this.index.i[path]
+            })
+            this.index.updateMetaNodes()
+            let allKeysInIndex = this.index.getChildren()
+            if (!allKeysInIndex.length) {this.destroy()}
+        }
 
         // TODO: COLLECTION, FILE, REF
-        Object.keys(this.index.toDeleteCache).forEach((path) => {
-            delete this.index.i[path]
-        })
-        this.index.toDeleteCache = {}
     }
 
     async _deleteLateral(lateralIDs) {
@@ -607,8 +625,8 @@ class DBObject {
         })
     }  
 
-    _cacheUnsetDeleted() {
-        Object.keys(this.index.toDeleteCache).forEach((path) => {
+    _cacheUnsetDeleted(attributes) {
+        attributes.forEach((path) => {
             delete this.cache[path]
         })
     }

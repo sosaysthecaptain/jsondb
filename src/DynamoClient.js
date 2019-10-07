@@ -177,9 +177,8 @@ class DynamoClient {
         debugger
 
         let UpdateExpression = ''
-        let index = 0
-        attributes((attributeKey) => {
-            updateExpression += 'REMOVE ' + attributeKey
+        attributes.forEach((attributeKey) => {
+            UpdateExpression += 'REMOVE ' + attributeKey + ', '
         })
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
@@ -187,7 +186,8 @@ class DynamoClient {
             TableName: tableName,
             Key: key,
             UpdateExpression: UpdateExpression,
-            ReturnValues: 'NONE'
+            ReturnValues: 'ALL_OLD'
+            // ReturnValues: 'NONE'
         }
         
         let data = await this.dynamo.updateItem(params).promise().catch((err) => {

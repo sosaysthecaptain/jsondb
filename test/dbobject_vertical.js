@@ -31,7 +31,7 @@ let testObj = {
     }
 }
 
-xit('DBObject_vertical (1) a number of keys requiring a split between multiple nodes', async function() {
+it('DBObject_vertical (1) a number of keys requiring a split between multiple nodes', async function() {
     this.timeout(60000)
 
     // Write a large object

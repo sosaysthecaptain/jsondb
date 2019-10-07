@@ -25,26 +25,32 @@ class NodeIndex {
         this.id = id
         this.i = {}
         this.loaded = false
-        this.toDeleteCache = {}
+    }
+
+    // Returns existing keys displaced by incoming attributes, does not delete
+    getPathsToDelete(attributes) {
+        attributes = attributes || {}
+        let changedKeys = Object.keys(attributes)
+        let toDelete = []
+        changedKeys.forEach((path) => {  
+            let children = this.getChildren(path)
+            children.push(path)
+            children.forEach((childPath) => {
+                if (this.getNodeAtPath(childPath)) {toDelete.push(childPath)}
+            })
+        })
+        return toDelete
     }
 
     // Creates or updates the index on the basis of new attributes
     build(attributes) {
         attributes = attributes || {}
-        
+
+        // Strike displaced nodes from index, they should already have been deleted
         let changedKeys = Object.keys(attributes)
-        
-        // If new attributes have displaced existing attributes, remove from list and make record
-        changedKeys.forEach((path) => {  
-            let children = this.getChildren(path)
-            children.push(path)
-            children.forEach((childPath) => {
-                let thingAlreadyAtThisNode = this.getNodeAtPath(childPath)
-                if (thingAlreadyAtThisNode) {
-                    this.toDeleteCache[childPath] = thingAlreadyAtThisNode
-                }
-                delete this.i[childPath]
-            })
+        let toDelete = this.getPathsToDelete(attributes)
+        toDelete.forEach((path) => {
+            delete this.i[childPath]
         })
 
         // Add new keys to index, write new
@@ -167,10 +173,9 @@ class NodeIndex {
             elsewhere: {}
         }
         paths.forEach((path) => {
-            debugger
             let node = this.getNodeAtPath(path)
             let type = node.type()
-            if (type === NT_DEFAULT) {
+            if ((type === NT_DEFAULT) || (!type)) {
                 data.local[path] = node
             } else if (type === NT_VERTICAL_POINTER) {
                 data.elsewhere[path] = node
