@@ -36,16 +36,16 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create(initialData, params) {
-        params = params || {}
+    async create(initialData, params={}) {
         this.parent = params.parent || null
         this.permissionLevel = params.permissionLevel || u.DEFAULT_PERMISSION_LEVEL
+        let permission = params.permission || null
 
         if (initialData[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(initialData)
-        return await this.set(initialData, {doNotOverwrite: true})
+        return await this.set(initialData, {doNotOverwrite: true, permission})
     }
 
     async destroy() {
@@ -82,17 +82,18 @@ class DBObject {
         }
     }
 
-    async get(path) {
+    async get(path, params={}) {
+        let {permission} = params
         await this.ensureIndexLoaded()
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this._getEntireObject()
+            let allKeysFlat = await this._getEntireObject(permission)
             return unflatten(allKeysFlat)
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
-        let data = await this.batchGet(path)
+        let data = await this.batchGet(path, {permission})
         
         if (path !== '') {
             data = unflatten(data)
@@ -105,7 +106,8 @@ class DBObject {
         return data
     }
     
-    async batchGet(paths) {
+    async batchGet(paths, params={}) {
+        let {permission} = params
         await this.ensureIndexLoaded()
         let data = {}
 
@@ -117,9 +119,10 @@ class DBObject {
                 paths = [paths]
             }
             paths = u.packKeys(paths)
-            let pathObj = {}
+
             
             // Add this path and all its children to an object
+            let pathObj = {}
             paths.forEach((path) => {
                 pathObj[path] = null
                 let children = this.index.getChildren(path)
@@ -128,6 +131,9 @@ class DBObject {
                 })
             })
 
+            // Filter requests by permission
+            pathObj = await this._permissionfilterAttributes(pathObj, permission)
+            
             // Get what we can from the cache
             Object.keys(pathObj).forEach((path) => {
                 let fromCache = this._cacheGet(path)
@@ -210,8 +216,9 @@ class DBObject {
             this._cacheUnsetDeleted(changedPaths)
         }
 
-        // Update the index
+        // Update the index, set its permissions
         this.index.build(attributes, permission)
+        this.index.updatePermissions(permission, attributes)
         this._cacheSet(attributes)
         
         
@@ -309,7 +316,7 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject() {
+    async _getEntireObject(permission) {
 
         await this.ensureIndexLoaded()
 
@@ -321,11 +328,14 @@ class DBObject {
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID]._getEntireObject()
+            let dataFromChild = await children[childID]._getEntireObject(permission)
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
         }
+
+        // Filter by permission -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
+        this._permissionfilterAttributes(data, permission)
 
         return u.unpackKeys(data)
     }
@@ -341,7 +351,7 @@ class DBObject {
                 tableName: this.tableName,
                 key: this.key,
                 attributes: Object.keys(condemned.local)
-            }).catch((err) => {u.error('failure in DBObject._splitLateral', err)})
+            }).catch((err) => {u.error('failure in DBObject.handleDeletions', err)})
         }
         
         // Lateral
@@ -430,8 +440,17 @@ class DBObject {
     }
 
     // marc-look
-    async _permissionFilterAttribute(attributes, permission) {
-        return attributes
+    // Takes object of attributes to get, filters down those user has permission for
+    async _permissionfilterAttributes(attributes, userPermission=9) {
+        if (userPermission == undefined) {return attributes}
+        let filtered = {}
+        Object.keys(attributes).forEach((path) => {
+            let nodePermission = this.index.getNodePermission(path)
+            if (nodePermission <= userPermission) {
+                filtered[path] = attributes[path]
+            }
+        })
+        return filtered
     }
 
     async _handleSplit(newAttributes) {

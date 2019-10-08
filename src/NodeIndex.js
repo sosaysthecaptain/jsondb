@@ -43,7 +43,7 @@ class NodeIndex {
     }
 
     // Creates or updates the index on the basis of new attributes
-    build(attributes, permission) {
+    build(attributes) {
         attributes = attributes || {}
 
         // Strike displaced nodes from index, they should already have been deleted
@@ -61,13 +61,11 @@ class NodeIndex {
                 this.i[path] = new IndexEntry(path)
             }
             this.i[path].size(u.getSize(attributes[path])) 
-            if (permission) {this.i[path].permission(permission)}
         })
                 
         // Add intermediate nodes, including the top level
         this.updateMetaNodes()
         this.loaded = true
-
         return this.i
     }
 
@@ -109,6 +107,18 @@ class NodeIndex {
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
         // this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
+    }
+
+    // Updates only those specified, others inherit permission of closest parent with permission
+    updatePermissions(permission, attributes) {
+        if (attributes) {
+            Object.keys(attributes).forEach((path) => {
+                let node = this.getNodeAtPath(path)
+                node.permission(permission)
+            })
+        } else {
+            this.metaIndex().permission(permission)
+        }
     }
 
     // Fed the raw index object from dynamo, loads into memory and recomputes locally stored values
@@ -205,7 +215,7 @@ class NodeIndex {
         }
     }
 
-    getMetaIndex() {return this.i[u.INDEX_KEY]}
+    metaIndex() {return this.i[u.INDEX_KEY]}
 
 
     // Returns all paths stored on this object node, used by getEntireObject
@@ -327,13 +337,9 @@ class NodeIndex {
 
     getNodePermission(path) {
         if (!path) {
-            // marc-look
-            debugger
-            let topLevelPermission = this.metaIndex().permission()
-            topLevelPermission = topLevelPermission || 0
-            return topLevelPermission
+            return 0
         }   
-
+        path = u.packKeys(path)
         let node = this.getNodeAtPath(path)
         let writtenPermission = node.permission()
         if (writtenPermission) {return writtenPermission}

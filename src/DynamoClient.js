@@ -174,9 +174,10 @@ class DynamoClient {
     }
 
     async deleteAttributes({tableName, key, attributes}) {
-        let UpdateExpression = ''
+        debugger
+        let UpdateExpression = 'REMOVE '
         attributes.forEach((attributeKey) => {
-            UpdateExpression += 'REMOVE ' + attributeKey + ', '
+            UpdateExpression += attributeKey + ', '
         })
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         

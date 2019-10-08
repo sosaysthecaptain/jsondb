@@ -12,7 +12,7 @@ let dynamoClient = new DynamoClient({
 })
 
 it('DBObject_lateral: one large key split laterally', async function() {
-    this.timeout(20000)
+    this.timeout(u.TEST_TIMEOUT)
 
     // Data
     let testObjID = 'dbobject_test_3'
