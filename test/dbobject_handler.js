@@ -70,18 +70,40 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let messages = await messageHandler.batchGetObjectByID(messageIDs)
     let passed0 = ((messages[message0.id].id === message0.id) && (messages[message5.id].id === message5.id))
     assert.equal(passed0, true)
-
-
+    
+    
     // Getting by time range
     let byTime = await messageHandler.batchGetObjectByTime({
         startTime: Date.now() - (10 * 1000),
         endTime: Date.now(),
         ascending: true
     })
-
+    let allMessages = []
+    allIDs = Object.keys(byTime)
+    for (let i = 0; i < allIDs.length; i++) {
+        let id = allIDs[i]   
+        let objData = await byTime[id].get()
+        allMessages.push(objData)
+    }
+    let allMessagesString = JSON.stringify(allMessages)
+    let passed1 = (allMessagesString.includes('third message'))
+    assert.equal(passed1, true)
+    
+    // By time, data only
+    let messagesByTime = await messageHandler.batchGetObjectByTime({
+        startTime: Date.now() - (10 * 1000),
+        endTime: Date.now(),
+        ascending: true,
+        attributes: ['message']
+    })
     debugger
+    let passed2 = messagesByTime.includes('fourth message')
+    assert.equal(passed2, true)
 
 
+    // By page
+
+    // Scan
 
 
 
