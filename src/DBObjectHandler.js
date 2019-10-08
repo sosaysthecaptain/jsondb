@@ -53,7 +53,7 @@ class DBObjectHandler {
     }
 
     // Doesn't load anything yet
-    async batchGetObjectByID(ids) {
+    async batchGetObjectsByID(ids) {
         let dbobjects = {}
         ids.forEach(id => {
             dbobjects[id] = new DBObject(id, {
@@ -64,27 +64,17 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async batchGetObjectByPage({seriesKey, limit, ascending, exlcusiveFirstTimestamp}) {
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exlcusiveFirstTimestamp, attributes}) {
+        if (exlcusiveFirstTimestamp) {exlcusiveFirstTimestamp = Number(exlcusiveFirstTimestamp)}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
-        let keyData = this.dynamoClient.getPagewise({
+        let allObjectData = await this.dynamoClient.getPagewise({
             tableName: this.tableName,
             uid: seriesKey || this.seriesKey,
             limit,
             ascending,
             exclusiveFirstSk: exlcusiveFirstTimestamp
         })
-
-        debugger
-        // RESUME HERE, TEST THIS
-
-        let dbobjects = {}
-        keyData.forEach(obj => {
-            debugger
-            let id = u.keyFromID()
-
-            dbobjects[id] = null
-        })
-
+        return await this._objectsOrDataFromRaw(allObjectData, attributes)
     }
     
     async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes}) {
@@ -126,6 +116,28 @@ class DBObjectHandler {
 
     async batchGetData(ids, path) {
 
+    }
+
+    // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
+    async _objectsOrDataFromRaw(raw, attributes) {
+        let dbobjects = []
+        raw.forEach(data => {
+            let id = data[u.PK] + '-' + data[u.SK]
+            let encodedIndex = data[u.INDEX_KEY]
+            delete data[u.INDEX_KEY]
+            delete data[u.PK]
+            delete data[u.SK]
+            
+            dbobjects.push(new DBObject(id, {
+                tableName: this.tableName,
+                dynamoClient: this.dynamoClient,
+                isTimeOrdered: true,
+                encodedIndex,
+                data
+            }))
+        })
+        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects)}
+        return dbobjects
     }
 
     // Extracts specified attributes. Pass "true" for all

@@ -341,6 +341,7 @@ class NodeIndex {
         }   
         path = u.packKeys(path)
         let node = this.getNodeAtPath(path)
+        if (!node) {return null}
         let writtenPermission = node.permission()
         if (writtenPermission) {return writtenPermission}
         else {

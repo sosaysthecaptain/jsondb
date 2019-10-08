@@ -65,7 +65,6 @@ class DynamoClient {
     }
 
     // Gets all for uid with ts in specified range, ordered only
-    // ASSUMES STANDARD uid/ts
     async getRange({tableName, uid, startTime, endTime, ascending}) {
         let params = {
             TableName: tableName,
@@ -89,6 +88,7 @@ class DynamoClient {
     // Gets pagewise for uid, starting at exclusiveFirstSk, limited, in specified order
     // ASSUMES STANDARD uid/ts
     async getPagewise({tableName, uid, limit, exclusiveFirstSk, ascending}) {
+        if (exclusiveFirstSk) {exclusiveFirstSk = Number(exclusiveFirstSk)}
         limit = limit || 100
         
         let KeyConditionExpression = 'uid = :0 AND ts < :1'

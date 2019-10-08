@@ -67,7 +67,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let message5 = await messageHandler.createObject(seriesKey, {message: 'sixth message'})
 
     let messageIDs = [message0.id, message1.id, message2.id, message3.id, message4.id, message5.id]
-    let messages = await messageHandler.batchGetObjectByID(messageIDs)
+    let messages = await messageHandler.batchGetObjectsByID(messageIDs)
     let passed0 = ((messages[message0.id].id === message0.id) && (messages[message5.id].id === message5.id))
     assert.equal(passed0, true)
     
@@ -94,13 +94,50 @@ it('DBObjectHandler (2) - batch operations', async function() {
         startTime: Date.now() - (10 * 1000),
         endTime: Date.now(),
         ascending: true,
-        attributes: ['message']
+        attributes: ['message'],
     })
     let passed2 = messagesByTime[0].message === 'first message'
     assert.equal(passed2, true)
+    
+    // By page, objects
+    let firstPage = await messageHandler.batchGetObjectsByPage({
+        limit: 3,
+        ascending: true,
+        // attributes: ['message']
+    })
+    let firstPageMessage0 = await firstPage[0].get('message') === 'first message'
+    let firstPageMessage2 = await firstPage[2].get('message') === 'third message'
+    let passed3 = firstPageMessage0 && firstPageMessage2
+    assert.equal(passed3, true)
+    
+    // By page, objects, 2
+    let secondPage = await messageHandler.batchGetObjectsByPage({
+        limit: 3,
+        ascending: true,
+        exlcusiveFirstTimestamp: message2.id.split('-')[1]
+        // attributes: ['message']
+    })
+    let secondPageMessage0 = await secondPage[0].get('message') === 'fourth message'
+    let secondPageMessage2 = await secondPage[2].get('message') === 'sixth message'
+    let passed4 = secondPageMessage0 && secondPageMessage2
+    assert.equal(passed4, true)
+        
+    // By page, data
+    let firstPageData = await messageHandler.batchGetObjectsByPage({
+        limit: 4,
+        ascending: true,
+        attributes: ['message']
+    })
+    let passed5 = firstPageData[0].message === 'first message'
+    assert.equal(passed5, true)
 
+    // Scan
+    
+    
+    debugger
 
-    // By page
+    
+
 
     // Scan
 
