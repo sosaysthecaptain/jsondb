@@ -15,7 +15,7 @@ let dynamoClient = new DynamoClient({
 })
 
 
-xit('DBObjectHandler (1) - basic operations', async function() {
+it('DBObjectHandler (1) - basic operations', async function() {
     this.timeout(u.TEST_TIMEOUT)
     let testID = 'handler_test_1'
     let testObj = {stuff: {containing: 'more_stuff'}}
@@ -130,23 +130,17 @@ it('DBObjectHandler (2) - batch operations', async function() {
     })
     let passed5 = firstPageData[0].message === 'first message'
     assert.equal(passed5, true)
-
+    
     // Scan
-    
-    
-    debugger
+    let scanData = await messageHandler.scan({
+        path: 'message',
+        value: 'fourth message',
+        attributes: true
+    })
+    let passed6 = scanData[0].message === 'fourth message'
+    assert.equal(passed6, true)
 
-    
-
-
-    // Scan
-
-
-
-
-
-
-
+    // Clean up
     for (let i = 0; i < messageIDs.length; i++) {
         await messageHandler.deleteObject(messageIDs[i])
     }

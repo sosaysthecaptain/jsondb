@@ -210,6 +210,7 @@ class DynamoClient {
     // See ScanQuery.js for details on params API
     async scan(scanQueryInstance) {
         let params = scanQueryInstance.getParamsObject()
+        debugger
         const data = await this.dynamo.scan(params).promise().catch((err) => {
             throw(err)
         })

@@ -1,8 +1,7 @@
-let uuid = require('uuid')
-
 const u = require('./u')
-let DBObject = require('./DBObject')
-let DynamoClient = require('./DynamoClient')
+const DBObject = require('./DBObject')
+const DynamoClient = require('./DynamoClient')
+const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
     constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, subclass, isTimeOrdered, seriesKey, defaultCacheSize}) {
@@ -86,36 +85,21 @@ class DBObjectHandler {
             endTime,
             ascending
         })
-        let dbobjects = []
-        allObjectData.forEach(data => {
-            let id = data[u.PK] + '-' + data[u.SK]
-            let encodedIndex = data[u.INDEX_KEY]
-            delete data[u.INDEX_KEY]
-            delete data[u.PK]
-            delete data[u.SK]
-            
-            dbobjects.push(new DBObject(id, {
-                tableName: this.tableName,
-                dynamoClient: this.dynamoClient,
-                isTimeOrdered: true,
-                encodedIndex,
-                data
-            }))
-        })
-        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects)}
-        return dbobjects
+        return await this._objectsOrDataFromRaw(allObjectData, attributes)
     }
 
-    async scan({path, value, operator}) {
-
-    }
-
-    async getData(id, path) {
-
-    }
-
-    async batchGetData(ids, path) {
-
+    // Pass a single path and value, or else a completed ScanQuery object
+    async scan({path, value, attributes, query}) {
+        if (!query) {
+            query = new ScanQuery(this.tableName)
+            query.addParam({
+                param: path, 
+                value: value, 
+                message: '='
+            })
+        }
+        let data = await this.dynamoClient.scan(query)
+        return await this._objectsOrDataFromRaw(data, attributes)
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
