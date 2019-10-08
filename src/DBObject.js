@@ -14,7 +14,8 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor(id, {tableName, dynamoClient, isNew}) {
+    constructor(id, {tableName, dynamoClient, isNew, isTimeOrdered, encodedIndex, data}) {
+        if (isTimeOrdered) {id += '-' + Date.now()}
         
         // Information we actually have
         this.id = id,
@@ -22,9 +23,10 @@ class DBObject {
         this.tableName = tableName
         this.key = u.keyFromID(id)
 
+        
         // Default assumptions about information we don't have yet
         this.permissionLevel = u.DEFAULT_PERMISSION_LEVEL
-        this.maximumCacheSize = u.MAXIMUM_CACHE_SIZE
+        this.maximumCacheSize = u.DEFAULT_CACHE_SIZE
         this.parent = null
         
         // Places to put things
@@ -33,22 +35,35 @@ class DBObject {
         this.cacheIndex = {}
         this.cacheSize = 0
         this.cachedDirectChildren = {}
+        
+        // Jumpstarting options
+        if (encodedIndex) {
+            let indexData = u.decode(encodedIndex)
+            this.index.loadData(indexData)
+        }
+
+        if (data) {
+            this._cacheSet(data)
+        }
+
+        return this.id
     }
 
     // Creates a new object in the database
     async create(initialData, params={}) {
         this.parent = params.parent || null
-        this.permissionLevel = params.permissionLevel || u.DEFAULT_PERMISSION_LEVEL
+        this.permission = params.permission || u.DEFAULT_PERMISSION_LEVEL
         let permission = params.permission || null
+        let allowOverwrite = params.allowOverwrite || false
 
         if (initialData[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(initialData)
-        return await this.set(initialData, {doNotOverwrite: true, permission})
+        return await this.set(initialData, {doNotOverwrite: !allowOverwrite, permission})
     }
 
-    async destroy() {
+    async destroy(confirm) {
         await this.ensureIndexLoaded()
 
         // Wipe any lateral nodes
@@ -70,15 +85,19 @@ class DBObject {
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {u.error('failure in DBObject.delete', err)})
-        return data.Attributes
+        if (confirm) {
+            let exists = await this.checkExists()
+            return !exists
+        }
     }
 
     async ensureDestroyed() {
-        let exists = await this.destroy()
+        let exists = await this.checkExists()
         if (!exists) {
             return true
         } else {
-            this.ensureDestroyed()
+            await this.destroy()
+            return await this.ensureDestroyed()
         }
     }
 
@@ -189,8 +208,8 @@ class DBObject {
         // No paths: just dump from dynamo and clean up
         else {
             data = await this._read()
-            delete data.uid
-            delete data.ts
+            delete data[u.PK]
+            delete data[u.SK]
             delete data[u.INDEX_KEY]
         }
             
@@ -198,6 +217,18 @@ class DBObject {
         u.processReturn(data)
         this._cacheSet(data)
         return u.unpackKeys(data)
+    }
+
+    async setPermission(key, permission) {
+
+    }
+
+    async getPermission(key, permission) {
+
+    }
+
+    async sync() {
+        
     }
 
     async set(attributesOriginal, params={}) {
@@ -276,6 +307,17 @@ class DBObject {
         this.parent = this.index.parent()
         return
     }
+
+    async checkExists() {
+        let gotten = await this.dynamoClient.get({
+            tableName: this.tableName,
+            key: this.key,
+            attributes: [u.PK]
+        })
+        if (gotten) {return true}
+    }
+
+    timestamp() {return u.keyFromID(this.id)[u.SK]}
 
 
     /*  INTERNAL METHODS */

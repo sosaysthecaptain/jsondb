@@ -66,13 +66,13 @@ class DynamoClient {
 
     // Gets all for uid with ts in specified range, ordered only
     // ASSUMES STANDARD uid/ts
-    async getRange({tableName, uid, tsStart, tsEnd, ascending}) {
+    async getRange({tableName, uid, startTime, endTime, ascending}) {
         let params = {
             TableName: tableName,
             ExpressionAttributeValues: {
                 ':0': uid,
-                ':1': skStart,
-                ':2' : skEnd,
+                ':1': startTime,
+                ':2' : endTime,
             },
             KeyConditionExpression: 'uid = :0 AND ts BETWEEN :1 AND :2',
             ScanIndexForward: ascending,
@@ -80,6 +80,7 @@ class DynamoClient {
 
         let data = await this.dynamo.query(params).promise().catch((err) => {
             console.log('failure in DynamoClient.getRange')
+            debugger
             throw(err)
         })
         return data.Items
@@ -174,7 +175,6 @@ class DynamoClient {
     }
 
     async deleteAttributes({tableName, key, attributes}) {
-        debugger
         let UpdateExpression = 'REMOVE '
         attributes.forEach((attributeKey) => {
             UpdateExpression += attributeKey + ', '
@@ -201,11 +201,10 @@ class DynamoClient {
             TableName: tableName,
             Key: key
         }
-        let data = await this.dynamo.deleteItem(params).promise().catch((err) => {
+        return await this.dynamo.deleteItem(params).promise().catch((err) => {
             console.log('failure in DynamoClient.delete')
             throw(err)
         })
-        return data
     }
 
     // See ScanQuery.js for details on params API

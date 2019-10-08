@@ -17,17 +17,19 @@ u.HARD_LIMIT_NODE_SIZE = 395 * 1024
 u.MAX_NODE_SIZE = 300 * 1024
 u.IDEAL_NODE_SIZE = 200 * 1024
 u.INDEX_MARGIN = 5 * 1024
-u.MAXIMUM_CACHE_SIZE = 50 * 1024 * 1024
+u.DEFAULT_CACHE_SIZE = 50 * 1024 * 1024
 u.DEFAULT_PERMISSION_LEVEL = 0
 u.MAX_NESTING_DEPTH = 30
 
-u.INDEX_KEY = 'META'
+u.PK = 'uid'
+u.SK = 'ts'
 
+u.INDEX_KEY = 'META'
 u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
-
-u.PATH_SEPARATOR = '__'
 u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
+u.PATH_SEPARATOR = '__'
+
 
 u.TEST_TIMEOUT = 10 * 60 * 1000
 
@@ -134,10 +136,9 @@ u.decode = (base64) => {
 }
 
 u.keyFromID = (id) => {
-    let key = {
-        uid: id.split('-')[0],
-        ts: id.split('-')[1] || 0
-    }
+    let key = {}
+    key[u.PK] = id.split('-')[0]
+    key[u.SK] = Number(id.split('-')[1] || 0)
     return key
 }
 
@@ -253,7 +254,7 @@ u.getParentPath = (path) => {
     let arrPath = u.stringPathToArrPath(path)
     arrPath.pop()
     if (arrPath.length) {
-        return u.arrayPathToStringPath(path)
+        return u.arrayPathToStringPath(arrPath)
     }
 }
 

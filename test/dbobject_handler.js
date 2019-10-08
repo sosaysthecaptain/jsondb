@@ -73,7 +73,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
     
     
     // Getting by time range
-    let byTime = await messageHandler.batchGetObjectByTime({
+    let byTime = await messageHandler.batchGetObjectsByTime({
         startTime: Date.now() - (10 * 1000),
         endTime: Date.now(),
         ascending: true
@@ -90,14 +90,13 @@ it('DBObjectHandler (2) - batch operations', async function() {
     assert.equal(passed1, true)
     
     // By time, data only
-    let messagesByTime = await messageHandler.batchGetObjectByTime({
+    let messagesByTime = await messageHandler.batchGetObjectsByTime({
         startTime: Date.now() - (10 * 1000),
         endTime: Date.now(),
         ascending: true,
         attributes: ['message']
     })
-    debugger
-    let passed2 = messagesByTime.includes('fourth message')
+    let passed2 = messagesByTime[0].message === 'first message'
     assert.equal(passed2, true)
 
 
