@@ -49,6 +49,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
 
     let seriesKey = 'message'
     let messageHandler = new jsondb.DBObjectHandler({
+        seriesKey: 'message',
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
         awsRegion: config.AWS_REGION,
@@ -57,6 +58,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
         isTimeOrdered: true,
     })
     
+    // Getting by ID
     let message0 = await messageHandler.createObject(seriesKey, {message: 'first message'})
     let message1 = await messageHandler.createObject(seriesKey, {message: 'second message'})
     let message2 = await messageHandler.createObject(seriesKey, {message: 'third message'})
@@ -64,12 +66,28 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let message4 = await messageHandler.createObject(seriesKey, {message: 'fifth message'})
     let message5 = await messageHandler.createObject(seriesKey, {message: 'sixth message'})
 
-    debugger
     let messageIDs = [message0.id, message1.id, message2.id, message3.id, message4.id, message5.id]
     let messages = await messageHandler.batchGetObjectByID(messageIDs)
-    debugger
     let passed0 = ((messages[message0.id].id === message0.id) && (messages[message5.id].id === message5.id))
     assert.equal(passed0, true)
+
+
+    // Getting by time range
+    let byTime = await messageHandler.batchGetObjectByTime({
+        startTime: Date.now() - (10 * 1000),
+        endTime: Date.now(),
+        ascending: true
+    })
+
+    debugger
+
+
+
+
+
+
+
+
 
     for (let i = 0; i < messageIDs.length; i++) {
         await messageHandler.deleteObject(messageIDs[i])
