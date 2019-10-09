@@ -9,7 +9,7 @@ const flatten = require('flat')
 const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
-// const DynamoClient = require('./DynamoClient')
+const DBObjectHandler = require('./DBObjectHandler')
 const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
@@ -346,6 +346,7 @@ class DBObject {
     */
    async setReference(path, id, permission) {
        await this.ensureIndexLoaded()
+       this._ensureIsCollection(path)
        path = u.packKeys(path)
        let attributes = {}
        attributes[path] = id
@@ -355,6 +356,7 @@ class DBObject {
     
     async getReference(path, {permission}={}) {
         await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
         let id = await this.get(path, {permission})
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
@@ -363,6 +365,93 @@ class DBObject {
         await dbobject.loadIndex()
         return dbobject
     }
+    
+    async createCollection(path) {
+        debugger
+        await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
+        path = u.packKeys(path)
+        this.index.setNodeType(path, u.NT_COLLECTION)
+        this.index.setNodeProperty(path, 'seriesKey', path)
+        let attributes = {path: '<COLLECTION>'}
+        await this.set(attributes, {permission})
+        return path
+    }
+    
+    async addToCollection(path, object) {
+        debugger
+        await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
+        path = u.packKeys(path)
+        let handler = this._getCollectionHandler(path)
+        let id = await handler.createObject(path, object)
+        return id
+    }
+
+    async getFromCollection(path, {id, limit, start, descending, attributes, permission}) {
+        await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
+        path = u.packKeys(path)
+        let handler = this._getCollectionHandler(path)
+        
+    }
+    
+    async deleteFromCollection(path, nodeID) {
+        debugger
+        await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
+        path = u.packKeys(path)
+        let handler = this._getCollectionHandler(path)
+        await handler.deleteObject(id)
+    }
+    
+    async emptyCollection(path) {
+        debugger
+        await this.ensureIndexLoaded()
+        this._ensureIsCollection(path)
+        path = u.packKeys(path)
+        let handler = this._getCollectionHandler(path)
+        let finished = false
+        while (!finished) {
+            let ids = this.getFromCollection(path, {attributes: ['sk']})
+            for (let i = 0; i < ids.length; i++) {
+                let id = ids[i]
+                this.deleteFromCollection(path, id)
+            }
+        }
+    }
+
+    _ensureIsCollection(path) {
+        if (this.index.getNodeType() === u.NT_COLLECTION) {
+            throw new Error('Specified path is not a collection')
+        }
+    }
+
+    _getCollectionHandler(path) {
+        return new DBObjectHandler({
+            seriesKey: path,
+            awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
+            awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
+            awsRegion: this.dynamoClient.awsRegion,
+            tableName: this.tableName,
+            isTimeOrdered: true
+        })
+    }
+
+
+
+
+    
+    // async getReference(path, {permission}={}) {
+    //     await this.ensureIndexLoaded()
+    //     let id = await this.get(path, {permission})
+    //     let dbobject = new DBObject(id, {
+    //         dynamoClient: this.dynamoClient,
+    //         tableName: this.tableName
+    //     })
+    //     await dbobject.loadIndex()
+    //     return dbobject
+    // }
 
 
     /*  INTERNAL METHODS */

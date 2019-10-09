@@ -30,6 +30,15 @@ u.LARGE_SERIALIZED_PAYLOAD = 'ENC'
 u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
 u.PATH_SEPARATOR = '__'
 
+u.NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
+u.NT_META = 'META'                          // meta node (get children)
+u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
+u.NT_LATERAL_POINTER = 'LP'                 // large, laterally-extended node
+u.NT_COLLECTION = 'COLLECT'                 // collection
+u.NT_FILE_LINK = 'FILE_LINK'                // file, link
+u.NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
+u.NT_REF = 'REF'                            // reference to another DBObject
+
 
 u.TEST_TIMEOUT = 10 * 60 * 1000
 

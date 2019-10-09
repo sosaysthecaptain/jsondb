@@ -1,7 +1,6 @@
 const assert = require('assert')
 const _ = require('lodash')
 const jsondb = require('../index')
-const ScanQuery = require('../src/ScanQuery')
 const DynamoClient = require('../src/DynamoClient')
 const config = require('../config')
 const u = require('../src/u')
@@ -13,7 +12,7 @@ let dynamoClient = new DynamoClient({
 })
 
 
-it('DBObject_reference (1) - basic operations', async function() {
+it('DBObject_reference', async function() {
     this.timeout(u.TEST_TIMEOUT)
 
     let parentID = 'dbobjRefTestParent'
@@ -45,7 +44,6 @@ it('DBObject_reference (1) - basic operations', async function() {
     let parentObj = await myHandler.createObject(parentID, parentData)
     let childObj = await myHandler.createObject(childID, childData)
     let read0 = await parentObj.get()
-
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
     let read1 = await await childObj.get()

@@ -8,6 +8,9 @@ let DOC = require('dynamodb-doc')
 
 class DynamoClient {
     constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion}) {
+        this.awsAccessKeyId = awsAccessKeyId
+        this.awsSecretAccessKey = awsSecretAccessKey
+        this.awsRegion = awsRegion
         AWS.config.update({
             accessKeyId: awsAccessKeyId,
             secretAccessKey: awsSecretAccessKey,

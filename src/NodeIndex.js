@@ -25,16 +25,6 @@ POINTER_KEY = 'POINTER'                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 S3_REF_KEY = 'S3'
 
-COLLECTION_KEY = 'DBOBJ_ID'
-
-NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
-NT_META = 'META'                          // meta node (get children)
-NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
-NT_LATERAL_POINTER = 'LP'                 // large, laterally-extended node
-NT_COLLECTION = 'COLLECT'                 // collection
-NT_FILE_LINK = 'FILE_LINK'                // file, link
-NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
-NT_REF = 'REF'                            // reference to another DBObject
 
 // currently unused
 SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
@@ -97,7 +87,7 @@ class NodeIndex {
         intermediatePaths.forEach((path) => {
             if (!this.i[path]) {
                 this.i[path] = new IndexEntry(path)
-                this.i[path].type(NT_META)
+                this.i[path].type(u.NT_META)
             }
             let nodeSize = this.getSizeOfNodeAtPath(path, this.i)
             this.i[path].size(nodeSize)
@@ -123,7 +113,7 @@ class NodeIndex {
 
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
-        this.i[u.INDEX_KEY].type(NT_META)
+        this.i[u.INDEX_KEY].type(u.NT_META)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
         // this.i[u.INDEX_KEY].permission('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
@@ -139,14 +129,6 @@ class NodeIndex {
         } else {
             this.metaIndex().permission(permission)
         }
-    }
-
-    // Instantiate index first
-    setAsCollection(path, id) {
-        let node = this.getNodeAtPath(path)
-        debugger
-        node.type(NT_COLLECTION)
-        node.collection(id)
     }
 
     // Fed the raw index object from dynamo, loads into memory and recomputes locally stored values
@@ -214,17 +196,17 @@ class NodeIndex {
         paths.forEach((path) => {
             let node = this.getNodeAtPath(path)
             let type = node.type()
-            if ((type === NT_DEFAULT) || (!type)) {
+            if ((type === u.NT_DEFAULT) || (!type)) {
                 data.local[path] = node
-            } else if (type === NT_VERTICAL_POINTER) {
+            } else if (type === u.NT_VERTICAL_POINTER) {
                 data.elsewhere[path] = node
-            } else if (type === NT_LATERAL_POINTER) {
+            } else if (type === u.NT_LATERAL_POINTER) {
                 data.lateral[path] = node
-            } else if (type === NT_COLLECTION) {
+            } else if (type === u.NT_COLLECTION) {
                 data.collection[path = node]
-            } else if ((type === NT_FILE_LINK) || (type === NT_FILE_BUFFER)) {
+            } else if (type === u.NT_S3REF) {
                 data.s3[path] = node
-            } else if (type === NT_REF) {
+            } else if (type === u.NT_REF) {
                 data.ref[path] = node
             }
         })
@@ -363,6 +345,10 @@ class NodeIndex {
 
     getNodeAtPath(path) {return this.i[path]}
 
+
+    setNodeType(path, value) {this.getNodeAtPath(path).data[TYPE_KEY] = value}
+    getNodeType(path) {return this.getNodeAtPath(path).data[TYPE_KEY]}
+
     setNodeProperty(path, property, value) {
         let node = this.getNodeAtPath(path)
         node.data[property] = value
@@ -458,7 +444,7 @@ class NodeIndex {
     }
 
     setLateralExt(path, latExIDs) {
-        this.i[path].type(NT_LATERAL_POINTER)
+        this.i[path].type(u.NT_LATERAL_POINTER)
         this.i[path].data[LATERAL_POINTER_ARRAY_KEY] = latExIDs
         this.i[path].size(0)
         this.updateMetaNodes()
@@ -466,7 +452,7 @@ class NodeIndex {
 
     // AUDIT?
     getLateralPointers(path) {
-        if ((this.i[path]) && (this.i[path].type() === NT_LATERAL_POINTER)) {
+        if ((this.i[path]) && (this.i[path].type() === u.NT_LATERAL_POINTER)) {
             return this.i[path].data[LATERAL_POINTER_ARRAY_KEY]
         }
     }
@@ -487,7 +473,7 @@ class NodeIndex {
             // Set the node to pointer type and set its pointer
             let node = this.i[path]
             node = node || new IndexNode(path)
-            node.type(NT_VERTICAL_POINTER)
+            node.type(u.NT_VERTICAL_POINTER)
             node.data[POINTER_KEY] = node[POINTER_KEY] || {}
             node.data[POINTER_KEY] = pointer
             node.size(0)
@@ -550,7 +536,6 @@ class IndexEntry {
     s3Ref(s3Ref) {return this.univGetSet(S3_REF_KEY, s3Ref)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
     permission(permission) {return this.univGetSet(PERMISSION_KEY, permission)}
-    collection(collection) {return this.univGetSet(COLLECTION_KEY, collection)}
     
 
     univGetSet(writableKey, value) {
@@ -575,7 +560,7 @@ class IndexEntry {
         
             // We don't store "default", but here we specify
             if (this.isDefault()) {
-                ret[TYPE_KEY] = NT_DEFAULT
+                ret[TYPE_KEY] = u.NT_DEFAULT
             }
         } 
         return ret
@@ -590,9 +575,9 @@ class IndexEntry {
     getPath() {return this.metadata.path}
 
     getLateralPointers() {
-        if (this.type() === NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}
+        if (this.type() === u.NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}
     }
-    getVerticalPointer() {if (this.type() === NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
+    getVerticalPointer() {if (this.type() === u.NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
 
     // SUN AM NOTE TO SELF: CHANGE FORMAT IF WE KEEP NO CHILDREN_KEY
     getAllVerticalPointers() {
@@ -607,11 +592,11 @@ class IndexEntry {
         return vps
     }
 
-    isDefault() {return (this.data[TYPE_KEY] === NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
-    isMeta() {return this.data[TYPE_KEY] === NT_META}
+    isDefault() {return (this.data[TYPE_KEY] === u.NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
+    isMeta() {return this.data[TYPE_KEY] === u.NT_META}
     
-    // isVertical() {if (this.data[TYPE_KEY] === NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
-    // isLateral() {if (this.data[TYPE_KEY] === NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}}
+    // isVertical() {if (this.data[TYPE_KEY] === u.NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
+    // isLateral() {if (this.data[TYPE_KEY] === u.NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}}
 }
 
 module.exports = NodeIndex
