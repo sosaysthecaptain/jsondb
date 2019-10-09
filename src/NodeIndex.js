@@ -344,12 +344,17 @@ class NodeIndex {
     }
 
     getNodeAtPath(path) {return this.i[path]}
+    ensureNodeAtPath(path) {if (!this.i[path]) {this.i[path] = new IndexEntry(path)}}
 
 
-    setNodeType(path, value) {this.getNodeAtPath(path).data[TYPE_KEY] = value}
+    setNodeType(path, value) {
+        this.ensureNodeAtPath(path)
+        this.getNodeAtPath(path).data[TYPE_KEY] = value
+    }
     getNodeType(path) {return this.getNodeAtPath(path).data[TYPE_KEY]}
 
     setNodeProperty(path, property, value) {
+        this.ensureNodeAtPath(path)
         let node = this.getNodeAtPath(path)
         node.data[property] = value
     }

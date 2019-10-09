@@ -1,6 +1,7 @@
 const assert = require('assert')
 const _ = require('lodash')
 const jsondb = require('../index')
+const ScanQuery = require('../src/ScanQuery')
 const DynamoClient = require('../src/DynamoClient')
 const config = require('../config')
 const u = require('../src/u')

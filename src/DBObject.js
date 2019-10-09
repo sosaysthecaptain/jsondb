@@ -9,7 +9,7 @@ const flatten = require('flat')
 const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
-const DBObjectHandler = require('./DBObjectHandler')
+
 const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
@@ -81,7 +81,7 @@ class DBObject {
         
         // Then destroy this node
         this.invalidateCache()
-        let data = await this.dynamoClient.delete({
+        await this.dynamoClient.delete({
             tableName: this.tableName,
             key: this.key,
         }).catch((err) => {u.error('failure in DBObject.delete', err)})
@@ -346,7 +346,6 @@ class DBObject {
     */
    async setReference(path, id, permission) {
        await this.ensureIndexLoaded()
-       this._ensureIsCollection(path)
        path = u.packKeys(path)
        let attributes = {}
        attributes[path] = id
@@ -356,7 +355,6 @@ class DBObject {
     
     async getReference(path, {permission}={}) {
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         let id = await this.get(path, {permission})
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
@@ -367,50 +365,59 @@ class DBObject {
     }
     
     async createCollection(path) {
-        debugger
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
-        this.index.setNodeProperty(path, 'seriesKey', path)
-        let attributes = {path: '<COLLECTION>'}
-        await this.set(attributes, {permission})
+        this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
+        let attributes = {}
+        attributes[path] = '<COLLECTION>'
+        await this.set(attributes)
         return path
     }
     
     async addToCollection(path, object) {
-        debugger
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         path = u.packKeys(path)
-        let handler = this._getCollectionHandler(path)
-        let id = await handler.createObject(path, object)
+        this._ensureIsCollection(path)
+        let handler = this.getCollectionHandler(path)
+        let seriesKey = this._getCollectionSeriesKey(path)
+        let id = await handler.createObject(seriesKey, object)
         return id
     }
 
-    async getFromCollection(path, {id, limit, start, descending, attributes, permission}) {
+    async getFromCollection(path, {id, limit, start, descending, attributes}) {
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         path = u.packKeys(path)
-        let handler = this._getCollectionHandler(path)
-        
+        this._ensureIsCollection(path)
+        let handler = this.getCollectionHandler(path)
+        let seriesKey = this._getCollectionSeriesKey(path)
+        if (!id) {
+            let ret = await handler.batchGetObjectsByPage({seriesKey, limit, attributes})
+            return ret
+        } else {
+            let obj = await handler.getObject(id, true)
+            if (!attributes) {return obj}
+            if (attributes === true) {return await obj.get()}
+            return obj
+        }
     }
+
+    async scanCollection(path, value, ) {}
     
     async deleteFromCollection(path, nodeID) {
         debugger
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         path = u.packKeys(path)
-        let handler = this._getCollectionHandler(path)
-        await handler.deleteObject(id)
+        this._ensureIsCollection(path)
+        let handler = this.getCollectionHandler(path)
+        await handler.deleteObject(nodeID)
     }
     
     async emptyCollection(path) {
         debugger
         await this.ensureIndexLoaded()
-        this._ensureIsCollection(path)
         path = u.packKeys(path)
-        let handler = this._getCollectionHandler(path)
+        this._ensureIsCollection(path)
         let finished = false
         while (!finished) {
             let ids = this.getFromCollection(path, {attributes: ['sk']})
@@ -421,15 +428,19 @@ class DBObject {
         }
     }
 
+    _getCollectionSeriesKey(path) {return (this.id + '_' + path)}
+
     _ensureIsCollection(path) {
-        if (this.index.getNodeType() === u.NT_COLLECTION) {
+        if (this.index.getNodeType(path) === u.NT_COLLECTION) {
             throw new Error('Specified path is not a collection')
         }
     }
 
-    _getCollectionHandler(path) {
+    getCollectionHandler(path) {
+        let seriesKey = this._getCollectionSeriesKey(path)
+        const DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
-            seriesKey: path,
+            seriesKey: seriesKey,
             awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
             awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
             awsRegion: this.dynamoClient.awsRegion,
