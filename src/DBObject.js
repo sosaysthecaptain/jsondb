@@ -246,31 +246,6 @@ class DBObject {
         
     }
 
-    /* 
-    SPECIAL TYPES
-    References, collections, and files are stored by reference as normal data, and accessed singly 
-    via special purpose getters and setters
-
-    */
-    async setReference(path, id, permission) {
-        let attributes = {}
-        attributes[path] = id
-        return await this.set(attributes, {
-            // isReference: true,
-            // permission
-        })
-    }
-
-    async getReference(path, {permission}) {
-        let id = await this.get(path, {permission})
-        let dbobject = new DBObject(id, {
-            dynamoClient: this.dynamoClient,
-            tableName: this.tableName
-        })
-        await dbobject.loadIndex()
-        return dbobject
-    }
-
     async set(attributesOriginal, params={}) {
         let {doNotOverwrite, permission, isCollection} = params
         let attributes = u.copy(attributesOriginal)
@@ -358,9 +333,36 @@ class DBObject {
             attributes: [u.PK]
         })
         if (gotten) {return true}
+        return false
     }
 
     timestamp() {return u.keyFromID(this.id)[u.SK]}
+
+    /* 
+    SPECIAL TYPES
+    References, collections, and files are stored by reference as normal data, and accessed singly 
+    via special purpose getters and setters
+
+    */
+   async setReference(path, id, permission) {
+       await this.ensureIndexLoaded()
+       path = u.packKeys(path)
+       let attributes = {}
+       attributes[path] = id
+       this.index.setNodeProperty(path, 'reference', id)
+       await this.set(attributes, {permission})
+    }
+    
+    async getReference(path, {permission}={}) {
+        await this.ensureIndexLoaded()
+        let id = await this.get(path, {permission})
+        let dbobject = new DBObject(id, {
+            dynamoClient: this.dynamoClient,
+            tableName: this.tableName
+        })
+        await dbobject.loadIndex()
+        return dbobject
+    }
 
 
     /*  INTERNAL METHODS */
