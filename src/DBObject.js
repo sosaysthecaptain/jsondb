@@ -398,12 +398,13 @@ class DBObject {
         return id
     }
 
-    async getFromCollection(path, {id, limit, exlcusiveFirstTimestamp, ascending, attributes, idOnly}) {
+    async getFromCollection(path, {id, limit, exlcusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         let handler = this.getCollectionHandler(path)
         let seriesKey = this._getCollectionSeriesKey(path)
+        if (returnData) {attributes = true}
         if (!id) {
             let ret = await handler.batchGetObjectsByPage({
                 seriesKey, 
@@ -422,7 +423,15 @@ class DBObject {
         }
     }
 
-    async scanCollection(path, value) {}
+    async scanCollection(path, {param, value, attributes, query, returnData}) {
+        await this.ensureIndexLoaded()
+        path = u.packKeys(path)
+        param = u.packKeys(param)
+        this._ensureIsCollection(path)
+        if (returnData) {attributes = true}
+        let handler = this.getCollectionHandler(path)
+        return await handler.scan({param, value, attributes, query})
+    }
     
     async deleteFromCollection(path, nodeID, confirm) {
         await this.ensureIndexLoaded()

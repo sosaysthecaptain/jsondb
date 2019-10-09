@@ -82,7 +82,6 @@ class DynamoClient {
 
         let data = await this.dynamo.query(params).promise().catch((err) => {
             console.log('failure in DynamoClient.getRange')
-            debugger
             throw(err)
         })
         return data.Items

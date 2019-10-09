@@ -131,7 +131,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
     
     // Scan
     let scanData = await messageHandler.scan({
-        path: 'message',
+        param: 'message',
         value: 'fourth message',
         attributes: true
     })

@@ -91,11 +91,12 @@ class DBObjectHandler {
     }
 
     // Pass a single path and value, or else a completed ScanQuery object
-    async scan({path, value, attributes, query}) {
+    async scan({param, value, attributes, query}) {
         if (!query) {
+            param = u.packKeys(param)
             query = new ScanQuery(this.tableName)
             query.addParam({
-                param: path, 
+                param: param, 
                 value: value, 
                 message: '='
             })
