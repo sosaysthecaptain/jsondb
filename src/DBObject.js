@@ -121,6 +121,21 @@ class DBObject {
             
             return data
         } 
+        
+        // // HANDLING OF SPECIAL TYPES, only available on single get calls
+        // let paths = Object.keys(data)
+        // for (let i = 0; i < paths.length; i++) {
+        //     let path = paths[i]
+        //     let value = data[path]
+        // }
+        // let node = this.index.getNodeAtPath()
+        // // Handle collection
+        
+        // // Handle reference
+        
+        // // Handle s3
+        
+        
         data = unflatten(data)
         return data
     }
@@ -231,8 +246,33 @@ class DBObject {
         
     }
 
+    /* 
+    SPECIAL TYPES
+    References, collections, and files are stored by reference as normal data, and accessed singly 
+    via special purpose getters and setters
+
+    */
+    async setReference(path, id, permission) {
+        let attributes = {}
+        attributes[path] = id
+        return await this.set(attributes, {
+            // isReference: true,
+            // permission
+        })
+    }
+
+    async getReference(path, {permission}) {
+        let id = await this.get(path, {permission})
+        let dbobject = new DBObject(id, {
+            dynamoClient: this.dynamoClient,
+            tableName: this.tableName
+        })
+        await dbobject.loadIndex()
+        return dbobject
+    }
+
     async set(attributesOriginal, params={}) {
-        let {doNotOverwrite, permission} = params
+        let {doNotOverwrite, permission, isCollection} = params
         let attributes = u.copy(attributesOriginal)
         u.validateKeys(attributes)
         u.processAttributes(attributes)
@@ -250,6 +290,9 @@ class DBObject {
         // Update the index, set its permissions
         this.index.build(attributes, permission)
         this.index.updatePermissions(permission, attributes)
+        // if (isCollection) {
+        //     this.index.setAsCollection(path, id)
+        // }
         this._cacheSet(attributes)
         
         

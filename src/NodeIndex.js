@@ -1,3 +1,19 @@
+/*
+Direction: 
+- everything that isn't lateral, vertical, spillover is set with set/get. Kill all the unused consts
+- expose setNodeProperty, getNodeProperty
+- collections, references, and files are then handled as getter/setter pairs in DBObject
+
+Handling index spillover
+- possibility: add third type to lateral/vertical: spillover
+    - when a chunk is lifted off, if the index is past a certain size, use a stub index path with a 
+    spillover key. Kill the rest in the index, thus allowing arbitrarily many things under a single node
+    - create a this.index.pathInSpillover(path) method returning this spillover node ID, if necessary
+    - if pathInSpillover, batchGet simply forwards the request to that node
+
+*/
+
+
 const _ = require('lodash')
 
 const u = require('./u')
@@ -7,8 +23,9 @@ SIZE_KEY = 'SIZE'
 PERMISSION_KEY = 'PERM'
 POINTER_KEY = 'POINTER'                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
-SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
 S3_REF_KEY = 'S3'
+
+COLLECTION_KEY = 'DBOBJ_ID'
 
 NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
 NT_META = 'META'                          // meta node (get children)
@@ -18,6 +35,9 @@ NT_COLLECTION = 'COLLECT'                 // collection
 NT_FILE_LINK = 'FILE_LINK'                // file, link
 NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
 NT_REF = 'REF'                            // reference to another DBObject
+
+// currently unused
+SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
 
 class NodeIndex {
 
@@ -119,6 +139,14 @@ class NodeIndex {
         } else {
             this.metaIndex().permission(permission)
         }
+    }
+
+    // Instantiate index first
+    setAsCollection(path, id) {
+        let node = this.getNodeAtPath(path)
+        debugger
+        node.type(NT_COLLECTION)
+        node.collection(id)
     }
 
     // Fed the raw index object from dynamo, loads into memory and recomputes locally stored values
@@ -335,6 +363,34 @@ class NodeIndex {
 
     getNodeAtPath(path) {return this.i[path]}
 
+    setNodeProperty(path, property, value) {
+        let node = this.getNodeAtPath(path)
+        node.data[property] = value
+    }
+
+    getNodeProperty(path, property) {
+        let node = this.getNodeAtPath(path)
+        return node.data[property]
+    }
+
+    // Nukes everything below this, sets ref as spillover
+    setSpillover(path, ref) {
+        let node = this.getNodeAtPath(path)
+        node.type(NT_SPILLOVER)
+        this.setNodeProperty(path, 'spillover', ref)
+
+        // TODO: kill above
+    }
+    
+    isSpillover(path) {
+        let node = this.getNodeAtPath(path)
+        if (node.type() === NT_SPILLOVER) {
+            return this.getNodeProperty(path, 'spillover')
+        }
+    }
+
+
+
     getNodePermission(path) {
         if (!path) {
             return 0
@@ -485,12 +541,17 @@ class IndexEntry {
         }
     }
 
+    get(key) {return this.data[key]}
+    set(key, value) {this.data[key] = value}
+
 
     type(type) {return this.univGetSet(TYPE_KEY, type)}
     // pointer(pointer) {return this.univGetSet(POINTER_KEY, pointer)}
     s3Ref(s3Ref) {return this.univGetSet(S3_REF_KEY, s3Ref)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
     permission(permission) {return this.univGetSet(PERMISSION_KEY, permission)}
+    collection(collection) {return this.univGetSet(COLLECTION_KEY, collection)}
+    
 
     univGetSet(writableKey, value) {
         if (value) {this.data[writableKey] = value} 
@@ -519,6 +580,7 @@ class IndexEntry {
         } 
         return ret
     }
+
 
     isOversize() {
         let isMeta = this.isMeta()

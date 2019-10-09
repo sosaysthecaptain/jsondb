@@ -1,6 +1,4 @@
 const assert = require('assert')
-const flatten = require('flat')
-const unflatten = require('flat').unflatten
 const _ = require('lodash')
 const jsondb = require('../index')
 const ScanQuery = require('../src/ScanQuery')
@@ -143,6 +141,5 @@ it('DBObjectHandler (2) - batch operations', async function() {
     // Clean up
     for (let i = 0; i < messageIDs.length; i++) {
         await messageHandler.deleteObject(messageIDs[i])
-    }
-    
+    }  
 })
