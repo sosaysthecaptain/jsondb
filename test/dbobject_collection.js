@@ -47,51 +47,43 @@ it('DBObject_collection', async function() {
         // Create collection, add something to it
         await parentObj.createCollection('parentKey1.messages')
         
-        let messageID_0 = await parentObj.addToCollection('parentKey1.messages', {body: 'this is a message'})
-        let messageID_1 = await parentObj.addToCollection('parentKey1.messages', {body: 'second message'})
-        let messageID_2 = await parentObj.addToCollection('parentKey1.messages', {body: 'third message'})
-        let messageID_3 = await parentObj.addToCollection('parentKey1.messages', {body: 'fourth message'})
-        let passed1 = messageID_0.id.split('-').length === 2
+        let message_0 = await parentObj.addToCollection('parentKey1.messages', {body: 'this is a message'})
+        let message_1 = await parentObj.addToCollection('parentKey1.messages', {body: 'second message'})
+        let message_2 = await parentObj.addToCollection('parentKey1.messages', {body: 'third message'})
+        let message_3 = await parentObj.addToCollection('parentKey1.messages', {body: 'fourth message'})
+        let passed1 = message_0.id.split('-').length === 2
         assert.equal(passed1, true)
         
         // Get a single message
-        let message0 = await parentObj.getFromCollection('parentKey1.messages', {id: messageID_0.id, attributes: true})
+        let message0 = await parentObj.getFromCollection('parentKey1.messages', {id: message_0.id, attributes: true})
         let passed2 = (message0.body === 'this is a message')
         assert.equal(passed2, true)
         
         // Retrieve a DBObject and modify it, see that it is changed
-        let message0_dbobject = await parentObj.getFromCollection('parentKey1.messages', {id: messageID_0.id})
+        let message0_dbobject = await parentObj.getFromCollection('parentKey1.messages', {id: message_0.id})
         await message0_dbobject.set({body: 'modified first message'})
         let read3 = await message0_dbobject.get('body')
         let passed3 = read3 === 'modified first message'
         assert.equal(passed3, true)
-        
-        // RESUME HERE
 
         // Batch get
         let read4 = await parentObj.getFromCollection('parentKey1.messages', {
             limit: 4, 
             start: 0,
-            attributes: ['message']
+            attributes: ['body']
         })
-        debugger
-        let passed4 = _.isEqual(read4, ['modified first message', 'second message', 'third message', 'fourth message'])
+        let passed4 = (read4[0].body === 'modified first message') && (read4[3].body === 'fourth message')
         assert.equal(passed4, true)
         
         // Delete one message
-        await parentObj.deleteFromCollection('parentKey1.messages')
-        debugger
-        let message1 = await parentObj.getFromCollection('parentKey1.messages', {id: messageID_1.id})
-        assert.equal(!message1, true)
+        let deleted = await parentObj.deleteFromCollection('parentKey1.messages', message_1.id, true)
+        assert.equal(deleted, true)
         
         // Destroy parent object and see that collection is destroyed as well
-        parentObj.destroy()
+        await parentObj.destroy()
         debugger
         let message0StillExists = await message0_dbobject.checkExists()
         assert.equal(message0StillExists, false)
-        
-        
-        debugger
     }catch(err) {debugger}
         
         

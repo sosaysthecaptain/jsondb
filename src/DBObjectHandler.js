@@ -4,7 +4,7 @@ const DynamoClient = require('./DynamoClient')
 const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
-    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, subclass, isTimeOrdered, seriesKey, defaultCacheSize}) {
+    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache}) {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion || 'us-east-2'
@@ -13,6 +13,7 @@ class DBObjectHandler {
         this.isTimeOrdered = isTimeOrdered
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
+        this.doNotCache = doNotCache
         if (seriesKey) {this.isTimeOrdered = true}
 
         this.dynamoClient = new DynamoClient({
@@ -63,7 +64,7 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exlcusiveFirstTimestamp, attributes}) {
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exlcusiveFirstTimestamp, attributes, idOnly}) {
         if (exlcusiveFirstTimestamp) {exlcusiveFirstTimestamp = Number(exlcusiveFirstTimestamp)}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getPagewise({
@@ -73,7 +74,8 @@ class DBObjectHandler {
             ascending,
             exclusiveFirstSk: exlcusiveFirstTimestamp
         })
-        return await this._objectsOrDataFromRaw(allObjectData, attributes)
+
+        return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly)
     }
     
     async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes}) {
@@ -103,7 +105,7 @@ class DBObjectHandler {
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
-    async _objectsOrDataFromRaw(raw, attributes) {
+    async _objectsOrDataFromRaw(raw, attributes, idOnly) {
         let dbobjects = []
         raw.forEach(data => {
             let id = data[u.PK] + '-' + data[u.SK]
@@ -120,6 +122,11 @@ class DBObjectHandler {
                 data
             }))
         })
+        if (idOnly) {
+            let ids = []
+            dbobjects.forEach(obj => {ids.push(obj.id)})
+            return ids
+        }
         if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects)}
         return dbobjects
     }

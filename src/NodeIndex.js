@@ -46,7 +46,11 @@ class NodeIndex {
             let children = this.getChildren(path)
             children.push(path)
             children.forEach((childPath) => {
-                if (this.getNodeAtPath(childPath)) {toDelete.push(childPath)}
+                let node = this.getNodeAtPath(childPath)
+                if (node) {
+                    let shouldDelete = !this.getNodeProperty(childPath, 'dontDelete')
+                    if (shouldDelete) {toDelete.push(childPath)}
+                }
             })
         })
         return toDelete
@@ -172,8 +176,8 @@ class NodeIndex {
             }
 
             // If a spillover node references it, return that node's id
-            let spilloverID = this.getSpilloverNodeID(path)
-            if (spilloverID) {return spilloverID}
+            // let spilloverID = this.getSpilloverNodeID(path)
+            // if (spilloverID) {return spilloverID}
         }
 
         // If no node is specified, return all default nodes
@@ -203,7 +207,7 @@ class NodeIndex {
             } else if (type === u.NT_LATERAL_POINTER) {
                 data.lateral[path] = node
             } else if (type === u.NT_COLLECTION) {
-                data.collection[path = node]
+                data.collection[path] = node
             } else if (type === u.NT_S3REF) {
                 data.s3[path] = node
             } else if (type === u.NT_REF) {
@@ -358,11 +362,20 @@ class NodeIndex {
         let node = this.getNodeAtPath(path)
         node.data[property] = value
     }
-
     getNodeProperty(path, property) {
         let node = this.getNodeAtPath(path)
         return node.data[property]
     }
+
+    setDontDelete(path, dontDelete) {
+        this.ensureNodeAtPath(path)
+        let node = this.getNodeAtPath(path)
+        if (dontDelete) {node.data['dontDelete'] = dontDelete}
+        else {delete node.data['dontDelete']}
+        
+    }
+    getDontDelete(path) {return this.getNodeProperty(path, 'dontDelete')}
+    resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
 
     // Nukes everything below this, sets ref as spillover
     setSpillover(path, ref) {

@@ -14,7 +14,7 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor(id, {tableName, dynamoClient, isNew, isTimeOrdered, encodedIndex, data}) {
+    constructor(id, {tableName, dynamoClient, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
         if (isTimeOrdered) {id += '-' + Date.now()}
         
         // Information we actually have
@@ -22,6 +22,7 @@ class DBObject {
         this.dynamoClient = dynamoClient,
         this.tableName = tableName
         this.key = u.keyFromID(id)
+        this.doNotCache = doNotCache
 
         
         // Default assumptions about information we don't have yet
@@ -66,9 +67,18 @@ class DBObject {
     async destroy(confirm) {
         await this.ensureIndexLoaded()
 
-        // Wipe any lateral nodes
+        // Lateral and collection nodes require special destruction steps
+        let allNodes = this.index.getChildren()
+        let nodesByType = this.index.getNodesByType(allNodes)
         let lateralIDs = this.index.getAllLateralPointers()
         await this._deleteLateral(lateralIDs)
+
+        // Empty collections
+        let collectionNodePaths = Object.keys(nodesByType.collection)
+        for (let i = 0; i < collectionNodePaths.length; i++) {
+            let path = collectionNodePaths[i]
+            await this.emptyCollection(path)
+        }
 
         // Get all children, destroy them
         let childNodes = await this.getChildNodes()
@@ -350,6 +360,7 @@ class DBObject {
        let attributes = {}
        attributes[path] = id
        this.index.setNodeProperty(path, 'reference', id)
+       this.index.setDontDelete(path, true)
        await this.set(attributes, {permission})
     }
     
@@ -358,7 +369,8 @@ class DBObject {
         let id = await this.get(path, {permission})
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
-            tableName: this.tableName
+            tableName: this.tableName,
+            doNotCache: true
         })
         await dbobject.loadIndex()
         return dbobject
@@ -369,6 +381,7 @@ class DBObject {
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
+        this.index.setDontDelete(path, true)
         let attributes = {}
         attributes[path] = '<COLLECTION>'
         await this.set(attributes)
@@ -385,45 +398,50 @@ class DBObject {
         return id
     }
 
-    async getFromCollection(path, {id, limit, start, descending, attributes}) {
+    async getFromCollection(path, {id, limit, exlcusiveFirstTimestamp, ascending, attributes, idOnly}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         let handler = this.getCollectionHandler(path)
         let seriesKey = this._getCollectionSeriesKey(path)
         if (!id) {
-            let ret = await handler.batchGetObjectsByPage({seriesKey, limit, attributes})
+            let ret = await handler.batchGetObjectsByPage({
+                seriesKey, 
+                limit, 
+                attributes, 
+                exlcusiveFirstTimestamp, 
+                ascending,
+                idOnly
+            })
             return ret
         } else {
             let obj = await handler.getObject(id, true)
             if (!attributes) {return obj}
             if (attributes === true) {return await obj.get()}
-            return obj
+            return await obj.get(attributes)
         }
     }
 
-    async scanCollection(path, value, ) {}
+    async scanCollection(path, value) {}
     
-    async deleteFromCollection(path, nodeID) {
-        debugger
+    async deleteFromCollection(path, nodeID, confirm) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         let handler = this.getCollectionHandler(path)
-        await handler.deleteObject(nodeID)
+        return await handler.deleteObject(nodeID, confirm)
     }
     
     async emptyCollection(path) {
-        debugger
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
-        let finished = false
-        while (!finished) {
-            let ids = this.getFromCollection(path, {attributes: ['sk']})
+        while (true) {
+            let ids = await this.getFromCollection(path, {idOnly: true})
+            if (!ids.length) {break}
             for (let i = 0; i < ids.length; i++) {
                 let id = ids[i]
-                this.deleteFromCollection(path, id)
+                await this.deleteFromCollection(path, id)
             }
         }
     }
@@ -431,7 +449,7 @@ class DBObject {
     _getCollectionSeriesKey(path) {return (this.id + '_' + path)}
 
     _ensureIsCollection(path) {
-        if (this.index.getNodeType(path) === u.NT_COLLECTION) {
+        if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
             throw new Error('Specified path is not a collection')
         }
     }
@@ -445,7 +463,8 @@ class DBObject {
             awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
             awsRegion: this.dynamoClient.awsRegion,
             tableName: this.tableName,
-            isTimeOrdered: true
+            isTimeOrdered: true, 
+            doNotCache: true
         })
     }
 
@@ -471,6 +490,7 @@ class DBObject {
     async _write(attributes, doNotOverwrite) {
         u.startTime('write')
         this.index.parent(this.parent)
+        this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
         
@@ -773,6 +793,7 @@ class DBObject {
     }
 
     _cacheGet(path) {
+        if (this.doNotCache) {return undefined}
         if (this.cache[path]) {
             this.cacheIndex[path].accessed += 1
             this.cacheIndex[path].timestamp = Date.now()
