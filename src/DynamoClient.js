@@ -1,8 +1,8 @@
 /*
-More convenient handle on aws-sdk, instantiated with AWS credentials
+More convenient handle on aws-sdk, instantiated with aws credentials
 */
 
-let AWS = require('aws-sdk')
+let aws = require('aws-sdk')
 let DOC = require('dynamodb-doc')
 
 
@@ -11,7 +11,7 @@ class DynamoClient {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion
-        AWS.config.update({
+        aws.config.update({
             accessKeyId: awsAccessKeyId,
             secretAccessKey: awsSecretAccessKey,
             region: awsRegion
