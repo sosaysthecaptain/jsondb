@@ -1,9 +1,4 @@
 /*
-Direction: 
-- everything that isn't lateral, vertical, spillover is set with set/get. Kill all the unused consts
-- expose setNodeProperty, getNodeProperty
-- collections, references, and files are then handled as getter/setter pairs in DBObject
-
 Handling index spillover
 - possibility: add third type to lateral/vertical: spillover
     - when a chunk is lifted off, if the index is past a certain size, use a stub index path with a 
@@ -23,11 +18,6 @@ SIZE_KEY = 'SIZE'
 PERMISSION_KEY = 'PERM'
 POINTER_KEY = 'POINTER'                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
-S3_REF_KEY = 'S3'
-
-
-// currently unused
-SPILLOVER_KEY = 'SPILLOVER'               // for meta nodes, next place to go look for further keys
 
 class NodeIndex {
 
@@ -104,10 +94,7 @@ class NodeIndex {
             let node = this.i[path]
             if (node.isMeta()) {
                 let hasChildren = u.getChildren(path, this.i).length
-                // let hasChildrenPointers = node[CHILDREN_KEY]
-                let hasSpilloverPointer = node[SPILLOVER_KEY]
-                // if (!hasChildren && !hasChildrenPointers && !hasSpilloverPointer) {delete this.i[path]}
-                if (!hasChildren && !hasSpilloverPointer) {delete this.i[path]}
+                if (!hasChildren) {delete this.i[path]}
             }
         })
 
@@ -142,19 +129,6 @@ class NodeIndex {
         })
         this.updateMetaNodes()
         this.loaded = true
-    }
-
-    // TODO: DELETE NODES UNDER IT
-    deleteNode(path) {
-        let downstreamToAudit = []
-        let children = this.getChildren(path)
-        children.forEach((childPath) => {
-            downstreamToAudit = downstreamToAudit.concat(this.i[childPath].pointers())
-            delete this.i[childPath]
-        })
-        delete this.i[path]
-        this.updateMetaNodes()
-        return downstreamToAudit
     }
 
     /* Given a path, return:
@@ -217,72 +191,7 @@ class NodeIndex {
         return data
     }
 
-    // Returns any spillover node ID for a given path
-    getSpilloverNodeID(path) {
-        if (this.i[path] && this.i[path][SPILLOVER_KEY]) {return this.i[path][SPILLOVER_KEY]}
-        else {
-            let arrPath = u.stringPathToArrPath(path)
-            arrPath.pop()
-            if (!arrPath.length) {return}
-            path = u.arrayPathToStringPath(path)
-            return this.getSpilloverNodeID(path)
-        }
-    }
-
     metaIndex() {return this.i[u.INDEX_KEY]}
-
-
-    // Returns all paths stored on this object node, used by getEntireObject
-    // getAvailablePaths() {
-    //     let availablePaths = []
-    //     Object.keys(this.i).forEach((path) => {
-    //         if (path === u.INDEX_KEY) {return}
-    //         let indexNode = this.i[path]
-    //         if (indexNode.isDefault()) {availablePaths.push(path)}
-    //     })
-    //     return availablePaths
-    // }
-
-    // NOPE 
-    // Returns all 
-    // getPathsByID() {
-    //     let pathsToKeys = {}
-    //     Object.keys(this.i).forEach((path) => {
-    //         if (path === u.INDEX_KEY) {return}
-    //         let indexNode = this.i[path]
-
-    //         // Add locally available
-    //         if (indexNode.isDefault()) {
-    //             pathsToKeys[path] = pathsToKeys[path] || []
-    //             pathsToKeys[path] = this.id
-    //         } 
-            
-    //         // Add direct children
-    //         else if (indexNode.isMeta() && indexNode[CHILDREN_KEY]) {
-    //             let childIDs = indexNode[CHILDREN_KEY]
-    //             if (childIDs.length) {
-    //                 pathsToKeys[path] = pathsToKeys[path] || []
-    //                 pathsToKeys[path] = childIDs
-    //             }
-    //         }
-
-    //         // Add indirect children
-    //         // else {
-    //         //     let spilloverPath = this.getSpilloverNodeID(path)
-    //         //     if (spilloverPath) {
-    //         //         pathsToKeys[path] = pathsToKeys[path] || []
-    //         //         pathsToKeys[path] = [spilloverPath]
-    //         //     }
-    //         // }
-    //     })
-    //     return pathsToKeys
-    // }
-
-
-
-
-
-
 
     // Returns all non-meta IndexEntries under path specified
     getChildren(path) {    
@@ -331,25 +240,38 @@ class NodeIndex {
         return size
     }
 
-    // True if nothing is not in some way represented on this node
-    arePathsAccountedFor(paths) {
-        paths.forEach((path) => {if (!this.i[path]) {return false} else {return true}})
-    }
-
-    // TODO: account for lateral extension of a node 
+    // SPILLOVER STUFF - KEEPING AROUND FOR FUTURE IMPLEMENTATION
     isTheBottom() {
-        // Object.keys(this.i).forEach((path) => {
-        //     let node = this.i[path]
-        //     let isTerminal = node.isTerminal()
-        //     let isMeta = node.isMeta()
-        //     if (!isTerminal && !isMeta) {return false}
-        // })
         return true
     }
+    // Nukes everything below this, sets ref as spillover
+    // setSpillover(path, ref) {
+    //     let node = this.getNodeAtPath(path)
+    //     node.type(NT_SPILLOVER)
+    //     this.setNodeProperty(path, 'spillover', ref)
+    // }
+    
+    // isSpillover(path) {
+    //     let node = this.getNodeAtPath(path)
+    //     if (node.type() === NT_SPILLOVER) {
+    //         return this.getNodeProperty(path, 'spillover')
+    //     }
+    // }
+
+    // Returns any spillover node ID for a given path
+    // getSpilloverNodeID(path) {
+    //     if (this.i[path] && this.i[path][SPILLOVER_KEY]) {return this.i[path][SPILLOVER_KEY]}
+    //     else {
+    //         let arrPath = u.stringPathToArrPath(path)
+    //         arrPath.pop()
+    //         if (!arrPath.length) {return}
+    //         path = u.arrayPathToStringPath(path)
+    //         return this.getSpilloverNodeID(path)
+    //     }
+    // }
 
     getNodeAtPath(path) {return this.i[path]}
     ensureNodeAtPath(path) {if (!this.i[path]) {this.i[path] = new IndexEntry(path)}}
-
 
     setNodeType(path, value) {
         this.ensureNodeAtPath(path)
@@ -377,23 +299,6 @@ class NodeIndex {
     }
     getDontDelete(path) {return this.getNodeProperty(path, 'dontDelete')}
     resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
-    
-    // Nukes everything below this, sets ref as spillover
-    setSpillover(path, ref) {
-        let node = this.getNodeAtPath(path)
-        node.type(NT_SPILLOVER)
-        this.setNodeProperty(path, 'spillover', ref)
-        
-        // TODO: kill above
-    }
-    
-    isSpillover(path) {
-        let node = this.getNodeAtPath(path)
-        if (node.type() === NT_SPILLOVER) {
-            return this.getNodeProperty(path, 'spillover')
-        }
-    }
-    
     
     
     setNodePermission(path, permission) {
@@ -474,7 +379,6 @@ class NodeIndex {
         this.updateMetaNodes()
     }
 
-    // AUDIT?
     getLateralPointers(path) {
         if ((this.i[path]) && (this.i[path].type() === u.NT_LATERAL_POINTER)) {
             return this.i[path].data[LATERAL_POINTER_ARRAY_KEY]
@@ -514,17 +418,11 @@ class NodeIndex {
             if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
                 parentNode.data[SPILLOVER_KEY].push(pointer)
             }
-            // parentNode.data[CHILDREN_KEY] = node[CHILDREN_KEY] || {}
-            // parentNode.data[CHILDREN_KEY][path] = pointer
             
             this.updateMetaNodes()
-            
-            // THIS IS WRONG: CHILDREN GOES ON PARENT, POINTER ON CHILD
         })
-
     }
 
-    // REMOVE VERTICAL POINTER? DELETING THINGS BACKTRACKING UPSTREAM?
 
     isLoaded() {return this.loaded}
     isOversize() {return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE}
@@ -556,8 +454,6 @@ class IndexEntry {
 
 
     type(type) {return this.univGetSet(TYPE_KEY, type)}
-    // pointer(pointer) {return this.univGetSet(POINTER_KEY, pointer)}
-    s3Ref(s3Ref) {return this.univGetSet(S3_REF_KEY, s3Ref)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
     permission(permission) {return this.univGetSet(PERMISSION_KEY, permission)}
     
@@ -603,24 +499,16 @@ class IndexEntry {
     }
     getVerticalPointer() {if (this.type() === u.NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
 
-    // SUN AM NOTE TO SELF: CHANGE FORMAT IF WE KEEP NO CHILDREN_KEY
     getAllVerticalPointers() {
         let vps = []
         let pointer = this.getVerticalPointer()
         if (pointer) {vps.push(pointer)}
-
-        // let childIDs = this.getChildIDs()
-        // if (childIDs.length) {vps = vps.concat(childIDs)}
-
-        // spillover?
         return vps
     }
 
     isDefault() {return (this.data[TYPE_KEY] === u.NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
     isMeta() {return this.data[TYPE_KEY] === u.NT_META}
     
-    // isVertical() {if (this.data[TYPE_KEY] === u.NT_VERTICAL_POINTER) {return this.data[POINTER_KEY]}}
-    // isLateral() {if (this.data[TYPE_KEY] === u.NT_LATERAL_POINTER) {return this.data[LATERAL_POINTER_ARRAY_KEY]}}
 }
 
 module.exports = NodeIndex

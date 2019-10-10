@@ -710,7 +710,6 @@ class DBObject {
         return dbobjects
     }
 
-    // marc-look
     // Takes object of attributes to get, filters down those user has permission for
     async _permissionfilterAttributes(attributes, userPermission=9) {
         if (userPermission == undefined) {return attributes}
@@ -758,12 +757,10 @@ class DBObject {
                 
                 let moveNodeToNewIndex = (indexEntry) => {
                     let attributesToAdd = this.index.getTerminalChildren(indexEntry.getPath())
-                    // attributesToAdd.push(indexEntry.getPath())
                     attributesToAdd.forEach((key) => {
                         attributesForNewNode[key] = newAttributes[key]
                         delete newAttributes[key]
                     })
-                    // let MARC_DO_SOMETHING_ABOUT_THIS = this.index.deleteNode(indexEntry.getPath())
                     newNodeSizeLeft -= indexEntry.size()
                     overBy -= indexEntry.size()
                 }

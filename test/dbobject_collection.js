@@ -87,7 +87,6 @@ it('DBObject_collection', async function() {
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy()
-    debugger
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
         

@@ -3,8 +3,6 @@ More convenient handle on aws-sdk, instantiated with aws credentials
 */
 
 let aws = require('aws-sdk')
-let DOC = require('dynamodb-doc')
-
 
 class DynamoClient {
     constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion}) {
@@ -212,7 +210,6 @@ class DynamoClient {
     // See ScanQuery.js for details on params API
     async scan(scanQueryInstance) {
         let params = scanQueryInstance.getParamsObject()
-        debugger
         const data = await this.dynamo.scan(params).promise().catch((err) => {
             throw(err)
         })
