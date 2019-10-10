@@ -74,15 +74,15 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exlcusiveFirstTimestamp, attributes, idOnly}) {
-        if (exlcusiveFirstTimestamp) {exlcusiveFirstTimestamp = Number(exlcusiveFirstTimestamp)}
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, idOnly}) {
+        if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getPagewise({
             tableName: this.tableName,
             uid: seriesKey || this.seriesKey,
             limit,
             ascending,
-            exclusiveFirstSk: exlcusiveFirstTimestamp
+            exclusiveFirstSk: exclusiveFirstTimestamp
         })
 
         return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly)

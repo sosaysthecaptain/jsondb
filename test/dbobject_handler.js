@@ -112,7 +112,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let secondPage = await messageHandler.batchGetObjectsByPage({
         limit: 3,
         ascending: true,
-        exlcusiveFirstTimestamp: message2.id.split('-')[1]
+        exclusiveFirstTimestamp: message2.id.split('-')[1]
         // attributes: ['message']
     })
     let secondPageMessage0 = await secondPage[0].get('message') === 'fourth message'

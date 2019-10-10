@@ -453,7 +453,7 @@ class DBObject {
         return id
     }
 
-    async getFromCollection(path, {id, limit, exlcusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
+    async getFromCollection(path, {id, limit, exclusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
@@ -465,7 +465,7 @@ class DBObject {
                 seriesKey, 
                 limit, 
                 attributes, 
-                exlcusiveFirstTimestamp, 
+                exclusiveFirstTimestamp, 
                 ascending,
                 idOnly
             })
