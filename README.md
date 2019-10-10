@@ -126,7 +126,11 @@ await conversation.addToCollection('messages', {
     sender: 'Marc',
     timestamp: 'late'
 })
-let messages = await conversation.getFromCollection('messages', {limit: 10})
+let firstPage = await conversation.getNextCollectionPage('messages', {limit: 10})
+let secondPage = await conversation.getNextCollectionPage('messages', {limit: 10})
+await conversation.resetCollectionPage('messages')
+
+let posts = await blog.getFromCollection('posts', {limit: 10, exclusiveFirstTimestamp: 1570676695978})
 
 await conversation.deleteFromCollection('messages', 'some_message_id')
 

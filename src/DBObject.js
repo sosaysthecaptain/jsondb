@@ -454,12 +454,15 @@ class DBObject {
     }
 
     async getFromCollection(path, {id, limit, exclusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
+        if (!ascending) {ascending = false}
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         let handler = this.getCollectionHandler(path)
         let seriesKey = this._getCollectionSeriesKey(path)
         if (returnData) {attributes = true}
+        
+        // Pagewise
         if (!id) {
             let ret = await handler.batchGetObjectsByPage({
                 seriesKey, 
@@ -476,6 +479,49 @@ class DBObject {
             if (attributes === true) {return await obj.get()}
             return await obj.get(attributes)
         }
+    }
+    
+    async getNextCollectionPage(path, {limit, attributes, returnData}) {
+        await this.ensureIndexLoaded()
+        path = u.packKeys(path)
+        this._ensureIsCollection(path)
+        let currentStartKey = this.index.getNodeProperty(path, 'exclusiveFirstTimestamp')
+        let data = await this.getFromCollection(path, {
+            limit, 
+            exclusiveFirstTimestamp: 
+            currentStartKey, 
+            ascending: false
+        })
+
+        // Figure out what the last timestamp was and store it
+        if (data.length) {
+            let lastObjectTimestamp = data[data.length-1].timestamp()
+            this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', lastObjectTimestamp)
+        } else {
+            this.resetCollectionPage(path)
+            return []
+        }
+
+        // If the user just wanted data, return that now
+        if (!attributes && !returnData) {
+            return data
+        } 
+        
+        // Otherwise, retrieve user's requested data
+        let raw = []
+        if (returnData) {attributes = undefined}
+        for (let i = 0; i < data.length; i++) {
+            let ret = await data[i].get(attributes)
+            raw.push(ret)
+        }
+        return raw
+    }
+    
+    async resetCollectionPage(path) {
+        await this.ensureIndexLoaded()
+        path = u.packKeys(path)
+        this._ensureIsCollection(path)
+        this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', 0)
     }
 
     async scanCollection(path, {param, value, attributes, query, returnData}) {

@@ -69,7 +69,7 @@ it('DBObject_collection', async function() {
         start: 0,
         attributes: ['body']
     })
-    let passed4 = (read4[0].body === 'modified first message') && (read4[3].body === 'fourth message')
+    let passed4 = (read4[3].body === 'modified first message') && (read4[0].body === 'fourth message')
     assert.equal(passed4, true)
     
     // Scan
@@ -80,6 +80,19 @@ it('DBObject_collection', async function() {
     })
     let passed5 = read5[0].body === 'third message'
     assert.equal(passed5, true)
+    
+    // Get pagewise
+    let firstPage = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2})
+    assert.equal(firstPage.length, 2)
+    await parentObj.resetCollectionPage('parentKey1.messages')
+    
+    let firstPageData = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2, returnData: true})
+    let passed6 = firstPageData[0].body === 'fourth message'
+    assert.equal(passed6, true)
+
+    let secondPageData = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2, returnData: true})
+    let passed8 = secondPageData[0].body === 'second message'
+    assert.equal(passed8, true)
     
     // Delete one message
     let deleted = await parentObj.deleteFromCollection('parentKey1.messages', message_1.id, true)
