@@ -1,15 +1,13 @@
-**not done yet**
-
 # jsondb
 **jsondb** is a DynamoDB abstraction layer that lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory. What you can do with it:
-- **get and set** properties as you would on an object: `myObj.set({'some.path': 'a value'})`, `myObj.get('path.to.key')`
-- work with **collections:** `user.getFromCollection('messages', {limit: 20, start: 40})`
-- **upload and retrieve files from s3** as if they were part of the object: `user.setFile('photos.j3ds0', <buffer>)`
+- **get and set** properties as you would on an object: `obj.set({'some.path': 12345})`, `obj.get('path.to.key')`
+- **work with collections:** `user.getFromCollection('messages', {limit: 20})`
+- **upload and retrieve files from s3** as if they were part of the object: `user.setFile('thumbnail', <buffer>)`
 - associate specific **permission levels** with specific keys, and fetch in a manner that automatically filters out objects above the specified permission level: `user.get(settings, {permission: 3})`
 - **nest DBObjects** inside other DBObjects: `user1.setReference('friends.user2', user2.id)`
 
 
-Jsondb consists (principally) of two classes:
+jsondb consists (principally) of two classes:
 - `DBObject` represents a virtual object in the database
 - `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table
 
@@ -30,7 +28,7 @@ let handler = new jsondb.DBObjectHandler({
     doNotCache: false                       // optional, false by default
 }
 ```
-Note on Dynamo setup: jsondb expects your DynamoDB table to be set up with primary key `id` and sort key `timestamp`, both of type String. Many objectTypes can share the same table.
+Note on Dynamo setup: jsondb expects your DynamoDB table to be set up with primary key `uid` and sort key `ts`, of types String and Number respectively. Many objectTypes can share the same table.
     
 
 ### Creating and deleting DBObjects with DBObjectHandler
@@ -84,7 +82,7 @@ let arrayOfValues = await myObjectTypeHandler.batchGetData(['id_1', 'id_2', 'id_
 ```
 
 
-# DBObject operations
+## DBObject operations
 The entire point of `jsondb` is the ability to work with virtual objects in memory. a `DBObject` represents a large JSON object in the database, and provides an API for reading and writing parts of it without needing to retrieve the whole. 
 
 
@@ -148,7 +146,7 @@ let s3url = user.get('documents.resume')
 
 
 
-# Theory
+## Theory
 DynamoDB is a serverless NoSQL database built on the notion of object-like documents that can be retrieved, modified, scanned, and sorted. It is intrinsically fast and arbitrarily scalable, but it has a 400 kb size limit on documents and a complicated API. `jsondb` solves these problems by creating an abstraction layer that allows documents to be automatically split up into nodes, and an API that allows you to interact with it on the level of the classes in memory you're already working with.
 
 When a DBObject is created it begins as a single document. Every time it is added to, jsondb determines if it is too big, and if so, splits it up into further documents. To see how this works, let's look at the structure of a node:
