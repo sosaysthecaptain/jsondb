@@ -414,10 +414,10 @@ class NodeIndex {
             if (arrPath.length) {
                 parentNode = this.i[parentPath]
             }
-            parentNode.data[SPILLOVER_KEY] = node[SPILLOVER_KEY] || []
-            if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
-                parentNode.data[SPILLOVER_KEY].push(pointer)
-            }
+            // parentNode.data[SPILLOVER_KEY] = node[SPILLOVER_KEY] || []
+            // if (!parentNode.data[SPILLOVER_KEY].includes(pointer)) {
+            //     parentNode.data[SPILLOVER_KEY].push(pointer)
+            // }
             
             this.updateMetaNodes()
         })
