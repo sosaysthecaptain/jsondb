@@ -74,7 +74,8 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, idOnly}) {
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly}) {
+        if (returnData) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getPagewise({
@@ -88,7 +89,8 @@ class DBObjectHandler {
         return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly)
     }
     
-    async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes}) {
+    async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes, returnData}) {
+        if (returnData) {attributes = true}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
