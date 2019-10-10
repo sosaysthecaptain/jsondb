@@ -367,16 +367,7 @@ class NodeIndex {
         return node.data[property]
     }
     
-    setNodePermission(path, permission) {
-        this.ensureNodeAtPath(path)
-        let node = this.getNodeAtPath(path)
-        node.data[u.PERMISSION_KEY] = permission
-    }
-    getNodePermission(path) {
-        let node = this.getNodeAtPath(path)
-        return node.data[u.PERMISSION_KEY]
-    }
-
+    
     setDontDelete(path, dontDelete) {
         this.ensureNodeAtPath(path)
         let node = this.getNodeAtPath(path)
@@ -386,13 +377,13 @@ class NodeIndex {
     }
     getDontDelete(path) {return this.getNodeProperty(path, 'dontDelete')}
     resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
-
+    
     // Nukes everything below this, sets ref as spillover
     setSpillover(path, ref) {
         let node = this.getNodeAtPath(path)
         node.type(NT_SPILLOVER)
         this.setNodeProperty(path, 'spillover', ref)
-
+        
         // TODO: kill above
     }
     
@@ -402,9 +393,14 @@ class NodeIndex {
             return this.getNodeProperty(path, 'spillover')
         }
     }
-
-
-
+    
+    
+    
+    setNodePermission(path, permission) {
+        this.ensureNodeAtPath(path)
+        let node = this.getNodeAtPath(path)
+        node.data[u.PERMISSION_KEY] = permission
+    }
     getNodePermission(path) {
         if (!path) {
             return 0

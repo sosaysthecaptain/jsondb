@@ -35,7 +35,7 @@ u.NT_META = 'META'                          // meta node (get children)
 u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
 u.NT_LATERAL_POINTER = 'LP'                 // large, laterally-extended node
 u.NT_COLLECTION = 'COLLECT'                 // collection
-u.NT_S3REF                                  // s3 file
+u.NT_S3REF = 'S3'                           // s3 file
 u.NT_REF = 'REF'                            // reference to another DBObject
 
 
@@ -223,7 +223,7 @@ u.getSize = (obj) => {
 
 u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
-        let forbidden = [u.INDEX_KEY, u.PATH_SEPARATOR, 'array', 'index']
+        let forbidden = [u.INDEX_KEY, u.PATH_SEPARATOR, 'array', 'index', 'file']
         let arrPath = u.stringPathToArrPath(path)
         arrPath.forEach((part) => {
             forbidden.forEach((forbiddenString) => {

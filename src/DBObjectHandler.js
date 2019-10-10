@@ -1,19 +1,22 @@
 const u = require('./u')
 const DBObject = require('./DBObject')
 const DynamoClient = require('./DynamoClient')
+const S3Client = require('./S3Client')
 const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
-    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache}) {
+    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache}) {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion || 'us-east-2'
         this.tableName = tableName
+        this.bucketName = bucketName
         this.subclass = subclass
         this.isTimeOrdered = isTimeOrdered
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
         this.doNotCache = doNotCache
+        
         if (seriesKey) {this.isTimeOrdered = true}
 
         this.dynamoClient = new DynamoClient({
@@ -21,11 +24,18 @@ class DBObjectHandler {
             awsSecretAccessKey: this.awsSecretAccessKey,
             awsRegion: this.awsRegion
         })
+        this.s3Client = new S3Client({
+            awsAccessKeyId: this.awsAccessKeyId,
+            awsSecretAccessKey: this.awsSecretAccessKey,
+            awsRegion: this.awsRegion,
+            bucketName: this.bucketName
+        })
     }
 
     async createObject(id, initialData={}, allowOverwrite=false) {
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
+            s3Client: this.s3Client,
             tableName: this.tableName,
             isTimeOrdered: this.isTimeOrdered
         })

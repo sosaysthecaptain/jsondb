@@ -11,7 +11,6 @@ const _ = require('lodash')
 
 
 const NodeIndex = require('./NodeIndex')
-const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
@@ -80,6 +79,13 @@ class DBObject {
         for (let i = 0; i < collectionNodePaths.length; i++) {
             let path = collectionNodePaths[i]
             await this.emptyCollection(path)
+        }
+
+        // Delete files
+        let fileNodePaths = Object.keys(nodesByType.s3)
+        for (let i = 0; i < fileNodePaths.length; i++) {
+            let fileID = this.index.getNodeProperty(fileNodePaths[i], 'fileID')
+            await this.s3Client.delete(fileID)
         }
 
         // Get all children, destroy them
@@ -383,24 +389,40 @@ class DBObject {
     async setFile(path, body, {permission}={}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
+
+        // Generate fileID, store it on the index, set nodetype
+        let fileID = u.uuid()
         this.index.setNodeType(path, u.NT_S3REF)
+        this.index.setNodeProperty(path, 'fileID', fileID)
         this.index.setDontDelete(path, true)
-        let ref = await this.s3Client.write(path, body)
+        
+        // Write the file to s3, write the url to the node
+        let ref = await this.s3Client.write(fileID, body)
         let attributes = {}
         attributes[path] = ref
         await this.set(attributes, {permission})
+        return ref
     }
     
     async getFile(path, {permission, returnAsBuffer}={}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        if (this.index.setNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
+        if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
             throw new Error('Node is not a file')
         }
-        let s3url = await this.get(path, {permission})
-        if (!returnAsBuffer) {return s3url}
-        else {
-            let buffer = await this.s3Client.read(s3url)
+
+        // Manually check permission, since we don't necessarily have the built-in check
+        if (permission) {
+            let nodePermission = this.index.getNodePermission(path)
+            if (permission < nodePermission) {return null}
+        }
+        
+        // Return either s3 url from object or else read the buffer from fileID on index
+        if (!returnAsBuffer) {
+            return await this.get(path)
+        } else {
+            let fileID = this.index.getNodeProperty(path, 'fileID')
+            let buffer = await this.s3Client.read(fileID)
             return buffer
         }
     }

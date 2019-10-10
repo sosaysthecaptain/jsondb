@@ -20,42 +20,64 @@ it('DBObject_file  - reading & writing S3 files', async function() {
 
     let testID = 's3_file_test_1'
     let testObj = {
-        thing: 'that will contain a',
-        file: 'right here',
+        thing: 'that will contain a file',
+        inS3: 'right here',
         with: {
             some: 'other',
             stuff: 'elsewhere'
         }
     }
     
-    let myHandler = new jsondb.DBObjectHandler({
+    let handler = new jsondb.DBObjectHandler({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
         awsRegion: config.AWS_REGION,
         tableName: config.tableName,
+        bucketName: config.bucketName,
         subclass: null,
         timeOrdered: false
     })
 
     // Write with client
-    let read0 = await s3Client.write(fileName, testBody)
-    let passed0 = read0.startsWith(`https://${s3Client.bucketName}.s3`)
+    let fileUrl = await s3Client.write(fileName, testBody)
+    // let passed0 = read0.startsWith(`https://${s3Client.bucketName}.s3`)
+    let passed0 = isS3Link(fileUrl)
     assert.equal(passed0, true)
     
     // Read with client
     let read1 = await s3Client.read(fileName)
     let passed1 = read1.toString() === testBody
     assert.equal(passed1, true)
+
     
     // Delete with client
-    let deleted = await s3Client.delete(fileName)
-    assert.equal(deleted, true)
+    await s3Client.delete(fileName)
 
-
-
-
-
-
+    // Create dbobject
+    let obj = await handler.createObject(testID, testObj)
+    let read2 = await obj.get('inS3')
+    assert.equal(read2, 'right here')
     
-
+    // Set file 
+    let read3 = await obj.setFile('inS3', testBody)
+    let passed3 = isS3Link(read3)
+    assert.equal(passed3, true)
+    
+    // Get file as link
+    let read4 = await obj.getFile('inS3')
+    let passed4 = isS3Link(read4)
+    assert.equal(passed4, true)
+    
+    // Get file as buffer
+    let read5 = await obj.getFile('inS3', {returnAsBuffer: true})
+    let passed5 = read5.toString() === testBody
+    assert.equal(passed5, true)
+    
+    // Delete the file by destroying the object
+    await obj.destroy()
 })
+
+
+let isS3Link = (link) => {
+    return link.startsWith(`https://${config.bucketName}.s3`)
+}
