@@ -366,6 +366,16 @@ class NodeIndex {
         let node = this.getNodeAtPath(path)
         return node.data[property]
     }
+    
+    setNodePermission(path, permission) {
+        this.ensureNodeAtPath(path)
+        let node = this.getNodeAtPath(path)
+        node.data[u.PERMISSION_KEY] = permission
+    }
+    getNodePermission(path) {
+        let node = this.getNodeAtPath(path)
+        return node.data[u.PERMISSION_KEY]
+    }
 
     setDontDelete(path, dontDelete) {
         this.ensureNodeAtPath(path)

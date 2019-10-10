@@ -35,8 +35,7 @@ u.NT_META = 'META'                          // meta node (get children)
 u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
 u.NT_LATERAL_POINTER = 'LP'                 // large, laterally-extended node
 u.NT_COLLECTION = 'COLLECT'                 // collection
-u.NT_FILE_LINK = 'FILE_LINK'                // file, link
-u.NT_FILE_BUFFER = 'FILE_BUF'               // file, buffer
+u.NT_S3REF                                  // s3 file
 u.NT_REF = 'REF'                            // reference to another DBObject
 
 

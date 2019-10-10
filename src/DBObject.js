@@ -11,15 +11,17 @@ const _ = require('lodash')
 
 
 const NodeIndex = require('./NodeIndex')
+const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor(id, {tableName, dynamoClient, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
+    constructor(id, {tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
         if (isTimeOrdered) {id += '-' + Date.now()}
         
         // Information we actually have
         this.id = id,
         this.dynamoClient = dynamoClient,
+        this.s3Client = s3Client,
         this.tableName = tableName
         this.key = u.keyFromID(id)
         this.doNotCache = doNotCache
@@ -354,7 +356,7 @@ class DBObject {
     via special purpose getters and setters
 
     */
-   async setReference(path, id, permission) {
+   async setReference(path, id, {permission}={}) {
        await this.ensureIndexLoaded()
        path = u.packKeys(path)
        let attributes = {}
@@ -366,6 +368,7 @@ class DBObject {
     
     async getReference(path, {permission}={}) {
         await this.ensureIndexLoaded()
+        path = u.packKeys(path)
         let id = await this.get(path, {permission})
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
@@ -374,6 +377,36 @@ class DBObject {
         })
         await dbobject.loadIndex()
         return dbobject
+    }
+    
+    // Set type to s3, write to s3, put link as string content of node
+    async setFile(path, body, {permission}={}) {
+        await this.ensureIndexLoaded()
+        path = u.packKeys(path)
+        this.index.setNodeType(path, u.NT_S3REF)
+        this.index.setDontDelete(path, true)
+        let ref = await this.s3Client.write(path, body)
+        let attributes = {}
+        attributes[path] = ref
+        await this.set(attributes, {permission})
+    }
+    
+    async getFile(path, {permission, returnAsBuffer}={}) {
+        await this.ensureIndexLoaded()
+        path = u.packKeys(path)
+        if (this.index.setNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
+            throw new Error('Node is not a file')
+        }
+        let s3url = await this.get(path, {permission})
+        if (!returnAsBuffer) {return s3url}
+        else {
+            let buffer = await this.s3Client.read(s3url)
+            return buffer
+        }
+    }
+
+    async deleteFile(path) {
+        await this.s3Client.delete(path)
     }
     
     async createCollection(path) {
