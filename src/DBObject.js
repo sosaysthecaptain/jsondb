@@ -762,7 +762,8 @@ class DBObject {
         let dbobjects = {}
         ids.forEach((id) => {
             if (!this.cachedDirectChildren[id]) {
-                this.cachedDirectChildren[id] = new DBObject(id, {
+                this.cachedDirectChildren[id] = new DBObject({
+                    id,
                     dynamoClient: this.dynamoClient,
                     tableName: this.tableName
                 })
@@ -865,12 +866,14 @@ class DBObject {
                 // TODO: SPILLOVER WOULD BE DEALT WITH HERE, IF THIS OBJECT HELD NOTHING BUT POINTERS
                 
                 // Create the new node
-                let newNode = new DBObject(newNodeID, {
+                let newNode = new DBObject({
+                    id: newNodeID,
                     dynamoClient: this.dynamoClient,
                     tableName: this.tableName
                 })
                 let pathsOnNewNode = Object.keys(attributesForNewNode)
-                await newNode.create(attributesForNewNode, {
+                await newNode.create({
+                    data: attributesForNewNode,
                     permissionLevel: this.permissionLevel, 
                     parent: this.id
                 })
@@ -888,7 +891,7 @@ class DBObject {
         if (this.index.isOversize()) {await doVerticalSplit()}
         
         // Write the remaining new attributes
-        await this.set(newAttributes)
+        await this.set({attributes: newAttributes})
 }
 
     // Manually divvies up overside load

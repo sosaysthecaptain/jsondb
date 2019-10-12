@@ -35,15 +35,16 @@ it('DBObject_vertical (1) a number of keys requiring a split between multiple no
     this.timeout(60000)
 
     // Write a large object
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    await dbobject.create(testObj)
+    await dbobject.create({data: testObj})
 
     // Read one key of it from cache
-    let read0 = await dbobject.get('k1.k1s3')
+    let read0 = await dbobject.get({path: 'k1.k1s3'})
     let passed0 = _.isEqual(testObj.k1.k1s3, read0)
     assert.equal(passed0, true)
     
@@ -56,13 +57,14 @@ it('DBObject_vertical (1) a number of keys requiring a split between multiple no
     
     // Clear the variable in memory, make sure we can still get
     dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
+    dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     
     // Starting fresh, read one key
-    let read2 = await dbobject.get('k1.k1s3')
+    let read2 = await dbobject.get({path: 'k1.k1s3'})
     let passed2 = _.isEqual(testObj.k1.k1s3, read2)
     assert.equal(passed2, true)
     
@@ -81,17 +83,18 @@ it('DBObject_vertical (2) modification on secondary nodes', async function() {
     this.timeout(60000)
 
     // Ensure still exists
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
-    let read0 = await dbobject.get('k1.k1s2')
+    let read0 = await dbobject.get({path: 'k1.k1s2'})
     let passed0 = _.isEqual(testObj.k1.k1s2, read0)
     assert.equal(passed0, true)
     
     // Modify a node 
-    await dbobject.set({'k1.k1s2': 'this was changed'})
-    let read1 = await dbobject.get('k1.k1s2')
+    await dbobject.set({attributes: {'k1.k1s2': 'this was changed'}})
+    let read1 = await dbobject.get({path: 'k1.k1s2'})
     let passed1 = _.isEqual('this was changed', read1)
 
     assert.equal(passed1, true)
@@ -99,19 +102,19 @@ it('DBObject_vertical (2) modification on secondary nodes', async function() {
     
     // Clear the variable in memory, make sure we can still get
     dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
+    dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     
     // Make sure we still get the same answer
-    let read2 = await dbobject.get('k1.k1s2')
+    let read2 = await dbobject.get({path: 'k1.k1s2'})
     let passed2 = _.isEqual('this was changed', read2)
     assert.equal(passed2, true)
     
     
     // Clean up
-    await dbobject.destroy()
-    // await dbobject.destroy()
-    // assert.equal(dbObjectExists, false)
+    let destroyed = await dbobject.destroy(true)
+    assert.equal(destroyed, true)
 })

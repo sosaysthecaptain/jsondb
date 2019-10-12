@@ -129,7 +129,6 @@ it('DBObject_basic (3) modify', async function() {
     
     // modify
     await dbobject.modify({path: 'arr', fn: (obj => {
-        debugger
         obj.push('four')
     })})
     
