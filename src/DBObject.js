@@ -126,8 +126,7 @@ class DBObject {
         }
     }
 
-    async get(path, params={}) {
-        let {permission} = params
+    async get({path, permission}={}) {
         await this.ensureIndexLoaded()
 
         // No path == entire object, gotten by a different methodology
@@ -137,7 +136,7 @@ class DBObject {
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
-        let data = await this.batchGet(path, {permission})
+        let data = await this.batchGet({paths: path, permission})
         
         if (path !== '') {
             data = unflatten(data)
@@ -165,8 +164,7 @@ class DBObject {
         return data
     }
     
-    async batchGet(paths, params={}) {
-        let {permission} = params
+    async batchGet({paths, permission}) {
         await this.ensureIndexLoaded()
         let data = {}
 
@@ -238,7 +236,7 @@ class DBObject {
                 if (pathsByChild[childID]) {
                     let pathsOnChild = pathsByChild[childID]
                     let childNode = childDBObjectNodes[childID]
-                    let dataFromChild = await childNode.batchGet(pathsOnChild)
+                    let dataFromChild = await childNode.batchGet({paths: pathsOnChild})
                     data = _.assign({}, data, dataFromChild)
                 }
                 delete pathsByChild[childID]
@@ -300,15 +298,15 @@ class DBObject {
         }
     }
 
-    async modify(path, fn) {
+    async modify({path, fn, permission}) {
         u.startTime('modify ' + path)
-        let obj = await this.get(path)
+        let obj = await this.get({path, permission})
         fn(obj)
 
         let attributes = {}
         attributes[path] = obj
 
-        let res = this.set(attributes)
+        let res = this.set({attributes, permission})
         u.stopTime('modify ' + path)
         return res
     }
@@ -389,7 +387,7 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile({path, body, permission}) {
+    async setFile({path, data, permission}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
 
@@ -400,10 +398,10 @@ class DBObject {
         this.index.setDontDelete(path, true)
         
         // Write the file to s3, write the url to the node
-        let ref = await this.s3Client.write(fileID, body)
+        let ref = await this.s3Client.write(fileID, data)
         let attributes = {}
         attributes[path] = ref
-        await this.set(attributes, {permission})
+        await this.set({attributes, permission})
         return ref
     }
     
@@ -434,7 +432,7 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection(path) {
+    async createCollection({path}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
@@ -658,7 +656,7 @@ class DBObject {
         await this.ensureIndexLoaded()
 
         // Get everything locally available
-        let data = await this.batchGet()
+        let data = await this.batchGet({permission})
 
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()

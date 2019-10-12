@@ -35,14 +35,15 @@ it('DBObject_collection', async function() {
         timeOrdered: false
     })
     
-    let parentObj = await myHandler.createObject(parentID, parentData)
+    debugger
+    let parentObj = await myHandler.createObject({id: parentID, data: parentData})
     let read0 = await parentObj.get()
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
     
     
     // Create collection, add something to it
-    await parentObj.createCollection('parentKey1.messages')
+    await parentObj.createCollection({path: 'parentKey1.messages'})
     
     let message_0 = await parentObj.addToCollection('parentKey1.messages', {body: 'this is a message'})
     let message_1 = await parentObj.addToCollection('parentKey1.messages', {body: 'second message'})

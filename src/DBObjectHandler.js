@@ -109,7 +109,8 @@ class DBObjectHandler {
         let raw = []
         if (returnData) {attributes = undefined}
         for (let i = 0; i < data.length; i++) {
-            let ret = await data[i].get(attributes)
+            let dbobject = data[i]
+            let ret = await dbobject.get({attributes})
             raw.push(ret)
         }
         return raw

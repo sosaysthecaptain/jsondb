@@ -54,22 +54,22 @@ it('DBObject_file  - reading & writing S3 files', async function() {
     await s3Client.delete(fileName)
 
     // Create dbobject
-    let obj = await handler.createObject(testID, testObj)
+    let obj = await handler.createObject({id: testID, data: testObj})
     let read2 = await obj.get('inS3')
     assert.equal(read2, 'right here')
     
     // Set file 
-    let read3 = await obj.setFile('inS3', testBody)
+    let read3 = await obj.setFile({path: 'inS3', data: testBody})
     let passed3 = isS3Link(read3)
     assert.equal(passed3, true)
     
     // Get file as link
-    let read4 = await obj.getFile('inS3')
+    let read4 = await obj.getFile({path: 'inS3'})
     let passed4 = isS3Link(read4)
     assert.equal(passed4, true)
     
     // Get file as buffer
-    let read5 = await obj.getFile('inS3', {returnAsBuffer: true})
+    let read5 = await obj.getFile({path: 'inS3', returnAsBuffer: true})
     let passed5 = read5.toString() === testBody
     assert.equal(passed5, true)
     

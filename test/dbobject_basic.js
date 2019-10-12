@@ -19,15 +19,16 @@ it('DBObject_basic (1) should create and get a single node object, with and with
 
     // Create fresh object
     let testObjID = 'dbobject_test_1'
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    await dbobject.create(basicObj)
+    await dbobject.create({data: basicObj})
     
     // Read one key (from cache)
-    let read0 = await dbobject.get('key1')
+    let read0 = await dbobject.get({path: 'key1'})
     let passed0 = _.isEqual(basicObj.key1, read0)
     assert.equal(passed0, true)
     
@@ -38,13 +39,14 @@ it('DBObject_basic (1) should create and get a single node object, with and with
 
     // Clear the variable in memory, make sure we can still get
     dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
+    dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     
     // Starting fresh, read one key
-    let read2 = await dbobject.get('key1')
+    let read2 = await dbobject.get({path: 'key1'})
     let passed2 = _.isEqual(basicObj.key1, read2)
     assert.equal(passed2, true)
     
@@ -62,34 +64,36 @@ it('DBObject_basic (2) permissions', async function() {
 
     this.timeout(u.TEST_TIMEOUT)
     let testObjID = 'dbobject_test_2'
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    await dbobject.create(basicObj, {permission: 5})
-    let read0 = await dbobject.get('key1', {permission: 0})
+    await dbobject.create({data: basicObj, permission: 5})
+    let read0 = await dbobject.get({path: 'key1', permission: 0})
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
-    let read1 = await dbobject.get(null, {permission: 10})
+    let read1 = await dbobject.get({permission: 10})
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
     
     // Clear the variable in memory, make sure we can still get
     dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
+    dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     
     // Starting fresh, read one key
     let newString = 'change and should now be readable'
-    await dbobject.set({'key1': newString}, {permission: 1})
+    await dbobject.set({attributes: {'key1': newString}, permission: 1})
     
     // Read entire object
-    let read3 = await dbobject.get('key1', {permission: 5})
+    let read3 = await dbobject.get({path: 'key1', permission: 5})
     let passed3 = _.isEqual(newString, read3)
     assert.equal(passed3, true)
     
@@ -109,26 +113,29 @@ it('DBObject_basic (3) modify', async function() {
     }
     
     // Write an object containing an array
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
 
-    await dbobject.create(testObj)
+    await dbobject.create({data: testObj})
 
     // Sanity check
-    let read0 = await dbobject.get('arr')
+    let read0 = await dbobject.get({path: 'arr'})
     let passed0 = _.isEqual(testObj.arr, read0)
     assert.equal(passed0, true)
     
     // modify
-    await dbobject.modify('arr', (obj) => {
+    await dbobject.modify({path: 'arr', fn: (obj => {
+        debugger
         obj.push('four')
-    })
+    })})
+    
     
     // Read again
-    let read1 = await dbobject.get('arr')
+    let read1 = await dbobject.get({path: 'arr'})
     let passed1 = _.isEqual(['one', 'two', 'three', 'four'], read1)
     assert.equal(passed1, true)
 
