@@ -21,15 +21,16 @@ it('DBObject_lateral: one large key split laterally', async function() {
     }
     
     // Write a large object
-    let dbobject = new jsondb.DBObject(testObjID, {
+    let dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    await dbobject.create(testObj)
+    await dbobject.create({data: testObj})
 
     // Read key by name from cache
-    let read0 = await dbobject.get('giantThing')
+    let read0 = await dbobject.get({path: 'giantThing'})
     let passed0 = _.isEqual(testObj.giantThing, read0)
     assert.equal(passed0, true)
     
@@ -41,14 +42,15 @@ it('DBObject_lateral: one large key split laterally', async function() {
     
     // Clear the variable in memory, make sure we can still get
     dbobject = null
-    dbobject = new jsondb.DBObject(testObjID, {
+    dbobject = new jsondb.DBObject({
+        id: testObjID,
         dynamoClient: dynamoClient,
         tableName: config.tableName
     })
     
     
     // Starting fresh, read one key
-    let read2 = await dbobject.get('giantThing')
+    let read2 = await dbobject.get({path: 'giantThing'})
     let passed2 = _.isEqual(testObj.giantThing, read2)
     assert.equal(passed2, true)
     
