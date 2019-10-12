@@ -37,18 +37,20 @@ class DBObjectHandler {
     async createObject({id, data, allowOverwrite, permission}) {
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
-        let dbobject = new DBObject(id, {
+        let dbobject = new DBObject({
+            id: id,
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
             isTimeOrdered: this.isTimeOrdered
         })
-        await dbobject.create(data, {allowOverwrite, permission})
+        await dbobject.create({data, allowOverwrite, permission})
         return dbobject
     }
 
     async destroyObject({id, confirm}) {
-        let dbobject = new DBObject(id, {
+        let dbobject = new DBObject({
+            id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
@@ -56,7 +58,8 @@ class DBObjectHandler {
     }
 
     async getObject({id, returnData, attributes}) {
-        let dbobject = new DBObject(id, {
+        let dbobject = new DBObject({
+            id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
@@ -75,7 +78,8 @@ class DBObjectHandler {
     async batchGetObjectsByID(ids) {
         let dbobjects = {}
         ids.forEach(id => {
-            dbobjects[id] = new DBObject(id, {
+            dbobjects[id] = new DBObject({
+                id: id,
                 dynamoClient: this.dynamoClient,
                 tableName: this.tableName
             })
@@ -167,7 +171,8 @@ class DBObjectHandler {
             delete data[u.PK]
             delete data[u.SK]
             
-            dbobjects.push(new DBObject(id, {
+            dbobjects.push(new DBObject({
+                id: id,
                 tableName: this.tableName,
                 dynamoClient: this.dynamoClient,
                 isTimeOrdered: true,

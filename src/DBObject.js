@@ -14,7 +14,7 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor(id, {tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
+    constructor({id, tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
         
         // Handle both instantiation of new object by PK only and whole id
         if (isTimeOrdered) {
@@ -57,17 +57,19 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create(initialData, params={}) {
-        this.parent = params.parent || null
-        this.permission = params.permission || u.DEFAULT_PERMISSION_LEVEL
-        let permission = params.permission || null
-        let allowOverwrite = params.allowOverwrite || false
+    async create({data, permission, parent, allowOverwrite}) {
+        if (!allowOverwrite) {
+            if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
+        }
 
-        if (initialData[u.INDEX_KEY]) {
+        this.parent = parent || null
+        this.permission = permission || u.DEFAULT_PERMISSION_LEVEL
+
+        if (data[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
         }
-        u.validateKeys(initialData)
-        return await this.set(initialData, {doNotOverwrite: !allowOverwrite, permission})
+        u.validateKeys(data)
+        return await this.set({attributes: data, permission})
     }
 
     async destroy(confirm) {
@@ -269,36 +271,32 @@ class DBObject {
         
     }
 
-    async set(attributesOriginal, params={}) {
-        let {doNotOverwrite, permission, isCollection} = params
-        let attributes = u.copy(attributesOriginal)
-        u.validateKeys(attributes)
-        u.processAttributes(attributes)
-        attributes = flatten(attributes)
-        u.packKeys(attributes)
+    async set({attributes, permission}) {
+        let newAttributes = u.copy(attributes)
+        u.validateKeys(newAttributes)
+        u.processAttributes(newAttributes)
+        newAttributes = flatten(newAttributes)
+        u.packKeys(newAttributes)
         await this.getChildNodes()
 
         // Identify nodes that need to be deleted, delete them
-        let changedPaths = this.index.getPathsToDelete(attributes)
+        let changedPaths = this.index.getPathsToDelete(newAttributes)
         if (changedPaths.length) {
             await this.handleDeletions(changedPaths)
             this._cacheUnsetDeleted(changedPaths)
         }
 
         // Update the index, set its permissions
-        this.index.build(attributes, permission)
-        this.index.updatePermissions(permission, attributes)
-        // if (isCollection) {
-        //     this.index.setAsCollection(path, id)
-        // }
-        this._cacheSet(attributes)
+        this.index.build(newAttributes, permission)
+        this.index.updatePermissions(permission, newAttributes)
+        this._cacheSet(newAttributes)
         
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
-            return await this._handleSplit(attributes)
+            return await this._handleSplit(newAttributes)
         } else {
-            return await this._write(attributes, doNotOverwrite)
+            return await this._write(newAttributes)
         }
     }
 
@@ -367,17 +365,17 @@ class DBObject {
     via special purpose getters and setters
 
     */
-   async setReference(path, id, {permission}={}) {
+   async setReference({path, id, permission}) {
        await this.ensureIndexLoaded()
        path = u.packKeys(path)
        let attributes = {}
        attributes[path] = id
        this.index.setNodeProperty(path, 'reference', id)
        this.index.setDontDelete(path, true)
-       await this.set(attributes, {permission})
+       await this.set({attributes, permission})
     }
     
-    async getReference(path, {permission}={}) {
+    async getReference({path, permission}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         let id = await this.get(path, {permission})
@@ -391,7 +389,7 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile(path, body, {permission}={}) {
+    async setFile({path, body, permission}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
 
@@ -409,7 +407,7 @@ class DBObject {
         return ref
     }
     
-    async getFile(path, {permission, returnAsBuffer}={}) {
+    async getFile({path, permission, returnAsBuffer}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
@@ -432,7 +430,7 @@ class DBObject {
         }
     }
 
-    async deleteFile(path) {
+    async deleteFile({path}) {
         await this.s3Client.delete(path)
     }
     
@@ -448,104 +446,104 @@ class DBObject {
         return path
     }
     
-    async addToCollection(path, object) {
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        this._ensureIsCollection(path)
-        let handler = this.getCollectionHandler(path)
-        let seriesKey = this._getCollectionSeriesKey(path)
-        let id = await handler.createObject(seriesKey, object)
-        return id
-    }
+    // async addToCollection(path, object) {
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     this._ensureIsCollection(path)
+    //     let handler = this.getCollectionHandler(path)
+    //     let seriesKey = this._getCollectionSeriesKey(path)
+    //     let id = await handler.createObject(seriesKey, object)
+    //     return id
+    // }
 
-    async getFromCollection(path, {id, limit, exclusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
-        if (!ascending) {ascending = false}
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        this._ensureIsCollection(path)
-        let handler = this.getCollectionHandler(path)
-        let seriesKey = this._getCollectionSeriesKey(path)
-        if (returnData) {attributes = true}
+    // async getFromCollection(path, {id, limit, exclusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
+    //     if (!ascending) {ascending = false}
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     this._ensureIsCollection(path)
+    //     let handler = this.getCollectionHandler(path)
+    //     let seriesKey = this._getCollectionSeriesKey(path)
+    //     if (returnData) {attributes = true}
         
-        // Pagewise
-        if (!id) {
-            let ret = await handler.batchGetObjectsByPage({
-                seriesKey, 
-                limit, 
-                attributes, 
-                exclusiveFirstTimestamp, 
-                ascending,
-                idOnly
-            })
-            return ret
-        } else {
-            let obj = await handler.getObject(id, true)
-            if (!attributes) {return obj}
-            if (attributes === true) {return await obj.get()}
-            return await obj.get(attributes)
-        }
-    }
+    //     // Pagewise
+    //     if (!id) {
+    //         let ret = await handler.batchGetObjectsByPage({
+    //             seriesKey, 
+    //             limit, 
+    //             attributes, 
+    //             exclusiveFirstTimestamp, 
+    //             ascending,
+    //             idOnly
+    //         })
+    //         return ret
+    //     } else {
+    //         let obj = await handler.getObject(id, true)
+    //         if (!attributes) {return obj}
+    //         if (attributes === true) {return await obj.get()}
+    //         return await obj.get(attributes)
+    //     }
+    // }
     
-    async getNextCollectionPage(path, {limit, attributes, returnData}) {
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        this._ensureIsCollection(path)
-        let currentStartKey = this.index.getNodeProperty(path, 'exclusiveFirstTimestamp')
-        let data = await this.getFromCollection(path, {
-            limit, 
-            exclusiveFirstTimestamp: 
-            currentStartKey, 
-            ascending: false
-        })
+    // async getNextCollectionPage(path, {limit, attributes, returnData}) {
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     this._ensureIsCollection(path)
+    //     let currentStartKey = this.index.getNodeProperty(path, 'exclusiveFirstTimestamp')
+    //     let data = await this.getFromCollection(path, {
+    //         limit, 
+    //         exclusiveFirstTimestamp: 
+    //         currentStartKey, 
+    //         ascending: false
+    //     })
 
-        // Figure out what the last timestamp was and store it
-        if (data.length) {
-            let lastObjectTimestamp = data[data.length-1].timestamp()
-            this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', lastObjectTimestamp)
-        } else {
-            this.resetCollectionPage(path)
-            return []
-        }
+    //     // Figure out what the last timestamp was and store it
+    //     if (data.length) {
+    //         let lastObjectTimestamp = data[data.length-1].timestamp()
+    //         this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', lastObjectTimestamp)
+    //     } else {
+    //         this.resetCollectionPage(path)
+    //         return []
+    //     }
 
-        // If the user just wanted data, return that now
-        if (!attributes && !returnData) {
-            return data
-        } 
+    //     // If the user just wanted data, return that now
+    //     if (!attributes && !returnData) {
+    //         return data
+    //     } 
         
-        // Otherwise, retrieve user's requested data
-        let raw = []
-        if (returnData) {attributes = undefined}
-        for (let i = 0; i < data.length; i++) {
-            let ret = await data[i].get(attributes)
-            raw.push(ret)
-        }
-        return raw
-    }
+    //     // Otherwise, retrieve user's requested data
+    //     let raw = []
+    //     if (returnData) {attributes = undefined}
+    //     for (let i = 0; i < data.length; i++) {
+    //         let ret = await data[i].get(attributes)
+    //         raw.push(ret)
+    //     }
+    //     return raw
+    // }
     
-    async resetCollectionPage(path) {
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        this._ensureIsCollection(path)
-        this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', 0)
-    }
+    // async resetCollectionPage(path) {
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     this._ensureIsCollection(path)
+    //     this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', 0)
+    // }
 
-    async scanCollection(path, {param, value, attributes, query, returnData}) {
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        param = u.packKeys(param)
-        this._ensureIsCollection(path)
-        if (returnData) {attributes = true}
-        let handler = this.getCollectionHandler(path)
-        return await handler.scan({param, value, attributes, query})
-    }
+    // async scanCollection(path, {param, value, attributes, query, returnData}) {
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     param = u.packKeys(param)
+    //     this._ensureIsCollection(path)
+    //     if (returnData) {attributes = true}
+    //     let handler = this.getCollectionHandler(path)
+    //     return await handler.scan({param, value, attributes, query})
+    // }
     
-    async deleteFromCollection(path, nodeID, confirm) {
-        await this.ensureIndexLoaded()
-        path = u.packKeys(path)
-        this._ensureIsCollection(path)
-        let handler = this.getCollectionHandler(path)
-        return await handler.deleteObject(nodeID, confirm)
-    }
+    // async deleteFromCollection(path, nodeID, confirm) {
+    //     await this.ensureIndexLoaded()
+    //     path = u.packKeys(path)
+    //     this._ensureIsCollection(path)
+    //     let handler = this.getCollectionHandler(path)
+    //     return await handler.deleteObject(nodeID, confirm)
+    // }
     
     async emptyCollection(path) {
         await this.ensureIndexLoaded()
@@ -561,15 +559,23 @@ class DBObject {
         }
     }
 
-    _getCollectionSeriesKey(path) {return (this.id + '_' + path)}
+    
 
-    _ensureIsCollection(path) {
-        if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
-            throw new Error('Specified path is not a collection')
-        }
-    }
+    // getCollectionHandler(path) {
+    //     let seriesKey = this._getCollectionSeriesKey(path)
+    //     const DBObjectHandler = require('./DBObjectHandler')
+    //     return new DBObjectHandler({
+    //         seriesKey: seriesKey,
+    //         awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
+    //         awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
+    //         awsRegion: this.dynamoClient.awsRegion,
+    //         tableName: this.tableName,
+    //         isTimeOrdered: true, 
+    //         doNotCache: true
+    //     })
+    // }
 
-    getCollectionHandler(path) {
+    collection(path) {
         let seriesKey = this._getCollectionSeriesKey(path)
         const DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
@@ -582,8 +588,14 @@ class DBObject {
             doNotCache: true
         })
     }
+    
+    getCollectionSeriesKey(path) {return (this.id + '_' + path)}
 
-    collection(path) {return this.getCollectionHandler(path)}
+    _ensureIsCollection(path) {
+        if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
+            throw new Error('Specified path is not a collection')
+        }
+    }
 
 
 
@@ -604,7 +616,8 @@ class DBObject {
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node, assumes index is prepared
-    async _write(attributes, doNotOverwrite) {
+    async _write(attributes) {
+
         u.startTime('write')
         this.index.parent(this.parent)
         this.index.resetDontDelete()

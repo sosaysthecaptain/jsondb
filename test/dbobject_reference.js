@@ -52,8 +52,8 @@ it('DBObject_reference', async function() {
     assert.equal(passed1, true)
     
     // Set & get reference
-    await parentObj.setReference('parentKey1.subKey2', childID)
-    let gottenReference = await parentObj.getReference('parentKey1.subKey2')
+    await parentObj.setReference({path: 'parentKey1.subKey2', id: childID})
+    let gottenReference = await parentObj.getReference({path: 'parentKey1.subKey2'})
     let passed2 = _.isEqual(gottenReference.id, childID)
     assert.equal(passed2, true)
     
