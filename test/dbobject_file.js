@@ -55,7 +55,7 @@ it('DBObject_file  - reading & writing S3 files', async function() {
 
     // Create dbobject
     let obj = await handler.createObject({id: testID, data: testObj})
-    let read2 = await obj.get('inS3')
+    let read2 = await obj.get({path: 'inS3'})
     assert.equal(read2, 'right here')
     
     // Set file 

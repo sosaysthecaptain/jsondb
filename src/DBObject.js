@@ -420,7 +420,7 @@ class DBObject {
         
         // Return either s3 url from object or else read the buffer from fileID on index
         if (!returnAsBuffer) {
-            return await this.get(path)
+            return await this.get({path})
         } else {
             let fileID = this.index.getNodeProperty(path, 'fileID')
             let buffer = await this.s3Client.read(fileID)
