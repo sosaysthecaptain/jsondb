@@ -16,6 +16,8 @@ class DBObjectHandler {
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
         this.doNotCache = doNotCache
+
+        this.lastTimestampsByPath = {}
         
         if (seriesKey) {this.isTimeOrdered = true}
 
@@ -32,18 +34,20 @@ class DBObjectHandler {
         })
     }
 
-    async createObject(id, initialData={}, allowOverwrite=false) {
+    async createObject({id, data, allowOverwrite, permission}) {
+        allowOverwrite = allowOverwrite || false
+        id = id || this.seriesKey
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
             isTimeOrdered: this.isTimeOrdered
         })
-        await dbobject.create(initialData, {allowOverwrite})
+        await dbobject.create(data, {allowOverwrite, permission})
         return dbobject
     }
 
-    async deleteObject(id, confirm) {
+    async destroyObject({id, confirm}) {
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
@@ -51,15 +55,20 @@ class DBObjectHandler {
         return await dbobject.destroy(confirm)
     }
 
-    async getObject(id, loadIndex) {
+    async getObject({id, returnData, attributes}) {
         let dbobject = new DBObject(id, {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        if (loadIndex) {
-            await dbobject.loadIndex()
+
+        // Return some data, all data, or just the dbobject
+        if (attributes) {
+            return await dbobject.batchGet(attributes)
+        } else if (returnData) {
+            return await dbobject.get()
+        } else  {
+            return dbobject
         }
-        return dbobject
     }
 
     // Doesn't load anything yet
@@ -74,9 +83,39 @@ class DBObjectHandler {
         return dbobjects
     }
 
+    async getPagewise({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}) {
+        ascending = ascending || false
+        exclusiveFirstTimestamp = exclusiveFirstTimestamp || this.exclusiveStartTimestamp
+        let data = await this.batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp})
+        // Figure out what the last timestamp was and store it
+        if (data.length) {
+            this.exclusiveStartTimestamp = data[data.length-1].timestamp()
+
+        } else {
+            this.resetPage()
+            return []
+        }
+
+        // If the user just wanted dbobjects, return that now
+        if (!attributes && !returnData) {
+            return data
+        } 
+        
+        // Otherwise, retrieve user's requested data
+        let raw = []
+        if (returnData) {attributes = undefined}
+        for (let i = 0; i < data.length; i++) {
+            let ret = await data[i].get(attributes)
+            raw.push(ret)
+        }
+        return raw
+
+    }
+    
     async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly}) {
         if (returnData) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
+
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getPagewise({
             tableName: this.tableName,
@@ -85,20 +124,21 @@ class DBObjectHandler {
             ascending,
             exclusiveFirstSk: exclusiveFirstTimestamp
         })
-
         return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly)
     }
+
+    resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes, returnData}) {
-        if (returnData) {attributes = true}
+    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData}) {
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
-            uid: seriesKey || this.seriesKey,
+            uid: this.seriesKey,
             startTime, 
             endTime,
             ascending
         })
+        if (returnData) {attributes = true}
         return await this._objectsOrDataFromRaw(allObjectData, attributes)
     }
 

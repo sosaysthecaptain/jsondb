@@ -15,7 +15,12 @@ const u = require('./u')
 
 class DBObject {
     constructor(id, {tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data}) {
-        if (isTimeOrdered) {id += '-' + Date.now()}
+        
+        // Handle both instantiation of new object by PK only and whole id
+        if (isTimeOrdered) {
+            if (id.split('-').length === 1)
+            id += '-' + Date.now()
+        }
         
         // Information we actually have
         this.id = id,
@@ -577,6 +582,8 @@ class DBObject {
             doNotCache: true
         })
     }
+
+    collection(path) {return this.getCollectionHandler(path)}
 
 
 

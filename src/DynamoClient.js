@@ -1,5 +1,5 @@
 /*
-More convenient handle on aws-sdk, instantiated with aws credentials
+More convenient handle on aws-sdk, instantiated with aws credentials})
 */
 
 let aws = require('aws-sdk')
