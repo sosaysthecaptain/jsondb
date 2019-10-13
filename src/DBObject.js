@@ -556,13 +556,14 @@ class DBObject {
         while (true) {
             // let ids = await this.getFromCollection(path, {idOnly: true})
             debugger
-            let ids = await this.collection(path).getObjects({idOnly: true})
-            if (!ids.length) {break}
-            for (let i = 0; i < ids.length; i++) {
-                let id = ids[i]
+            let dbobjects = await this.collection(path).getObjects()
+            debugger
+            if (!dbobjects.length) {break}
+            for (let i = 0; i < dbobjects.length; i++) {
+                let dbobject = dbobjects[i]
                 // await this.deleteFromCollection(path, id)
                 debugger
-                await this.collection(path).destroyObject({id})
+                await this.collection(path).destroyObject({id: dbobject.id})
             }
         }
     }

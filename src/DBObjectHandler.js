@@ -87,8 +87,10 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}={}) {
         ascending = ascending || false
+        limit = limit || 10000
+
         exclusiveFirstTimestamp = exclusiveFirstTimestamp || this.exclusiveStartTimestamp
         let data = await this.batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp})
         // Figure out what the last timestamp was and store it
@@ -239,6 +241,7 @@ class DBObjectHandler {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
                     obj[attribute] = await dbobject.get({path: attribute})
+                    obj[id] = dbobject.id
                 }
             }
             data.push(obj)
