@@ -162,7 +162,13 @@ let posts = await myBlog.collection('posts').getObjects({limit: 10, exclusiveFir
 
 // Performing scans on collections
 let peopleThatLikeMeBack = me.collection('likes').scan({params: [
-    ['likes', 'contains', me.id],
+    ['likes', 'contains', me.id]
+})
+
+let joe = await user.collection('friends').scan({
+    params: [
+        ['firstName', '=', 'joe', 'AND'],
+        ['friends', 'contains', 'danny']
     ]
 })
 
