@@ -554,11 +554,15 @@ class DBObject {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         while (true) {
-            let ids = await this.getFromCollection(path, {idOnly: true})
+            // let ids = await this.getFromCollection(path, {idOnly: true})
+            debugger
+            let ids = await this.collection(path).getObjects({idOnly: true})
             if (!ids.length) {break}
             for (let i = 0; i < ids.length; i++) {
                 let id = ids[i]
-                await this.deleteFromCollection(path, id)
+                // await this.deleteFromCollection(path, id)
+                debugger
+                await this.collection(path).destroyObject({id})
             }
         }
     }

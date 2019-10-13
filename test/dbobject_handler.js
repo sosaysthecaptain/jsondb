@@ -164,24 +164,24 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let passed5 = firstPageData[0].message === 'first message'
     assert.equal(passed5, true)
 
-    // getPagewise, object
-    let firstPageObjects = await messageHandler.getPagewise({
+    // getObjects, object
+    let firstPageObjects = await messageHandler.getObjects({
         limit: 2
     })
     assert.equal(firstPageObjects[0].id, message5.id)
-    let secondPageObjects = await messageHandler.getPagewise({
+    let secondPageObjects = await messageHandler.getObjects({
         limit: 2
     })
     assert.equal(secondPageObjects[0].id, message3.id)
     messageHandler.resetPage()
 
-    // getPagewise, data
-    let firstPageDataPagewise = await messageHandler.getPagewise({
+    // getObjects, data
+    let firstPageDataPagewise = await messageHandler.getObjects({
         limit: 2,
         returnData: true
     })
     assert.equal(firstPageDataPagewise[0].message, 'sixth message')
-    let secondPageDataPagewise = await messageHandler.getPagewise({
+    let secondPageDataPagewise = await messageHandler.getObjects({
         limit: 2,
         returnData: true
     })

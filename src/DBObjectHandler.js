@@ -87,7 +87,7 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getPagewise({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}) {
         ascending = ascending || false
         exclusiveFirstTimestamp = exclusiveFirstTimestamp || this.exclusiveStartTimestamp
         let data = await this.batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp})
@@ -122,7 +122,7 @@ class DBObjectHandler {
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
-        let allObjectData = await this.dynamoClient.getPagewise({
+        let allObjectData = await this.dynamoClient.getObjects({
             tableName: this.tableName,
             uid: seriesKey || this.seriesKey,
             limit,
@@ -172,14 +172,25 @@ class DBObjectHandler {
 
         // (3)
         if (params) {
+            let lastOperator = null
             query = new ScanQuery(this.tableName)
             params.forEach(item => {
                 query.addParam({
                     param: item[0],
                     message: item[1],
                     value: item[2],
-                    operator: item[3]
+                    operator: lastOperator
                 })
+                lastOperator = item[3]
+            })
+        }
+
+        if (this.seriesKey) {
+            query.addParam({
+                param: u.PK,
+                message: '=',
+                value: this.seriesKey,
+                operator: 'AND'
             })
         }
 

@@ -78,7 +78,7 @@ it('DBObject_collection', async function() {
     assert.equal(passed3, true)
     
     // Pagewise
-    let read4 = await parentObj.collection(collectionPath).getPagewise({
+    let read4 = await parentObj.collection(collectionPath).getObjects({
         limit: 4,
         // start: 0,
         attributes: ['body']
@@ -86,7 +86,6 @@ it('DBObject_collection', async function() {
     let passed4 = (read4[3].body === 'modified first message') && (read4[0].body === 'fourth message')
     assert.equal(passed4, true)
     
-    debugger
     // Scan
     let read5 = await parentObj.collection('parentKey1.messages').scan({
         params: [
@@ -95,53 +94,50 @@ it('DBObject_collection', async function() {
         ],
         returnData: true
     })
-    debugger
     let passed5 = read5[0].body === 'third message'
     assert.equal(passed5, true)
+    
+    
+    // Delete one message
+    let deleted = await parentObj.collection('parentKey1.messages').destroyObject({id: message_1.id, confirm: true})
+    assert.equal(deleted, true)
 
-
-    await parentObj.collection(collectionPath).createObject({data: {name: 'joe', friends: ['danny', 'irene']}})
-    await parentObj.collection(collectionPath).createObject({data: {name: 'danny', friends: ['joe', 'irene']}})
-    await parentObj.collection(collectionPath).createObject({data: {name: 'joe', friends: ['johnny']}})
-
-    let read6 = await parentObj.collection('parentKey1.messages').scan({
+    // More scan
+    let friendsPath = 'friends'
+    debugger
+    await parentObj.createCollection({path: friendsPath})
+    await parentObj.collection(friendsPath).createObject({data: {firstName: 'joe', friends: ['danny', 'irene']}})
+    await parentObj.collection(friendsPath).createObject({data: {firstName: 'danny', friends: ['joe', 'irene']}})
+    await parentObj.collection(friendsPath).createObject({data: {firstName: 'irene', friends: ['joe', 'danny']}})
+    await parentObj.collection(friendsPath).createObject({data: {firstName: 'joe', friends: ['johnny']}})
+    
+    let read8 = await parentObj.collection(friendsPath).scan({
         params: [
-            // ['body', '=', 'third message', 'AND']
-            ['name', '=', 'joe', 'AND'],
+            ['firstName', '=', 'joe', 'AND'],
             ['friends', 'contains', 'danny']
         ],
         returnData: true
     })
-
-    let read7 = await parentObj.collection('parentKey1.messages').scan({
+    let passed8 = (read8[0].firstName === 'joe') && (read8[0].friends.includes('irene'))
+    assert.equal(passed8, true)
+    debugger
+    
+    let read9 = await parentObj.collection(friendsPath).scan({
         params: [
-            // ['body', '=', 'third message', 'AND']
-            ['body', '=', 'third message']
+            ['firstName', '=', 'danny', 'OR'],
+            ['firstName', '=', 'irene'],
         ],
         returnData: true
     })
+    debugger
+    let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
+    assert.equal(passed9, true)
     
-    // // Get pagewise
-    // let firstPage = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2})
-    // assert.equal(firstPage.length, 2)
-    // await parentObj.resetCollectionPage('parentKey1.messages')
     
-    // let firstPageData = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2, returnData: true})
-    // let passed6 = firstPageData[0].body === 'fourth message'
-    // assert.equal(passed6, true)
-
-    // let secondPageData = await parentObj.getNextCollectionPage('parentKey1.messages', {limit: 2, returnData: true})
-    // let passed8 = secondPageData[0].body === 'second message'
-    // assert.equal(passed8, true)
-    
-    // // Delete one message
-    // let deleted = await parentObj.deleteFromCollection('parentKey1.messages', message_1.id, true)
-    // assert.equal(deleted, true)
-    
-    // // Destroy parent object and see that collection is destroyed as well
-    // await parentObj.destroy()
-    // let message0StillExists = await message0_dbobject.checkExists()
-    // assert.equal(message0StillExists, false)
+    // Destroy parent object and see that collection is destroyed as well
+    await parentObj.destroy()
+    let message0StillExists = await message0_dbobject.checkExists()
+    assert.equal(message0StillExists, false)
         
         
 })

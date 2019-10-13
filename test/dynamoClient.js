@@ -59,7 +59,7 @@ it('DynamoClient 1: update, get, update, delete', async function() {
         key: key
     })
 })
-it('DynamoClient 2: batchGet, getPagewise', async function() {
+it('DynamoClient 2: batchGet, getObjects', async function() {
     this.timeout(60000)
     
     await dynamoClient.update({
@@ -123,7 +123,7 @@ it('DynamoClient 2: batchGet, getPagewise', async function() {
         }
     })
 
-    let read2 = await dynamoClient.getPagewise({
+    let read2 = await dynamoClient.getObjects({
         tableName: config.tableName,
         uid: 'testOrdered',
         limit: 3
@@ -134,7 +134,7 @@ it('DynamoClient 2: batchGet, getPagewise', async function() {
     assert.equal(read2.length, 3)
     let startNextTimeWith = read2[1].ts
     
-    let read3 = await dynamoClient.getPagewise({
+    let read3 = await dynamoClient.getObjects({
         tableName: config.tableName,
         uid: 'testOrdered',
         limit: 2,

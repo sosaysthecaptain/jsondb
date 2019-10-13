@@ -87,7 +87,7 @@ class DynamoClient {
     
     // Gets pagewise for uid, starting at exclusiveFirstSk, limited, in specified order
     // ASSUMES STANDARD uid/ts
-    async getPagewise({tableName, uid, limit, exclusiveFirstSk, ascending}) {
+    async getObjects({tableName, uid, limit, exclusiveFirstSk, ascending}) {
         if (exclusiveFirstSk) {exclusiveFirstSk = Number(exclusiveFirstSk)}
         limit = limit || 100
         
@@ -111,7 +111,7 @@ class DynamoClient {
         }
                 
         let data = await this.dynamo.query(params).promise().catch((err) => {
-            console.log('failure in DynamoClient.getPagewise')
+            console.log('failure in DynamoClient.getObjects')
             throw(err)
         })
         return data.Items
