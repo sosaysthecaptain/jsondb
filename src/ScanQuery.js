@@ -5,7 +5,7 @@ let scan_query = new db.ScanQuery('User')
 scan_query.add_param('is_lawyer', true, '=')
 scan_query.add_param('expertises', 'auto accidents', 'contains', 'AND')
 scan_query.add_param('states', 'California', 'contains', 'AND')
-let paramsObject = scan_query.getParamsObject()
+let paramsObject = scan_query.write()
 
 An example query:
     params = {
@@ -57,7 +57,7 @@ class ScanQuery {
         this.index += 1
     }
 
-    getParamsObject() {
+    write() {
         return this.paramsObject
     }
 }

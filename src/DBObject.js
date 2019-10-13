@@ -177,7 +177,6 @@ class DBObject {
             }
             paths = u.packKeys(paths)
 
-            
             // Add this path and all its children to an object
             let pathObj = {}
             paths.forEach((path) => {
@@ -206,7 +205,11 @@ class DBObject {
                 if (childID) {
                     if (!pathsByChild[childID]) {pathsByChild[childID] = []}
                     pathsByChild[childID].push(path)
-                } else {specialCases.push(paths)}
+                } else {
+                    specialCases.push(paths)
+                    debugger
+                    let test = this.index.getIDForPath(path)
+                }
             })
             
             // Read local
@@ -433,7 +436,7 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path}) {
+    async createCollection({path, permission}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
@@ -441,9 +444,11 @@ class DBObject {
         this.index.setDontDelete(path, true)
         let attributes = {}
         attributes[path] = '<COLLECTION>'
-        await this.set(attributes)
-        return path
+        await this.set({attributes, permission})
+        return this._getCollectionSeriesKey(path)
     }
+
+    _getCollectionSeriesKey(path) {return this.id + '_' + path}
     
     // async addToCollection(path, object) {
     //     await this.ensureIndexLoaded()
@@ -575,6 +580,8 @@ class DBObject {
     // }
 
     collection(path) {
+        path = u.packKeys(path)
+        this._ensureIsCollection(path)
         let seriesKey = this._getCollectionSeriesKey(path)
         const DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({

@@ -148,8 +148,19 @@ class DBObjectHandler {
     }
 
     // Pass a single path and value, or else a completed ScanQuery object
-    async scan({param, value, attributes, query}) {
-        if (!query) {
+    /*
+    Three modes of use:
+        1) query: <ScanQuery>
+        2) param: 'name', value: 'joe'
+        3) params: [
+            ['name', '=', 'joe', 'AND'],
+            ['friends', 'contains', 'danny']
+        ]
+    */
+    async scan({params, param, value, attributes, query, returnData, idOnly}) {
+        
+        // (2)
+        if (!query && !params) {
             param = u.packKeys(param)
             query = new ScanQuery(this.tableName)
             query.addParam({
@@ -158,8 +169,23 @@ class DBObjectHandler {
                 message: '='
             })
         }
+
+        // (3)
+        if (params) {
+            query = new ScanQuery(this.tableName)
+            params.forEach(item => {
+                query.addParam({
+                    param: item[0],
+                    message: item[1],
+                    value: item[2],
+                    operator: item[3]
+                })
+            })
+        }
+
         let data = await this.dynamoClient.scan(query)
-        return await this._objectsOrDataFromRaw(data, attributes)
+        if (returnData && !attributes) {attributes = true}
+        return await this._objectsOrDataFromRaw(data, attributes, idOnly)
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
