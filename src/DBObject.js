@@ -376,8 +376,9 @@ class DBObject {
     async getReference({path, permission}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        let id = await this.get(path, {permission})
-        let dbobject = new DBObject(id, {
+        let id = await this.get({path, permission})
+        let dbobject = new DBObject({
+            id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName,
             doNotCache: true

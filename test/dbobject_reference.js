@@ -42,8 +42,8 @@ it('DBObject_reference', async function() {
         timeOrdered: false
     })
     
-    let parentObj = await myHandler.createObject(parentID, parentData)
-    let childObj = await myHandler.createObject(childID, childData)
+    let parentObj = await myHandler.createObject({id: parentID, data: parentData})
+    let childObj = await myHandler.createObject({id: childID, data: childData})
     let read0 = await parentObj.get()
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
@@ -58,7 +58,7 @@ it('DBObject_reference', async function() {
     assert.equal(passed2, true)
     
     // Get from retrieved dbobject
-    let propFromChild = await gottenReference.get('childKey1')
+    let propFromChild = await gottenReference.get({path: 'childKey1'})
     let passed3 = _.isEqual(propFromChild, 'on child')
     assert.equal(passed3, true)
     
