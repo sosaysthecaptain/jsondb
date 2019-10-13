@@ -100,7 +100,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let message5 = await messageHandler.createObject({data: {message: 'sixth message'}})
 
     let messageIDs = [message0.id, message1.id, message2.id, message3.id, message4.id, message5.id]
-    let messages = await messageHandler.batchGetObjectsByID(messageIDs)
+    let messages = await messageHandler.instantiate({ids: messageIDs})
     let passed0 = ((messages[message0.id].id === message0.id) && (messages[message5.id].id === message5.id))
     assert.equal(passed0, true)
     

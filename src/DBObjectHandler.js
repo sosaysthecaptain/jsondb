@@ -75,7 +75,10 @@ class DBObjectHandler {
     }
 
     // Doesn't load anything yet
-    async batchGetObjectsByID(ids) {
+    async instantiate({id, ids}) {
+        if (id) {
+            ids = [id]
+        }
         let dbobjects = {}
         ids.forEach(id => {
             dbobjects[id] = new DBObject({

@@ -35,7 +35,12 @@ Note on Dynamo setup: jsondb expects your DynamoDB table to be set up with prima
 When you create a DBObject instance, the object is written to the database. allowOverwrite is an optional parameter, the default is false.
 
 ```javascript
-let newObject = await handler.createObject('my_object_id', {initial: 'data goes here'})
+let newObject = await handler.createObject({
+    id: 'my_object_id', 
+    data: {
+        initial: 'data goes here'
+    }
+})
 await handler.deleteObject('that_thing')
 ```
 
@@ -45,13 +50,13 @@ When you "get" a DBObject, you don't actually hit the DB yet, you merely create 
 Getting can be done by ID, by page or time in the case of timeOrdered objects, or by a scan operation.
 
 ```javascript
-let object = await myObjectTypeHandler.getObject(id)
+let object = await myObjectTypeHandler.getObject({id})
 
-let convoParticipants = await userHandler.batchGetObjectById(['joe@gmail.com', 'susan@gmail.com'])
+let convoParticipants = await userHandler.instantiate({ids: ['joe@gmail.com', 'susan@gmail.com']})
 
-let firstTen = await handler.batchGetObjectByPage({
-    limit: 10
-})
+let firstTen = await handler.getPagewise({limit: 10})
+let secondTenTen = await handler.getPagewise({limit: 10})
+handler.resetPage()
 
 let objects = await myObjectTypeHandler.batchGetObjectByTime({
     start: 1569005447000, 
@@ -59,8 +64,16 @@ let objects = await myObjectTypeHandler.batchGetObjectByTime({
     ascending: true
 })
 
+let people = await parentObj.collection('friends').scan({
+    params: [
+        ['firstName', '=', 'joe', 'AND'],
+        ['friends', 'contains', 'danny']
+    ],
+    returnData: true
+})
+
 let peopleNamedTim = await userHandler.scan({
-    param: 'name',
+    param: 'firstName',
     value: 'tim'
 })
 
@@ -71,14 +84,19 @@ let peopleNamedTim = await userHandler.scan({
 Sometimes, especially in batchwise contexts, you aren't interested in the DBObject abstraction but just want data directly:
 
 ```javascript
-let messages = await messageHandler.batchGetObjectsByPage({
+let messages = await messageHandler.getObjects({
     limit: 10,
     exclusiveFirstTimestamp: 1570676695978,
     attributes: ['body', 'sender'],
     ascending: true
 })
 
-let arrayOfValues = await myObjectTypeHandler.batchGetData(['id_1', 'id_2', 'id_3'], {returnData: true})
+let placesWherePeopleNamedTimLive = await userHandler.scan({
+    params: [
+        ['firstName', '=', 'tim']
+    ],
+    attributes: ['address']
+})
 ```
 
 
@@ -91,51 +109,66 @@ Getting and setting specific values is done by specifying a dot-separated path.
 ```javascript
 let entireObject = myObject.get()
 
-let valueOfSpecifiedKey = myObject.get('path.to.key')
+let valueOfSpecifiedKey = myObject.get({path: 'path.to.key'})
 
-await myObject.set({'path.to.key': value})
+await myObject.set({attributes: {'path.to.key': value}})
 
-await user.set({password: '4321bang', {permission: 5}})
+await user.set({attributes: {password: '4321bang', {permission: 5}}})
 ```
 
 
 ### Modifying DBObject values
 You can modify DBObject values without getting and then rewriting them:
 ```javascript
-myObject.modify('path.to.arrayToModify', (arrayToModify) => {
+myObject.modify({id: 'path.to.arrayToModify', fn: (arrayToModify => {
     arrayToModify.push(newValue)
-})
+})})
 ```
 ### References
 DBObjects can be nested one inside another:
 
 ```javascript
-await userOne.setReference('friends.userTwo', userTwo.id)
+await userOne.setReference({path: 'friends.userTwo', id: userTwo.id})
 
-let userTwo = await userOne.getReference('friends.userTwo')
-let userTwoID = await userOne.get('friends.userTwo')
+let userTwo = await userOne.getReference({path: 'friends.userTwo'})
+let userTwoID = await userOne.get({path: 'friends.userTwo'})
 ```
 
 ### Collections
-Collections can be thought of as DBObjectHandlers nested inside DBObjects:
+Collections are essentially DBObjectHandlers nested inside DBObjects. They can contain arbitrary numbers of sub-objects, by default ordered by time and gettable pagewise.
 
 ```javascript
-await conversation.createCollection('messages')
-await conversation.addToCollection('messages', {
-    body: 'I can add a million messages to this object if I want',
-    sender: 'Marc',
-    timestamp: 'late'
+// Creating a collection
+await conversation.createCollection({'messages'})
+
+// Creating an object in a collection
+await conversation.collection('messages').createObject({
+    data: {
+        body: 'I can add a million messages to this object if I want',
+        sender: 'Marc',
+        timestamp: 'late'
+    }
 })
-let firstPage = await conversation.getNextCollectionPage('messages', {limit: 10})
-let secondPage = await conversation.getNextCollectionPage('messages', {limit: 10})
-await conversation.resetCollectionPage('messages')
 
-let posts = await blog.getFromCollection('posts', {limit: 10, exclusiveFirstTimestamp: 1570676695978})
+// Getting things pagewise
+let firstPage = await someConversation.collection('messages').getObjects({limit: 10})
+let secondPageAsData = await someConversation.collection('messages').getObjects({
+    limit: 10, 
+    returnData: true
+})
+await someConversation.resetCollectionPage('messages')
+let posts = await myBlog.collection('posts').getObjects({limit: 10, exclusiveFirstTimestamp: 1570676695978})
 
-await conversation.deleteFromCollection('messages', 'some_message_id')
 
-let messagesFromUser3 = conversation.scanCollection('messages', {param: 'email', value: user3.email})
-conversation.emptyCollection('messages')
+// Performing scans on collections
+let peopleThatLikeMeBack = me.collection('likes').scan({params: [
+    ['likes', 'contains', me.id],
+    ]
+})
+
+// Deletion
+await someConversation.collection(('messages').destroyObject({id: 'some_message_id'})
+await someConversation.emptyCollection('messages')
 ```
 
 
@@ -143,9 +176,9 @@ conversation.emptyCollection('messages')
 In the spirit of not having to worry about file size and not spend time reimplementing things like s3 interaction layers, jsondb has one built in:
 
 ```javascript
-await user.setFile('documents.resume', resumeBuffer)
-let buffer = user.getFile('documents.resume')
-let s3url = user.get('documents.resume')
+await user.setFile({path: 'documents.resume', data: resumeBuffer})
+let buffer = user.getFile({path: 'documents.resume'})
+let s3url = user.get({path: 'documents.resume'})
 ```
 
 
