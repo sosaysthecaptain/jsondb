@@ -241,7 +241,7 @@ class DBObjectHandler {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
                     obj[attribute] = await dbobject.get({path: attribute})
-                    obj[id] = dbobject.id
+                    obj.id = dbobject.id
                 }
             }
             data.push(obj)

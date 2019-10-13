@@ -90,7 +90,7 @@ it('DBObjectHandler (2) - batch operations', async function() {
         isTimeOrdered: false,
         seriesKey: seriesKey,
     })
-    
+
     // Getting by ID
     let message0 = await messageHandler.createObject({data: {message: 'first message'}})
     let message1 = await messageHandler.createObject({data: {message: 'second message'}})

@@ -450,139 +450,22 @@ class DBObject {
 
     _getCollectionSeriesKey(path) {return this.id + '_' + path}
     
-    // async addToCollection(path, object) {
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     this._ensureIsCollection(path)
-    //     let handler = this.getCollectionHandler(path)
-    //     let seriesKey = this._getCollectionSeriesKey(path)
-    //     let id = await handler.createObject(seriesKey, object)
-    //     return id
-    // }
-
-    // async getFromCollection(path, {id, limit, exclusiveFirstTimestamp, ascending, attributes, returnData, idOnly}) {
-    //     if (!ascending) {ascending = false}
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     this._ensureIsCollection(path)
-    //     let handler = this.getCollectionHandler(path)
-    //     let seriesKey = this._getCollectionSeriesKey(path)
-    //     if (returnData) {attributes = true}
-        
-    //     // Pagewise
-    //     if (!id) {
-    //         let ret = await handler.batchGetObjectsByPage({
-    //             seriesKey, 
-    //             limit, 
-    //             attributes, 
-    //             exclusiveFirstTimestamp, 
-    //             ascending,
-    //             idOnly
-    //         })
-    //         return ret
-    //     } else {
-    //         let obj = await handler.getObject(id, true)
-    //         if (!attributes) {return obj}
-    //         if (attributes === true) {return await obj.get()}
-    //         return await obj.get(attributes)
-    //     }
-    // }
-    
-    // async getNextCollectionPage(path, {limit, attributes, returnData}) {
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     this._ensureIsCollection(path)
-    //     let currentStartKey = this.index.getNodeProperty(path, 'exclusiveFirstTimestamp')
-    //     let data = await this.getFromCollection(path, {
-    //         limit, 
-    //         exclusiveFirstTimestamp: 
-    //         currentStartKey, 
-    //         ascending: false
-    //     })
-
-    //     // Figure out what the last timestamp was and store it
-    //     if (data.length) {
-    //         let lastObjectTimestamp = data[data.length-1].timestamp()
-    //         this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', lastObjectTimestamp)
-    //     } else {
-    //         this.resetCollectionPage(path)
-    //         return []
-    //     }
-
-    //     // If the user just wanted data, return that now
-    //     if (!attributes && !returnData) {
-    //         return data
-    //     } 
-        
-    //     // Otherwise, retrieve user's requested data
-    //     let raw = []
-    //     if (returnData) {attributes = undefined}
-    //     for (let i = 0; i < data.length; i++) {
-    //         let ret = await data[i].get(attributes)
-    //         raw.push(ret)
-    //     }
-    //     return raw
-    // }
-    
-    // async resetCollectionPage(path) {
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     this._ensureIsCollection(path)
-    //     this.index.setNodeProperty(path, 'exclusiveFirstTimestamp', 0)
-    // }
-
-    // async scanCollection(path, {param, value, attributes, query, returnData}) {
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     param = u.packKeys(param)
-    //     this._ensureIsCollection(path)
-    //     if (returnData) {attributes = true}
-    //     let handler = this.getCollectionHandler(path)
-    //     return await handler.scan({param, value, attributes, query})
-    // }
-    
-    // async deleteFromCollection(path, nodeID, confirm) {
-    //     await this.ensureIndexLoaded()
-    //     path = u.packKeys(path)
-    //     this._ensureIsCollection(path)
-    //     let handler = this.getCollectionHandler(path)
-    //     return await handler.deleteObject(nodeID, confirm)
-    // }
-    
     async emptyCollection(path) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         while (true) {
-            // let ids = await this.getFromCollection(path, {idOnly: true})
             debugger
             let dbobjects = await this.collection(path).getObjects()
             debugger
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                // await this.deleteFromCollection(path, id)
                 debugger
                 await this.collection(path).destroyObject({id: dbobject.id})
             }
         }
     }
-
-    
-
-    // getCollectionHandler(path) {
-    //     let seriesKey = this._getCollectionSeriesKey(path)
-    //     const DBObjectHandler = require('./DBObjectHandler')
-    //     return new DBObjectHandler({
-    //         seriesKey: seriesKey,
-    //         awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
-    //         awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
-    //         awsRegion: this.dynamoClient.awsRegion,
-    //         tableName: this.tableName,
-    //         isTimeOrdered: true, 
-    //         doNotCache: true
-    //     })
-    // }
 
     collection(path) {
         path = u.packKeys(path)
