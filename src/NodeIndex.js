@@ -13,10 +13,10 @@ const _ = require('lodash')
 
 const u = require('./u')
 
-TYPE_KEY = 'TYPE'
-SIZE_KEY = 'SIZE'
-PERMISSION_KEY = 'PERM'
-POINTER_KEY = 'POINTER'                   // single vertical pointer
+TYPE_KEY = 'T'
+SIZE_KEY = 'S'
+PERMISSION_KEY = 'P'
+POINTER_KEY = 'PTR    '                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 
 class NodeIndex {

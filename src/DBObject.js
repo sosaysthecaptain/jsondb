@@ -207,7 +207,6 @@ class DBObject {
                     pathsByChild[childID].push(path)
                 } else {
                     specialCases.push(paths)
-                    debugger
                     let test = this.index.getIDForPath(path)
                 }
             })
@@ -455,13 +454,10 @@ class DBObject {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         while (true) {
-            debugger
             let dbobjects = await this.collection(path).getObjects()
-            debugger
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                debugger
                 await this.collection(path).destroyObject({id: dbobject.id})
             }
         }

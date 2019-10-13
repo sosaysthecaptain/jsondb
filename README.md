@@ -191,23 +191,57 @@ When a DBObject is created it begins as a single document. Every time it is adde
 ```javascript
 originalObject = {
     key1: {
-        k1subkey1: 'some data here',
-        k1subkey2: {
-            subsub: {
-                another: 'object',
-                inside: 12345
-            },
+        subkey1: 'this is key1.subkey1',
+        subkey2: 'this is key1.subkey2',
+        subkey3: {
+            subsubkey1: 8882,
+            subsubkey2: 'asd',
+            subsubkey3: null,
         },
-    key2: 'more stuff'
+    },
+    key2: {
+        subkey1: 'this is key2.subkey1',
+        subkey2: 'this is key2.subkey2',
+        subkey3: 'this is key2.subkey3',
+    },
+    key3: {
+        subkey1: 'this is key3.subkey1',
+        subkey2: 'this is key3.subkey2',
+        subkey3: 'this is key3.subkey3',
+    }
 }
 
 dynamoNode = {
-    key1__k1subkey1: 'some data here',
-    key1__k1subkey2__subsub__another: 'object',
-    key1__k1subkey2__subsub__inside: 12345,
-    key2: 'more stuff'
-    META: {
-        <index tracking size and type of each node>
+    {
+        key1__subkey1: "this is key1.subkey1",      // Objects are stored flattened
+        key1__subkey2: "this is key1.subkey2",
+        key1__subkey3__subsubkey1: 8882,
+        key1__subkey3__subsubkey2: "asd",
+        key1__subkey3__subsubkey3: null,
+        key2__subkey1: "this is key2.subkey1",
+        key2__subkey2: "this is key2.subkey2",
+        key2__subkey3: "this is key2.subkey3",
+        key3__subkey1: "this is key3.subkey1",
+        key3__subkey2: "this is key3.subkey2",
+        key3__subkey3: "this is key3.subkey3"
+    },
+    META: {                                         // This is the index
+        key1__subkey1: {S: 20},                     // S: size of individual payload
+        key1__subkey2: {S: 20},
+        key1__subkey3__subsubkey1: {S: 4},
+        key1__subkey3__subsubkey2: {S: 3},
+        key1__subkey3__subsubkey3: {S: 0},
+        key2__subkey1: {S: 20},
+        key2__subkey2: {S: 20},
+        key2__subkey3: {S: 20},
+        key3__subkey1: {S: 20},
+        key3__subkey2: {S: 20},
+        key3__subkey3: {S: 20},
+        key1: {T: "M"},                             // T: type is "meta", meaning a non-terminal node
+        key1__subkey3: {T: "M"},
+        key2: {T: "M"},
+        key3: {T: "M"},
+        META: {T: "M", S: 1437}                     // Overall node size is stored here
     }
 }
 

@@ -30,11 +30,11 @@ u.LARGE_SERIALIZED_PAYLOAD = 'ENC'
 u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
 u.PATH_SEPARATOR = '__'
 
-u.NT_DEFAULT = 'DEFAULT'                    // default terminal node (get node)
-u.NT_META = 'META'                          // meta node (get children)
+u.NT_DEFAULT = 'D'                          // default terminal node (get node)
+u.NT_META = 'M'                             // meta node (get children)
 u.NT_VERTICAL_POINTER = 'VP'                // specific vertical pointer ()
 u.NT_LATERAL_POINTER = 'LP'                 // large, laterally-extended node
-u.NT_COLLECTION = 'COLLECT'                 // collection
+u.NT_COLLECTION = 'COL'                     // collection
 u.NT_S3REF = 'S3'                           // s3 file
 u.NT_REF = 'REF'                            // reference to another DBObject
 
