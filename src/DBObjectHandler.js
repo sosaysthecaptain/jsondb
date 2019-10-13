@@ -67,7 +67,7 @@ class DBObjectHandler {
         // Return some data, all data, or just the dbobject
         if (attributes) {
             return await dbobject.batchGet(attributes)
-        } else if (returnData) {
+        } else if (returnData && !attributes) {
             return await dbobject.get()
         } else  {
             return dbobject
@@ -118,7 +118,7 @@ class DBObjectHandler {
     }
     
     async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly}) {
-        if (returnData) {attributes = true}
+        if (returnData && !attributes) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
@@ -143,7 +143,7 @@ class DBObjectHandler {
             endTime,
             ascending
         })
-        if (returnData) {attributes = true}
+        if (returnData && !attributes) {attributes = true}
         return await this._objectsOrDataFromRaw(allObjectData, attributes)
     }
 
@@ -201,7 +201,7 @@ class DBObjectHandler {
             } else {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
-                    obj[attribute] = await dbobject.get(attribute)
+                    obj[attribute] = await dbobject.get({path: attribute})
                 }
             }
             data.push(obj)

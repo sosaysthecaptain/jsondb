@@ -137,8 +137,8 @@ it('DBObjectHandler (2) - batch operations', async function() {
         ascending: true,
         // attributes: ['message']
     })
-    let firstPageMessage0 = await firstPage[0].get('message') === 'first message'
-    let firstPageMessage2 = await firstPage[2].get('message') === 'third message'
+    let firstPageMessage0 = await firstPage[0].get({path: 'message'}) === 'first message'
+    let firstPageMessage2 = await firstPage[2].get({path: 'message'}) === 'third message'
     let passed3 = firstPageMessage0 && firstPageMessage2
     assert.equal(passed3, true)
 
@@ -150,8 +150,8 @@ it('DBObjectHandler (2) - batch operations', async function() {
         exclusiveFirstTimestamp: message2.id.split('-')[1]
         // attributes: ['message']
     })
-    let secondPageMessage0 = await secondPage[0].get('message') === 'fourth message'
-    let secondPageMessage2 = await secondPage[2].get('message') === 'sixth message'
+    let secondPageMessage0 = await secondPage[0].get({path: 'message'}) === 'fourth message'
+    let secondPageMessage2 = await secondPage[2].get({path: 'message'}) === 'sixth message'
     let passed4 = secondPageMessage0 && secondPageMessage2
     assert.equal(passed4, true)
         
