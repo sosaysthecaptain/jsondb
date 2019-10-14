@@ -1,6 +1,6 @@
 {
   "name": "jsondb",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "DynamoDB abstraction layer to let you work easily and efficiently with giant virtual objects",
   "main": "index.js",
   "scripts": {
