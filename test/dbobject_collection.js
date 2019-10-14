@@ -15,7 +15,7 @@ let dynamoClient = new DynamoClient({
 })
 
 
-it('DBObject_collection', async function() {
+it('DBObject_collection (1) - all basic functionality', async function() {
     this.timeout(u.TEST_TIMEOUT)
 
     let parentID = 'dbobjRefTestParent'
@@ -134,7 +134,72 @@ it('DBObject_collection', async function() {
     await parentObj.destroy()
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
-        
-        
 })
+
+it('DBObject_collection (2) - subclasses', async function() {
+    this.timeout(u.TEST_TIMEOUT)
+
+    let parentID = 'subclassTestParent'
+    let parentData = {
+        parentKey1: {
+            subKey1: 'this is an object',
+            subKey2: 'with a collection in it',
+            messages: 'collection goes here'
+        },
+        parentKey2: 'innocent bystander'
+    }
+
+    let TestSubclass = class TestSubclass extends jsondb.DBObject {
+        constructor(params) {
+            super(params)
+        }
+
+        async setTheThing() {
+            return this.set({attributes: {
+                thing: 'this is the thing'
+            }})
+        }
+
+        async getTheThing() {
+            return this.get({path: 'thing'})
+        }
+    }
     
+    let myHandler = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: config.tableName,
+        timeOrdered: false, 
+        subclass: TestSubclass
+    })
+    
+    let parentObj = await myHandler.createObject({id: parentID, data: parentData})
+    let read0 = await parentObj.get()
+    let passed0 = _.isEqual(parentData, read0)
+    assert.equal(passed0, true)
+    
+    
+    // Create collection, add something to it
+    let collectionPath = 'subclassPath'
+    await parentObj.createCollection({
+        path: collectionPath,
+        subclass: TestSubclass
+    })
+    
+    let subclassDBObject = await parentObj.collection(collectionPath).createObject({
+        data: {
+            body: "this isn't actually doing anything",
+        }
+    })
+
+    // Execute a method on the subclass
+    let testClassInstance = await parentObj.collection(collectionPath).getObject({id: subclassDBObject.id})
+    await testClassInstance.setTheThing()
+    let resultOfTest = await testClassInstance.getTheThing()
+    
+    assert.equal(resultOfTest, 'this is the thing')
+    
+    
+    await parentObj.destroy()
+})

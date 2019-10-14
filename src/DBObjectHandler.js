@@ -11,7 +11,7 @@ class DBObjectHandler {
         this.awsRegion = awsRegion || 'us-east-2'
         this.tableName = tableName
         this.bucketName = bucketName
-        this.subclass = subclass
+        this.Subclass = subclass || DBObject
         this.isTimeOrdered = isTimeOrdered
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
@@ -37,8 +37,9 @@ class DBObjectHandler {
     async createObject({id, data, allowOverwrite, permission}) {
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
-        let dbobject = new DBObject({
-            id: id,
+        // let dbobject = new DBObject({
+        let dbobject = new this.Subclass({
+        id: id,
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
@@ -49,7 +50,8 @@ class DBObjectHandler {
     }
 
     async destroyObject({id, confirm}) {
-        let dbobject = new DBObject({
+        // let dbobject = new DBObject({
+        let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
@@ -58,7 +60,8 @@ class DBObjectHandler {
     }
 
     async getObject({id, returnData, attributes}) {
-        let dbobject = new DBObject({
+        // let dbobject = new DBObject({
+        let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
@@ -81,7 +84,8 @@ class DBObjectHandler {
         }
         let dbobjects = {}
         ids.forEach(id => {
-            dbobjects[id] = new DBObject({
+            // dbobjects[id] = new DBObject({
+            dbobjects[id] = new this.Subclass({
                 id: id,
                 dynamoClient: this.dynamoClient,
                 tableName: this.tableName
@@ -214,7 +218,8 @@ class DBObjectHandler {
             delete data[u.PK]
             delete data[u.SK]
             
-            dbobjects.push(new DBObject({
+            // dbobjects.push(new DBObject({
+            dbobjects.push(new this.Subclass({
                 id: id,
                 tableName: this.tableName,
                 dynamoClient: this.dynamoClient,

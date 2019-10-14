@@ -99,6 +99,35 @@ let placesWherePeopleNamedTimLive = await userHandler.scan({
 })
 ```
 
+### DBObjectHandler - subclasses
+You can easily subclass DBObject, and pass your subclass to the handler such that it creates instances of your subclass rather than plain DBObjects:
+
+```javascript
+class MySubclass extends jsondb.DBObject {
+    constructor(params) {
+        super(params)
+    }
+
+    async setThing() {
+        return this.set({attributes: {
+            thing: 'this is a thing'
+        }})
+    }
+
+    async getThing() {
+        return this.get({path: 'thing'})
+    }
+
+    let myHandler = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: config.tableName,
+        subclass: MySubclass
+    })
+}
+```
+
 
 ## DBObject operations
 The entire point of `jsondb` is the ability to work with virtual objects in memory. a `DBObject` represents a large JSON object in the database, and provides an API for reading and writing parts of it without needing to retrieve the whole. 

@@ -146,20 +146,6 @@ class DBObject {
             return data
         } 
         
-        // // HANDLING OF SPECIAL TYPES, only available on single get calls
-        // let paths = Object.keys(data)
-        // for (let i = 0; i < paths.length; i++) {
-        //     let path = paths[i]
-        //     let value = data[path]
-        // }
-        // let node = this.index.getNodeAtPath()
-        // // Handle collection
-        
-        // // Handle reference
-        
-        // // Handle s3
-        
-        
         data = unflatten(data)
         return data
     }
@@ -435,11 +421,12 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, permission}) {
+    async createCollection({path, permission, subclass}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
+        this.index.setNodeProperty(path, 'subclass', subclass)
         this.index.setDontDelete(path, true)
         let attributes = {}
         attributes[path] = '<COLLECTION>'
@@ -467,13 +454,15 @@ class DBObject {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         let seriesKey = this._getCollectionSeriesKey(path)
-        const DBObjectHandler = require('./DBObjectHandler')
+        let subclass = this.index.getNodeProperty(path, 'subclass')
+        let DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
             seriesKey: seriesKey,
             awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
             awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
             awsRegion: this.dynamoClient.awsRegion,
             tableName: this.tableName,
+            subclass: subclass,
             isTimeOrdered: true, 
             doNotCache: true
         })
