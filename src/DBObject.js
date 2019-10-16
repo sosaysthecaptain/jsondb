@@ -32,7 +32,7 @@ class DBObject {
 
         
         // Default assumptions about information we don't have yet
-        this.permissionLevel = u.DEFAULT_PERMISSION_LEVEL
+        this.sensitivityLevel = u.DEFAULT_sensitivity_LEVEL
         this.maximumCacheSize = u.DEFAULT_CACHE_SIZE
         this.parent = null
         
@@ -57,19 +57,19 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create({data, permission, parent, allowOverwrite}) {
+    async create({data, sensitivity, parent, allowOverwrite}) {
         if (!allowOverwrite) {
             if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
         }
 
         this.parent = parent || null
-        this.permission = permission || u.DEFAULT_PERMISSION_LEVEL
+        this.sensitivity = sensitivity || u.DEFAULT_sensitivity_LEVEL
 
         if (data[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, permission})
+        return await this.set({attributes: data, sensitivity})
     }
 
     async destroy(confirm) {
@@ -126,17 +126,17 @@ class DBObject {
         }
     }
 
-    async get({path, permission}={}) {
+    async get({path, sensitivity}={}) {
         await this.ensureIndexLoaded()
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this._getEntireObject(permission)
+            let allKeysFlat = await this._getEntireObject(sensitivity)
             return unflatten(allKeysFlat)
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
-        let data = await this.batchGet({paths: path, permission})
+        let data = await this.batchGet({paths: path, sensitivity})
         
         if (path !== '') {
             data = unflatten(data)
@@ -150,7 +150,7 @@ class DBObject {
         return data
     }
     
-    async batchGet({paths, permission}) {
+    async batchGet({paths, sensitivity}) {
         await this.ensureIndexLoaded()
         let data = {}
 
@@ -173,8 +173,8 @@ class DBObject {
                 })
             })
 
-            // Filter requests by permission
-            pathObj = await this._permissionfilterAttributes(pathObj, permission)
+            // Filter requests by sensitivity
+            pathObj = await this._sensitivityfilterAttributes(pathObj, sensitivity)
             
             // Get what we can from the cache
             Object.keys(pathObj).forEach((path) => {
@@ -245,11 +245,11 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async setPermission(key, permission) {
+    async setsensitivity(key, sensitivity) {
 
     }
 
-    async getPermission(key, permission) {
+    async getsensitivity(key, sensitivity) {
 
     }
 
@@ -257,7 +257,7 @@ class DBObject {
         
     }
 
-    async set({attributes, permission}) {
+    async set({attributes, sensitivity}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         u.processAttributes(newAttributes)
@@ -272,9 +272,9 @@ class DBObject {
             this._cacheUnsetDeleted(changedPaths)
         }
 
-        // Update the index, set its permissions
-        this.index.build(newAttributes, permission)
-        this.index.updatePermissions(permission, newAttributes)
+        // Update the index, set its sensitivity levels
+        this.index.build(newAttributes, sensitivity)
+        this.index.updatesensitivity levels(sensitivity, newAttributes)
         this._cacheSet(newAttributes)
         
         
@@ -286,15 +286,15 @@ class DBObject {
         }
     }
 
-    async modify({path, fn, permission}) {
+    async modify({path, fn, sensitivity}) {
         u.startTime('modify ' + path)
-        let obj = await this.get({path, permission})
+        let obj = await this.get({path, sensitivity})
         fn(obj)
 
         let attributes = {}
         attributes[path] = obj
 
-        let res = this.set({attributes, permission})
+        let res = this.set({attributes, sensitivity})
         u.stopTime('modify ' + path)
         return res
     }
@@ -351,20 +351,20 @@ class DBObject {
     via special purpose getters and setters
 
     */
-   async setReference({path, id, permission}) {
+   async setReference({path, id, sensitivity}) {
        await this.ensureIndexLoaded()
        path = u.packKeys(path)
        let attributes = {}
        attributes[path] = id
        this.index.setNodeProperty(path, 'reference', id)
        this.index.setDontDelete(path, true)
-       await this.set({attributes, permission})
+       await this.set({attributes, sensitivity})
     }
     
-    async getReference({path, permission}) {
+    async getReference({path, sensitivity}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        let id = await this.get({path, permission})
+        let id = await this.get({path, sensitivity})
         let dbobject = new DBObject({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -376,7 +376,7 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile({path, data, permission}) {
+    async setFile({path, data, sensitivity}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
 
@@ -390,21 +390,21 @@ class DBObject {
         let ref = await this.s3Client.write(fileID, data)
         let attributes = {}
         attributes[path] = ref
-        await this.set({attributes, permission})
+        await this.set({attributes, sensitivity})
         return ref
     }
     
-    async getFile({path, permission, returnAsBuffer}) {
+    async getFile({path, sensitivity, returnAsBuffer}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
             throw new Error('Node is not a file')
         }
 
-        // Manually check permission, since we don't necessarily have the built-in check
-        if (permission) {
-            let nodePermission = this.index.getNodePermission(path)
-            if (permission < nodePermission) {return null}
+        // Manually check sensitivity, since we don't necessarily have the built-in check
+        if (sensitivity) {
+            let nodesensitivity = this.index.getNodesensitivity(path)
+            if (sensitivity < nodesensitivity) {return null}
         }
         
         // Return either s3 url from object or else read the buffer from fileID on index
@@ -421,7 +421,7 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, permission, subclass}) {
+    async createCollection({path, sensitivity, subclass}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
@@ -430,7 +430,7 @@ class DBObject {
         this.index.setDontDelete(path, true)
         let attributes = {}
         attributes[path] = '<COLLECTION>'
-        await this.set({attributes, permission})
+        await this.set({attributes, sensitivity})
         return this._getCollectionSeriesKey(path)
     }
 
@@ -480,9 +480,9 @@ class DBObject {
 
 
     
-    // async getReference(path, {permission}={}) {
+    // async getReference(path, {sensitivity}={}) {
     //     await this.ensureIndexLoaded()
-    //     let id = await this.get(path, {permission})
+    //     let id = await this.get(path, {sensitivity})
     //     let dbobject = new DBObject(id, {
     //         dynamoClient: this.dynamoClient,
     //         tableName: this.tableName
@@ -532,26 +532,26 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject(permission) {
+    async _getEntireObject(sensitivity) {
 
         await this.ensureIndexLoaded()
 
         // Get everything locally available
-        let data = await this.batchGet({permission})
+        let data = await this.batchGet({sensitivity})
 
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID]._getEntireObject(permission)
+            let dataFromChild = await children[childID]._getEntireObject(sensitivity)
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
         }
 
-        // Filter by permission -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
-        this._permissionfilterAttributes(data, permission)
+        // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
+        this._sensitivityfilterAttributes(data, sensitivity)
 
         return u.unpackKeys(data)
     }
@@ -656,13 +656,13 @@ class DBObject {
         return dbobjects
     }
 
-    // Takes object of attributes to get, filters down those user has permission for
-    async _permissionfilterAttributes(attributes, userPermission=9) {
-        if (userPermission == undefined) {return attributes}
+    // Takes object of attributes to get, filters down those user has sensitivity for
+    async _sensitivityfilterAttributes(attributes, usersensitivity=9) {
+        if (usersensitivity == undefined) {return attributes}
         let filtered = {}
         Object.keys(attributes).forEach((path) => {
-            let nodePermission = this.index.getNodePermission(path)
-            if (nodePermission <= userPermission) {
+            let nodesensitivity = this.index.getNodesensitivity(path)
+            if (nodesensitivity <= usersensitivity) {
                 filtered[path] = attributes[path]
             }
         })
@@ -755,7 +755,7 @@ class DBObject {
                 let pathsOnNewNode = Object.keys(attributesForNewNode)
                 await newNode.create({
                     data: attributesForNewNode,
-                    permissionLevel: this.permissionLevel, 
+                    sensitivityLevel: this.sensitivityLevel, 
                     parent: this.id
                 })
                 this.index.setVerticalPointer(newNode.id, pathsOnNewNode)

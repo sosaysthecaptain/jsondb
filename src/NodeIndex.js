@@ -15,7 +15,7 @@ const u = require('./u')
 
 TYPE_KEY = 'T'
 SIZE_KEY = 'S'
-PERMISSION_KEY = 'P'
+sensitivity_KEY = 'P'
 POINTER_KEY = 'PTR    '                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 
@@ -106,19 +106,19 @@ class NodeIndex {
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].type(u.NT_META)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
-        // this.i[u.INDEX_KEY].permission('FIX THIS')
+        // this.i[u.INDEX_KEY].sensitivity('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
     }
 
-    // Updates only those specified, others inherit permission of closest parent with permission
-    updatePermissions(permission, attributes) {
+    // Updates only those specified, others inherit sensitivity of closest parent with sensitivity
+    updatesensitivity levels(sensitivity, attributes) {
         if (attributes) {
             Object.keys(attributes).forEach((path) => {
                 let node = this.getNodeAtPath(path)
-                node.permission(permission)
+                node.sensitivity(sensitivity)
             })
         } else {
-            this.metaIndex().permission(permission)
+            this.metaIndex().sensitivity(sensitivity)
         }
     }
 
@@ -301,23 +301,23 @@ class NodeIndex {
     resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
     
     
-    setNodePermission(path, permission) {
+    setNodesensitivity(path, sensitivity) {
         this.ensureNodeAtPath(path)
         let node = this.getNodeAtPath(path)
-        node.data[u.PERMISSION_KEY] = permission
+        node.data[u.sensitivity_KEY] = sensitivity
     }
-    getNodePermission(path) {
+    getNodesensitivity(path) {
         if (!path) {
             return 0
         }   
         path = u.packKeys(path)
         let node = this.getNodeAtPath(path)
         if (!node) {return null}
-        let writtenPermission = node.permission()
-        if (writtenPermission) {return writtenPermission}
+        let writtensensitivity = node.sensitivity()
+        if (writtensensitivity) {return writtensensitivity}
         else {
             let parentPath = u.getParentPath(path)
-            return (this.getNodePermission(parentPath))
+            return (this.getNodesensitivity(parentPath))
         }
     }
 
@@ -423,6 +423,11 @@ class NodeIndex {
         })
     }
 
+    // marc-look
+    addMember({id, readsensitivity, writesensitivity}) {
+        // this.i[UIEvent.INDEX_KEY].
+    }
+
 
     isLoaded() {return this.loaded}
     isOversize() {return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE}
@@ -455,7 +460,7 @@ class IndexEntry {
 
     type(type) {return this.univGetSet(TYPE_KEY, type)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
-    permission(permission) {return this.univGetSet(PERMISSION_KEY, permission)}
+    sensitivity(sensitivity) {return this.univGetSet(sensitivity_KEY, sensitivity)}
     
 
     univGetSet(writableKey, value) {

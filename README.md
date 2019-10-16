@@ -3,7 +3,7 @@
 - **get and set** properties as you would on an object: `obj.set({'some.path': 12345})`, `obj.get('path.to.key')`
 - **work with collections:** `user.getFromCollection('messages', {limit: 20})`
 - **upload and retrieve files from s3** as if they were part of the object: `user.setFile('thumbnail', <buffer>)`
-- associate specific **permission levels** with specific keys, and fetch in a manner that automatically filters out objects above the specified permission level: `user.get(settings, {permission: 3})`
+- associate specific **sensitivity levels** with specific keys, and fetch in a manner that automatically filters out objects above the specified sensitivity level: `user.get(settings, {sensitivity: 3})`
 - **nest DBObjects** inside other DBObjects: `user1.setReference('friends.user2', user2.id)`
 
 
@@ -142,7 +142,7 @@ let valueOfSpecifiedKey = myObject.get({path: 'path.to.key'})
 
 await myObject.set({attributes: {'path.to.key': value}})
 
-await user.set({attributes: {password: '4321bang', {permission: 5}}})
+await user.set({attributes: {password: '4321bang', {sensitivity: 5}}})
 ```
 
 

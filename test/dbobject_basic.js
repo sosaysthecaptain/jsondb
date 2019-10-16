@@ -60,7 +60,7 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     // assert.equal(dbObjectExists, false)
 })
 
-it('DBObject_basic (2) permissions', async function() {
+it('DBObject_basic (2) sensitivity levels', async function() {
 
     this.timeout(u.TEST_TIMEOUT)
     let testObjID = 'dbobject_test_2'
@@ -70,13 +70,13 @@ it('DBObject_basic (2) permissions', async function() {
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    await dbobject.create({data: basicObj, permission: 5})
-    let read0 = await dbobject.get({path: 'key1', permission: 0})
+    await dbobject.create({data: basicObj, sensitivity: 5})
+    let read0 = await dbobject.get({path: 'key1', sensitivity: 0})
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
-    let read1 = await dbobject.get({permission: 10})
+    let read1 = await dbobject.get({sensitivity: 10})
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
     
@@ -90,10 +90,10 @@ it('DBObject_basic (2) permissions', async function() {
     
     // Starting fresh, read one key
     let newString = 'change and should now be readable'
-    await dbobject.set({attributes: {'key1': newString}, permission: 1})
+    await dbobject.set({attributes: {'key1': newString}, sensitivity: 1})
     
     // Read entire object
-    let read3 = await dbobject.get({path: 'key1', permission: 5})
+    let read3 = await dbobject.get({path: 'key1', sensitivity: 5})
     let passed3 = _.isEqual(newString, read3)
     assert.equal(passed3, true)
     

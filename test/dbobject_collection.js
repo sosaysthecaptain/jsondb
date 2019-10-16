@@ -51,7 +51,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         data: {
             body: 'this is a message',
         },
-        permission: 5
+        sensitivity: 5
     })
 
     let message_1 = await parentObj.collection(collectionPath).createObject({data: {body: 'second message'}})
@@ -60,7 +60,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let passed1 = message_0.id.split('-').length === 2
     assert.equal(passed1, true)
     
-    // PERMISSION
+    // sensitivity
     
     // Get a single message
     let message0_data = await parentObj.collection(collectionPath).getObject({

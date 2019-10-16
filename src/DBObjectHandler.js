@@ -34,7 +34,7 @@ class DBObjectHandler {
         })
     }
 
-    async createObject({id, data, allowOverwrite, permission}) {
+    async createObject({id, data, allowOverwrite, sensitivity}) {
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
         // let dbobject = new DBObject({
@@ -45,7 +45,7 @@ class DBObjectHandler {
             tableName: this.tableName,
             isTimeOrdered: this.isTimeOrdered
         })
-        await dbobject.create({data, allowOverwrite, permission})
+        await dbobject.create({data, allowOverwrite, sensitivity})
         return dbobject
     }
 
