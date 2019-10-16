@@ -126,17 +126,17 @@ class DBObject {
         }
     }
 
-    async get({path, sensitivity}={}) {
+    async get({path, sensitivity, noCache}={}) {
         await this.ensureIndexLoaded()
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this._getEntireObject(sensitivity)
+            let allKeysFlat = await this._getEntireObject({sensitivity, noCache})
             return unflatten(allKeysFlat)
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
-        let data = await this.batchGet({paths: path, sensitivity})
+        let data = await this.batchGet({paths: path, sensitivity, noCache})
         
         if (path !== '') {
             data = unflatten(data)
@@ -150,7 +150,7 @@ class DBObject {
         return data
     }
     
-    async batchGet({paths, sensitivity}) {
+    async batchGet({paths, sensitivity, noCache}) {
         await this.ensureIndexLoaded()
         let data = {}
 
@@ -177,10 +177,12 @@ class DBObject {
             pathObj = await this._sensitivityfilterAttributes(pathObj, sensitivity)
             
             // Get what we can from the cache
-            Object.keys(pathObj).forEach((path) => {
-                let fromCache = this._cacheGet(path)
-                if (fromCache) {data[path] = fromCache}
-            })
+            if (!noCache) {
+                Object.keys(pathObj).forEach((path) => {
+                    let fromCache = this._cacheGet(path)
+                    if (fromCache) {data[path] = fromCache}
+                })
+            }
 
             // Location of key—-here, on direct child, gettable from direct child
             let pathsByChild = {}
@@ -266,7 +268,6 @@ class DBObject {
         this._cacheSet(newAttributes)
 
         // Set top level creator/member data
-        debugger
         await this.setCreator({id: creator})
         let memberIDs = Object.keys(members)
         for (let i = 0; i < memberIDs.length; i++) {
@@ -555,19 +556,19 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject(sensitivity) {
+    async _getEntireObject({sensitivity, noCache}) {
 
         await this.ensureIndexLoaded()
 
         // Get everything locally available
-        let data = await this.batchGet({sensitivity})
+        let data = await this.batchGet({sensitivity, noCache})
 
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID]._getEntireObject(sensitivity)
+            let dataFromChild = await children[childID]._getEntireObject({sensitivity, noCache})
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
