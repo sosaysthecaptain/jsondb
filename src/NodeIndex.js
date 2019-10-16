@@ -15,7 +15,7 @@ const u = require('./u')
 
 TYPE_KEY = 'T'
 SIZE_KEY = 'S'
-sensitivity_KEY = 'P'
+SENSITIVITY_KEY = 'PERM_LVL'
 POINTER_KEY = 'PTR    '                   // single vertical pointer
 LATERAL_POINTER_ARRAY_KEY = 'LAT_PTR'     // array of lateral pointers
 
@@ -106,7 +106,6 @@ class NodeIndex {
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].type(u.NT_META)
         this.i[u.INDEX_KEY].size(objectSize + indexSize)
-        // this.i[u.INDEX_KEY].sensitivity('FIX THIS')
         this.i[u.INDEX_KEY].id = this.id
     }
 
@@ -301,23 +300,23 @@ class NodeIndex {
     resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
     
     
-    setNodesensitivity(path, sensitivity) {
+    setNodeSensitivity(path, sensitivity) {
         this.ensureNodeAtPath(path)
         let node = this.getNodeAtPath(path)
-        node.data[u.sensitivity_KEY] = sensitivity
+        node.data[SENSITIVITY_KEY] = sensitivity
     }
-    getNodesensitivity(path) {
+    getNodeSensitivity(path) {
         if (!path) {
             return 0
         }   
         path = u.packKeys(path)
         let node = this.getNodeAtPath(path)
         if (!node) {return null}
-        let writtensensitivity = node.sensitivity()
-        if (writtensensitivity) {return writtensensitivity}
+        let writtenSensitivity = node.sensitivity()
+        if (writtenSensitivity) {return writtenSensitivity}
         else {
             let parentPath = u.getParentPath(path)
-            return (this.getNodesensitivity(parentPath))
+            return (this.getNodeSensitivity(parentPath))
         }
     }
 
@@ -454,7 +453,7 @@ class IndexEntry {
 
     type(type) {return this.univGetSet(TYPE_KEY, type)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
-    sensitivity(sensitivity) {return this.univGetSet(sensitivity_KEY, sensitivity)}
+    sensitivity(sensitivity) {return this.univGetSet(SENSITIVITY_KEY, sensitivity)}
     
 
     univGetSet(writableKey, value) {

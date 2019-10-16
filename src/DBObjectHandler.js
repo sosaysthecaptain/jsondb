@@ -37,9 +37,8 @@ class DBObjectHandler {
     async createObject({id, data, allowOverwrite, sensitivity}) {
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
-        // let dbobject = new DBObject({
         let dbobject = new this.Subclass({
-        id: id,
+            id: id,
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
@@ -49,8 +48,10 @@ class DBObjectHandler {
         return dbobject
     }
 
+    // TODO: like create, except create ID on the basis of SK/path
+    async addObject() {}
+
     async destroyObject({id, confirm}) {
-        // let dbobject = new DBObject({
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -60,7 +61,6 @@ class DBObjectHandler {
     }
 
     async getObject({id, returnData, attributes}) {
-        // let dbobject = new DBObject({
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,

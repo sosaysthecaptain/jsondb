@@ -126,17 +126,21 @@ class DBObject {
         }
     }
 
-    async get({path, sensitivity, noCache}={}) {
+    async get({path, permission, user, noCache}={}) {
         await this.ensureIndexLoaded()
+
+        if (user) {
+            permission = this.getMemberPermission(user)
+        }
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
-            let allKeysFlat = await this._getEntireObject({sensitivity, noCache})
+            let allKeysFlat = await this._getEntireObject({permission, noCache})
             return unflatten(allKeysFlat)
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
-        let data = await this.batchGet({paths: path, sensitivity, noCache})
+        let data = await this.batchGet({paths: path, permission, noCache})
         
         if (path !== '') {
             data = unflatten(data)
@@ -150,9 +154,13 @@ class DBObject {
         return data
     }
     
-    async batchGet({paths, sensitivity, noCache}) {
+    async batchGet({paths, permission, user, noCache}) {
         await this.ensureIndexLoaded()
         let data = {}
+
+        if (user) {
+            permission = this.getMemberPermission(user)
+        }
 
         // Does this node go further than what we have reference of in the local index?
         if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
@@ -173,8 +181,8 @@ class DBObject {
                 })
             })
 
-            // Filter requests by sensitivity
-            pathObj = await this._sensitivityfilterAttributes(pathObj, sensitivity)
+            // Filter requests by permission
+            pathObj = await this._permissionFilterAttributes(pathObj, permission)
             
             // Get what we can from the cache
             if (!noCache) {
@@ -287,15 +295,15 @@ class DBObject {
         }
     }
 
-    async modify({path, fn, sensitivity}) {
+    async modify({path, fn, permission, user}) {
         u.startTime('modify ' + path)
-        let obj = await this.get({path, sensitivity})
+        let obj = await this.get({path, permission, user})
         fn(obj)
 
         let attributes = {}
         attributes[path] = obj
 
-        let res = this.set({attributes, sensitivity})
+        let res = this.set({attributes})
         u.stopTime('modify ' + path)
         return res
     }
@@ -362,10 +370,10 @@ class DBObject {
        await this.set({attributes, sensitivity})
     }
     
-    async getReference({path, sensitivity}) {
+    async getReference({path, permission, user}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        let id = await this.get({path, sensitivity})
+        let id = await this.get({path, permission, user})
         let dbobject = new DBObject({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -395,17 +403,20 @@ class DBObject {
         return ref
     }
     
-    async getFile({path, sensitivity, returnAsBuffer}) {
+    async getFile({path, permission, user, returnAsBuffer}) {
         await this.ensureIndexLoaded()
+
+        if (user) {permission = this.getMemberPermission({id: user})}
+
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
             throw new Error('Node is not a file')
         }
 
         // Manually check sensitivity, since we don't necessarily have the built-in check
-        if (sensitivity) {
-            let nodesensitivity = this.index.getNodesensitivity(path)
-            if (sensitivity < nodesensitivity) {return null}
+        if (permission) {
+            let nodeSensitivity = this.index.getNodeSensitivity(path)
+            if (permission < nodeSensitivity) {return null}
         }
         
         // Return either s3 url from object or else read the buffer from fileID on index
@@ -487,28 +498,34 @@ class DBObject {
         await this.ensureIndexLoaded()
         return this.index.metaIndex()[u.CREATOR]
     }
+    
     async getCreatedDate() {
         await this.ensureIndexLoaded()
         return this.index.metaIndex()[u.CREATED_DATE]
     }
-    
-    async setMemberPermission({id, readPermission, writePermission}) {
+
+    async setMemberPermission({id, permission}) {
         await this.ensureIndexLoaded()
         this.index.metaIndex()[u.MEMBERS] = this.index.metaIndex()[u.MEMBERS] || {}
-        this.index.metaIndex()[u.MEMBERS][id] = this.index.metaIndex()[u.MEMBERS][id] || {}
-        if (readPermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION] = readPermission}
-        if (writePermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION] = writePermission}
+        this.index.metaIndex()[u.MEMBERS][id] = permission
     }
     
-    async getMemberPermission({id, write}) {
+    async getMemberPermission({id}) {
         await this.ensureIndexLoaded()
         if (this.index.metaIndex()[u.CREATOR] === id) {return u.MAX_PERMISSION}
         if (this.index.metaIndex()[u.MEMBERS][id]) {
-            if (write) {return this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION]}
-            else {return this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION]}
-        } else {return u.DEFAULT_PERMISSION}
+            return this.index.metaIndex()[u.MEMBERS][id]
+        } else {
+            return u.DEFAULT_PERMISSION
+        }
     }
 
+    async getMembers() {
+        await this.ensureIndexLoaded()
+        return this.index.metaIndex()[u.MEMBERS]
+
+    }
+    
     async removeMember({id}) {
         await this.ensureIndexLoaded()
         this.index.metaIndex()[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
@@ -556,19 +573,20 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject({sensitivity, noCache}) {
-
+    async _getEntireObject({permission, user, noCache}) {
         await this.ensureIndexLoaded()
 
+        if (user) {permission = this.getMemberPermission({id: user})}
+
         // Get everything locally available
-        let data = await this.batchGet({sensitivity, noCache})
+        let data = await this.batchGet({permission, noCache})
 
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID]._getEntireObject({sensitivity, noCache})
+            let dataFromChild = await children[childID]._getEntireObject({permission, noCache})
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
@@ -681,12 +699,11 @@ class DBObject {
     }
 
     // Takes object of attributes to get, filters down those user has sensitivity for
-    async _sensitivityfilterAttributes(attributes, usersensitivity=9) {
-        if (usersensitivity == undefined) {return attributes}
+    async _sensitivityFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
         let filtered = {}
         Object.keys(attributes).forEach((path) => {
-            let nodesensitivity = this.index.getNodesensitivity(path)
-            if (nodesensitivity <= usersensitivity) {
+            let nodesensitivity = this.index.getNodeSensitivity(path)
+            if (nodeSensitivity <= permission) {
                 filtered[path] = attributes[path]
             }
         })

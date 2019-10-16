@@ -41,8 +41,6 @@ u.NT_REF = 'REF'                            // reference to another DBObject
 u.MEMBERS = 'MEMBERS'
 u.CREATOR = 'CREATOR'
 u.CREATED_DATE = 'C_TS'
-u.READ_PERMISSION = 'R'
-u.WRITE_PERMISSION = 'W'
 u.MAX_PERMISSION = 9
 u.DEFAULT_PERMISSION = 5
 
