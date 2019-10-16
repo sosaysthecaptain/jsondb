@@ -267,14 +267,16 @@ class DBObject {
 
         // Set top level creator/member data
         debugger
-        this.setCreator({id: creator})
-        Object.keys(members).forEach(memberID => {
-            this.setMemberPermission({
+        await this.setCreator({id: creator})
+        let memberIDs = Object.keys(members)
+        for (let i = 0; i < memberIDs.length; i++) {
+            let memberID = memberIDs[i]
+            await this.setMemberPermission({
                 id: memberID, 
                 readPermission: members[memberID].read, 
                 writePermission: members[memberID].write
             })
-        })
+        }
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
@@ -475,17 +477,30 @@ class DBObject {
         }
     }
 
-    setCreator({id}) {this.index.metaIndex()[u.CREATOR] = id}
-    getCreator() {return this.index.metaIndex()[u.CREATOR]}
+    async setCreator({id}) {
+        await this.ensureIndexLoaded()
+        this.index.metaIndex()[u.CREATOR] = id
+        this.index.metaIndex()[u.CREATED_DATE] = Date.now()
+    }
+    async getCreator() {
+        await this.ensureIndexLoaded()
+        return this.index.metaIndex()[u.CREATOR]
+    }
+    async getCreatedDate() {
+        await this.ensureIndexLoaded()
+        return this.index.metaIndex()[u.CREATED_DATE]
+    }
     
-    setMemberPermission({id, readPermission, writePermission}) {
+    async setMemberPermission({id, readPermission, writePermission}) {
+        await this.ensureIndexLoaded()
         this.index.metaIndex()[u.MEMBERS] = this.index.metaIndex()[u.MEMBERS] || {}
         this.index.metaIndex()[u.MEMBERS][id] = this.index.metaIndex()[u.MEMBERS][id] || {}
         if (readPermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION] = readPermission}
         if (writePermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION] = writePermission}
     }
     
-    getMemberPermission({id, write}) {
+    async getMemberPermission({id, write}) {
+        await this.ensureIndexLoaded()
         if (this.index.metaIndex()[u.CREATOR] === id) {return u.MAX_PERMISSION}
         if (this.index.metaIndex()[u.MEMBERS][id]) {
             if (write) {return this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION]}
@@ -493,7 +508,8 @@ class DBObject {
         } else {return u.DEFAULT_PERMISSION}
     }
 
-    removeMember({id}) {
+    async removeMember({id}) {
+        await this.ensureIndexLoaded()
         this.index.metaIndex()[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
         delete this.index.metaIndex()[u.MEMBERS][id]
     }
