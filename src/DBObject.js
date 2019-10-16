@@ -266,16 +266,15 @@ class DBObject {
         this._cacheSet(newAttributes)
 
         // Set top level creator/member data
-        this.index.setCreator({id: creator})
-        Object.keys(members).forEach(member => {
-            this.index.setMemberPermission({
+        debugger
+        this.setCreator({id: creator})
+        Object.keys(members).forEach(memberID => {
+            this.setMemberPermission({
                 id: memberID, 
-                readPermission: members[member].read, 
-                writePermission: members[member].write
+                readPermission: members[memberID].read, 
+                writePermission: members[memberID].write
             })
         })
-        
-        
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
@@ -481,13 +480,13 @@ class DBObject {
     
     setMemberPermission({id, readPermission, writePermission}) {
         this.index.metaIndex()[u.MEMBERS] = this.index.metaIndex()[u.MEMBERS] || {}
-        this.index.metaIndex()[MEMBERS][id] = this.index.metaIndex()[MEMBERS][id] || {}
-        if (readPermission) {this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION] = readPermission}
-        if (writePermission) {this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION] = writePermission}
+        this.index.metaIndex()[u.MEMBERS][id] = this.index.metaIndex()[u.MEMBERS][id] || {}
+        if (readPermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION] = readPermission}
+        if (writePermission !== undefined) {this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION] = writePermission}
     }
     
     getMemberPermission({id, write}) {
-        if (this.index.metaIndex()[CREATOR] === id) {return u.MAX_PERMISSION}
+        if (this.index.metaIndex()[u.CREATOR] === id) {return u.MAX_PERMISSION}
         if (this.index.metaIndex()[u.MEMBERS][id]) {
             if (write) {return this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION]}
             else {return this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION]}
