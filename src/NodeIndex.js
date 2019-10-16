@@ -111,7 +111,7 @@ class NodeIndex {
     }
 
     // Updates only those specified, others inherit sensitivity of closest parent with sensitivity
-    updatesensitivity levels(sensitivity, attributes) {
+    updateSensitivities(sensitivity, attributes) {
         if (attributes) {
             Object.keys(attributes).forEach((path) => {
                 let node = this.getNodeAtPath(path)
@@ -422,12 +422,6 @@ class NodeIndex {
             this.updateMetaNodes()
         })
     }
-
-    // marc-look
-    addMember({id, readsensitivity, writesensitivity}) {
-        // this.i[UIEvent.INDEX_KEY].
-    }
-
 
     isLoaded() {return this.loaded}
     isOversize() {return this.i[u.INDEX_KEY].size() > u.MAX_NODE_SIZE}

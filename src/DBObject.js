@@ -57,7 +57,7 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create({data, sensitivity, parent, allowOverwrite}) {
+    async create({data, sensitivity, parent, allowOverwrite, creator, members}) {
         if (!allowOverwrite) {
             if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
         }
@@ -69,7 +69,7 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, sensitivity})
+        return await this.set({attributes: data, sensitivity, creator, members})
     }
 
     async destroy(confirm) {
@@ -245,19 +245,7 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async setsensitivity(key, sensitivity) {
-
-    }
-
-    async getsensitivity(key, sensitivity) {
-
-    }
-
-    async sync() {
-        
-    }
-
-    async set({attributes, sensitivity}) {
+    async set({attributes, sensitivity, creator, members}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         u.processAttributes(newAttributes)
@@ -274,8 +262,19 @@ class DBObject {
 
         // Update the index, set its sensitivity levels
         this.index.build(newAttributes, sensitivity)
-        this.index.updatesensitivity levels(sensitivity, newAttributes)
+        this.index.updateSensitivities(sensitivity, newAttributes)
         this._cacheSet(newAttributes)
+
+        // Set top level creator/member data
+        this.index.setCreator({id: creator})
+        Object.keys(members).forEach(member => {
+            this.index.setMemberPermission({
+                id: memberID, 
+                readPermission: members[member].read, 
+                writePermission: members[member].write
+            })
+        })
+        
         
         
         // If oversize, split, otherwise write
@@ -470,26 +469,35 @@ class DBObject {
     
     getCollectionSeriesKey(path) {return (this.id + '_' + path)}
 
+    
     _ensureIsCollection(path) {
         if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
             throw new Error('Specified path is not a collection')
         }
     }
 
-
-
-
+    setCreator({id}) {this.index.metaIndex()[u.CREATOR] = id}
+    getCreator() {return this.index.metaIndex()[u.CREATOR]}
     
-    // async getReference(path, {sensitivity}={}) {
-    //     await this.ensureIndexLoaded()
-    //     let id = await this.get(path, {sensitivity})
-    //     let dbobject = new DBObject(id, {
-    //         dynamoClient: this.dynamoClient,
-    //         tableName: this.tableName
-    //     })
-    //     await dbobject.loadIndex()
-    //     return dbobject
-    // }
+    setMemberPermission({id, readPermission, writePermission}) {
+        this.index.metaIndex()[u.MEMBERS] = this.index.metaIndex()[u.MEMBERS] || {}
+        this.index.metaIndex()[MEMBERS][id] = this.index.metaIndex()[MEMBERS][id] || {}
+        if (readPermission) {this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION] = readPermission}
+        if (writePermission) {this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION] = writePermission}
+    }
+    
+    getMemberPermission({id, write}) {
+        if (this.index.metaIndex()[CREATOR] === id) {return u.MAX_PERMISSION}
+        if (this.index.metaIndex()[u.MEMBERS][id]) {
+            if (write) {return this.index.metaIndex()[u.MEMBERS][id][u.WRITE_PERMISSION]}
+            else {return this.index.metaIndex()[u.MEMBERS][id][u.READ_PERMISSION]}
+        } else {return u.DEFAULT_PERMISSION}
+    }
+
+    removeMember({id}) {
+        this.index.metaIndex()[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
+        delete this.index.metaIndex()[u.MEMBERS][id]
+    }
 
 
     /*  INTERNAL METHODS */

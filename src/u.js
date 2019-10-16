@@ -38,6 +38,13 @@ u.NT_COLLECTION = 'COL'                     // collection
 u.NT_S3REF = 'S3'                           // s3 file
 u.NT_REF = 'REF'                            // reference to another DBObject
 
+u.MEMBERS = 'MEMBERS'
+u.CREATOR = 'CREATOR'
+u.READ_PERMISSION = 'R'
+u.WRITE_PERMISSION = 'W'
+u.MAX_PERMISSION = 9
+u.DEFAULT_PERMISSION = 5
+
 
 u.TEST_TIMEOUT = 10 * 60 * 1000
 

@@ -14,7 +14,7 @@ let dynamoClient = new DynamoClient({
     awsRegion: config.AWS_REGION
 })
 
-it('DBObject_basic (2) sensitivity levels', async function() {
+xit('DBObject_permission', async function() {
 
     this.timeout(u.TEST_TIMEOUT)
     let testObjID = 'dbobject_test_2'
@@ -27,7 +27,7 @@ it('DBObject_basic (2) sensitivity levels', async function() {
     await dbobject.create({
         data: basicObj, 
         sensitivity: 5,
-        owner: 'user1@gmail.com'
+        creator: 'user1@gmail.com'
     })
     let read0 = await dbobject.get({
         path: 'key1', 
