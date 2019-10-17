@@ -306,6 +306,7 @@ class NodeIndex {
         node.data[SENSITIVITY_KEY] = sensitivity
     }
     getNodeSensitivity(path) {
+        u.dbg()
         if (!path) {
             return 0
         }   
@@ -453,7 +454,11 @@ class IndexEntry {
 
     type(type) {return this.univGetSet(TYPE_KEY, type)}
     parent(parent) {return this.univGetSet('PARENT', parent)}
-    sensitivity(sensitivity) {return this.univGetSet(SENSITIVITY_KEY, sensitivity)}
+    sensitivity(sensitivity) {
+        let res = this.univGetSet(SENSITIVITY_KEY, sensitivity)
+        if (sensitivity && !res) {res = u.DEFAULT_PERMISSION}
+        return res
+    }
     
 
     univGetSet(writableKey, value) {

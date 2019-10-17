@@ -128,10 +128,7 @@ class DBObject {
 
     async get({path, permission, user, noCache}={}) {
         await this.ensureIndexLoaded()
-
-        if (user) {
-            permission = this.getMemberPermission(user)
-        }
+        if (user) {permission = await this.getMemberPermission({id: user})}
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
@@ -158,9 +155,7 @@ class DBObject {
         await this.ensureIndexLoaded()
         let data = {}
 
-        if (user) {
-            permission = this.getMemberPermission(user)
-        }
+        if (user) {permission = await this.getMemberPermission({id: user})}
 
         // Does this node go further than what we have reference of in the local index?
         if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
@@ -277,14 +272,15 @@ class DBObject {
 
         // Set top level creator/member data
         await this.setCreator({id: creator})
-        let memberIDs = Object.keys(members)
-        for (let i = 0; i < memberIDs.length; i++) {
-            let memberID = memberIDs[i]
-            await this.setMemberPermission({
-                id: memberID, 
-                readPermission: members[memberID].read, 
-                writePermission: members[memberID].write
-            })
+        if (members) {
+            let memberIDs = Object.keys(members)
+            for (let i = 0; i < memberIDs.length; i++) {
+                let memberID = memberIDs[i]
+                await this.setMemberPermission({
+                    id: memberID, 
+                    permission: members[memberID]
+                })
+            }
         }
         
         // If oversize, split, otherwise write
@@ -406,7 +402,7 @@ class DBObject {
     async getFile({path, permission, user, returnAsBuffer}) {
         await this.ensureIndexLoaded()
 
-        if (user) {permission = this.getMemberPermission({id: user})}
+        if (user) {permission = await this.getMemberPermission({id: user})}
 
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
@@ -512,7 +508,7 @@ class DBObject {
     
     async getMemberPermission({id}) {
         await this.ensureIndexLoaded()
-        if (this.index.metaIndex()[u.CREATOR] === id) {return u.MAX_PERMISSION}
+        if (id && (this.index.metaIndex()[u.CREATOR] === id)) {return u.MAX_PERMISSION}
         if (this.index.metaIndex()[u.MEMBERS][id]) {
             return this.index.metaIndex()[u.MEMBERS][id]
         } else {
@@ -576,7 +572,7 @@ class DBObject {
     async _getEntireObject({permission, user, noCache}) {
         await this.ensureIndexLoaded()
 
-        if (user) {permission = this.getMemberPermission({id: user})}
+        if (user) {permission = await this.getMemberPermission({id: user})}
 
         // Get everything locally available
         let data = await this.batchGet({permission, noCache})
@@ -593,7 +589,7 @@ class DBObject {
         }
 
         // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
-        this._sensitivityfilterAttributes(data, sensitivity)
+        this._permissionFilterAttributes(data, permission)
 
         return u.unpackKeys(data)
     }
@@ -699,10 +695,10 @@ class DBObject {
     }
 
     // Takes object of attributes to get, filters down those user has sensitivity for
-    async _sensitivityFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
+    async _permissionFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
         let filtered = {}
         Object.keys(attributes).forEach((path) => {
-            let nodesensitivity = this.index.getNodeSensitivity(path)
+            let nodeSensitivity = this.index.getNodeSensitivity(path)
             if (nodeSensitivity <= permission) {
                 filtered[path] = attributes[path]
             }
