@@ -60,16 +60,12 @@ it('DBObject_permission (1) keys only', async function() {
     })
     assert.equal(passed0, true)
     
-    debugger
-    u.flag = true
     // ONE: low permission user
     let read1 = await dbobject.get({user: 'lowPermission@gmail.com'})
     let passed1 = _.isEqual(read1, {
         pub: 'permission 2'
     })
-    debugger
     assert.equal(passed1, true)
-    
     
     // TWO: medium permission user
     let read2 = await dbobject.get({user: 'mediumPermission@gmail.com'})
@@ -77,17 +73,15 @@ it('DBObject_permission (1) keys only', async function() {
         regular: 'default permission',
         pub: 'permission 2'
     })
-    debugger
     assert.equal(passed2, true)
     
     // THREE: high permission user
-    let read3 = await dbobject.get({user: 'mediumPermission@gmail.com'})
+    let read3 = await dbobject.get({user: 'highPermission@gmail.com'})
     let passed3 = _.isEqual(read3, {
         password: 'permission 8',
         regular: 'default permission',
         pub: 'permission 2'
     })
-    debugger
     assert.equal(passed3, true)
     
     // FOUR: manual low permission
@@ -95,7 +89,6 @@ it('DBObject_permission (1) keys only', async function() {
     let passed4 = _.isEqual(read4, {
         pub: 'permission 2'
     })
-    debugger
     assert.equal(passed4, true)
     
     // FIVE: manual high permission
@@ -105,13 +98,14 @@ it('DBObject_permission (1) keys only', async function() {
         regular: 'default permission',
         pub: 'permission 2'
     })
-    debugger
     assert.equal(passed5, true)
     
     // SIX: a different user
     let read6 = await dbobject.get({user: 'wrong@gmail.com'})
-    let passed6 = _.isEqual(read6, {})
-    debugger
+    let passed6 = _.isEqual(read6, {
+        regular: 'default permission',
+        pub: 'permission 2'
+    })
     assert.equal(passed6, true)
     
     // Clean up

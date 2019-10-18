@@ -32,7 +32,7 @@ class DBObject {
 
         
         // Default assumptions about information we don't have yet
-        this.sensitivityLevel = u.DEFAULT_sensitivity_LEVEL
+        this.sensitivityLevel = u.DEFAULT_SENSITIVITY
         this.maximumCacheSize = u.DEFAULT_CACHE_SIZE
         this.parent = null
         
@@ -63,7 +63,7 @@ class DBObject {
         }
 
         this.parent = parent || null
-        this.sensitivity = sensitivity || u.DEFAULT_sensitivity_LEVEL
+        this.sensitivity = sensitivity || u.DEFAULT_SENSITIVITY
 
         if (data[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
