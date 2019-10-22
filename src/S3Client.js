@@ -2,13 +2,13 @@ let aws = require('aws-sdk')
 
 class S3Client {
     constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, bucketName}) {
+        this.s3 = new aws.S3({apiVersion: '2006-03-01'})
         aws.config.update({
             accessKeyId: awsAccessKeyId,
             secretAccessKey: awsSecretAccessKey,
             region: awsRegion
         })
         this.bucketName = bucketName
-        this.s3 = new aws.S3({apiVersion: '2006-03-01'})
     }
 
     async write(key, body) {
@@ -47,6 +47,15 @@ class S3Client {
             console.log('failure in S3Client.delete')
             throw(err)
         })
+    }
+
+    async getSignedLink(key, seconds) {
+        let url = this.s3.getSignedUrl('getObject', {
+            Bucket: this.bucketName,
+            Key: key,
+            Expires: seconds
+        })
+        return url
     }
 
 }

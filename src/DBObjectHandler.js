@@ -60,7 +60,7 @@ class DBObjectHandler {
         return await dbobject.destroy(confirm)
     }
 
-    async getObject({id, returnData, attributes}) {
+    async getObject({id, returnData, attributes, user, permission}) {
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -69,9 +69,9 @@ class DBObjectHandler {
 
         // Return some data, all data, or just the dbobject
         if (attributes) {
-            return await dbobject.batchGet(attributes)
+            return await dbobject.batchGet({attributes, user, permission})
         } else if (returnData && !attributes) {
-            return await dbobject.get()
+            return await dbobject.get({user, permission})
         } else  {
             return dbobject
         }
@@ -94,7 +94,7 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp}={}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, permission, user}={}) {
         ascending = ascending || false
         limit = limit || 10000
 
@@ -119,14 +119,14 @@ class DBObjectHandler {
         if (returnData) {attributes = undefined}
         for (let i = 0; i < data.length; i++) {
             let dbobject = data[i]
-            let ret = await dbobject.get({attributes})
+            let ret = await dbobject.get({attributes, user, permission})
             raw.push(ret)
         }
         return raw
 
     }
     
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly}) {
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission}) {
         if (returnData && !attributes) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
@@ -138,12 +138,12 @@ class DBObjectHandler {
             ascending,
             exclusiveFirstSk: exclusiveFirstTimestamp
         })
-        return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly)
+        return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly, user, permission)
     }
 
     resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData}) {
+    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, user, permission}) {
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
@@ -153,7 +153,7 @@ class DBObjectHandler {
             ascending
         })
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw(allObjectData, attributes)
+        return await this._objectsOrDataFromRaw(allObjectData, attributes, user, permission)
     }
 
     // Pass a single path and value, or else a completed ScanQuery object
@@ -166,7 +166,7 @@ class DBObjectHandler {
             ['friends', 'contains', 'danny']
         ]
     */
-    async scan({params, param, value, attributes, query, returnData, idOnly}) {
+    async scan({params, param, value, attributes, query, returnData, idOnly, user, permission}) {
         
         // (2)
         if (!query && !params) {
@@ -205,11 +205,12 @@ class DBObjectHandler {
 
         let data = await this.dynamoClient.scan(query)
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw(data, attributes, idOnly)
+        return await this._objectsOrDataFromRaw(data, attributes, idOnly, user, permission)
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
-    async _objectsOrDataFromRaw(raw, attributes, idOnly) {
+    async _objectsOrDataFromRaw(raw, attributes, idOnly, user, permission) {
+        debugger
         let dbobjects = []
         raw.forEach(data => {
             let id = data[u.PK] + '-' + data[u.SK]
@@ -233,22 +234,22 @@ class DBObjectHandler {
             dbobjects.forEach(obj => {ids.push(obj.id)})
             return ids
         }
-        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects)}
+        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, permission)}
         return dbobjects
     }
 
     // Extracts specified attributes. Pass "true" for all
-    async getAttributesFromObjects(attributes, dbobjects) {
+    async getAttributesFromObjects(attributes, dbobjects, user, permission) {
         let data = []
         for (let i = 0; i < dbobjects.length; i++) {
             let dbobject = dbobjects[i]   
             let obj = {}
             if (attributes === true) {
-                obj = await dbobject.get()
+                obj = await dbobject.get({user, permission})
             } else {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
-                    obj[attribute] = await dbobject.get({path: attribute})
+                    obj[attribute] = await dbobject.get({path: attribute, user, permission})
                     obj.id = dbobject.id
                 }
             }

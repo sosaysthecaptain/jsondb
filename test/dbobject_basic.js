@@ -71,12 +71,13 @@ it('DBObject_basic (2) sensitivity levels', async function() {
     })
     await dbobject.ensureDestroyed()
     await dbobject.create({data: basicObj, sensitivity: 5})
-    let read0 = await dbobject.get({path: 'key1', sensitivity: 0})
+    let read0 = await dbobject.get({path: 'key1', permission: 0})
+    debugger
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
-    let read1 = await dbobject.get({sensitivity: 10})
+    let read1 = await dbobject.get({permission: 10})
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
     
@@ -93,7 +94,7 @@ it('DBObject_basic (2) sensitivity levels', async function() {
     await dbobject.set({attributes: {'key1': newString}, sensitivity: 1})
     
     // Read entire object
-    let read3 = await dbobject.get({path: 'key1', sensitivity: 5})
+    let read3 = await dbobject.get({path: 'key1', permission: 5})
     let passed3 = _.isEqual(newString, read3)
     assert.equal(passed3, true)
     
