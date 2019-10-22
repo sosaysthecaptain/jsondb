@@ -159,14 +159,37 @@ u.keyFromID = (id) => {
     return key
 }
 
+u.packKey = (key) => {
+    if (key.includes(u.PATH_SEPARATOR)) {return key}
+
+    let components = key.split('.')
+    let encodedComponents = []
+    components.forEach(component => {
+        encodedComponents.push(base64url.encode(component))
+    })
+    return encodedComponents.join(u.PATH_SEPARATOR)
+}
+
+u.unpackKey = (key) => {
+    if (key.includes('.')) {return key}
+
+    let components = key.split(u.PATH_SEPARATOR)
+    let decodedComponents = []
+    components.forEach(component => {
+        decodedComponents.push(base64url.decode(component))
+    })
+    return decodedComponents.join('.')
+}
+
 u.packKeys = (obj) => {
     if (typeof obj === 'string') {
-        return (u.replace(obj, '.', u.PATH_SEPARATOR))
+        return u.packKey(obj)
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            newArr.push(u.replace(path, '.', u.PATH_SEPARATOR))
+            path = u.packKey(path)
+            newArr.push(path)
         })
         return newArr
     }
@@ -174,7 +197,7 @@ u.packKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.replace(path, '.', u.PATH_SEPARATOR)
+        path = u.packKey(path)
         obj[path] = value
     })
     return obj
@@ -182,12 +205,12 @@ u.packKeys = (obj) => {
 
 u.unpackKeys = (obj) => {
     if (typeof obj === 'string') {
-        return (u.replace(obj, u.PATH_SEPARATOR, '.'))
+        return (u.unpackKey(obj))
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            newArr.push(u.replace(path, u.PATH_SEPARATOR, '.'))
+            newArr.push(u.unpackKey(path))
         })
         return newArr
     }
@@ -195,7 +218,7 @@ u.unpackKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.replace(path, u.PATH_SEPARATOR, '.')
+        path = u.unpackKey(path)
         obj[path] = value
     })
     return obj

@@ -72,7 +72,6 @@ it('DBObject_basic (2) sensitivity levels', async function() {
     await dbobject.ensureDestroyed()
     await dbobject.create({data: basicObj, sensitivity: 5})
     let read0 = await dbobject.get({path: 'key1', permission: 0})
-    debugger
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
