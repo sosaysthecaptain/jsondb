@@ -141,7 +141,8 @@ class DBObject {
         
         if (path !== '') {
             data = unflatten(data)
-            let arrPath = u.stringPathToArrPath(path)
+            let humanPath = u.unpackKeys(path)
+            let arrPath = u.stringPathToArrPath(humanPath)
             data = _.get(data, arrPath)
             
             return data
@@ -571,8 +572,6 @@ class DBObject {
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
     async _getEntireObject({permission, user, noCache}) {
         await this.ensureIndexLoaded()
-
-        debugger
 
         if (user) {permission = await this.getMemberPermission({id: user})}
 
