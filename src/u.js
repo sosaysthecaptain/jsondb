@@ -28,6 +28,7 @@ u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
 u.PATH_SEPARATOR = '__'
+u.PACKED_DESIGNATOR = 'XX'
 
 u.NT_DEFAULT = 'D'                          // default terminal node (get node)
 u.NT_META = 'M'                             // meta node (get children)
@@ -160,20 +161,20 @@ u.keyFromID = (id) => {
 }
 
 u.packKey = (key) => {
-    if (key.slice(0, 2) === 'XX') {
+    if (key.slice(0, 2) === u.PACKED_DESIGNATOR) {
         return key
     }
 
     let components = key.split('.')
     let encodedComponents = []
     components.forEach(component => {
-        encodedComponents.push('XX' + base64url.encode(component))
+        encodedComponents.push(u.PACKED_DESIGNATOR + base64url.encode(component))
     })
     return encodedComponents.join(u.PATH_SEPARATOR)
 }
 
 u.unpackKey = (key) => {
-    if (key.slice(0, 2) !== 'XX') {
+    if (key.slice(0, 2) !== u.PACKED_DESIGNATOR) {
         return key
     }
 
