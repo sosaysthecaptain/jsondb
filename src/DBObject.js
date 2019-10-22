@@ -572,6 +572,8 @@ class DBObject {
     async _getEntireObject({permission, user, noCache}) {
         await this.ensureIndexLoaded()
 
+        debugger
+
         if (user) {permission = await this.getMemberPermission({id: user})}
 
         // Get everything locally available

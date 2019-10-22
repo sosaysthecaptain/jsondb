@@ -40,6 +40,9 @@ it('DBObjectHandler (1) - basic operations', async function() {
         id: testID,
         data: testObj
     })
+
+    debugger
+    
     let read0 = await dbobject.get()
     let passed0 = _.isEqual(testObj, read0)
     assert.equal(passed0, true)

@@ -160,22 +160,27 @@ u.keyFromID = (id) => {
 }
 
 u.packKey = (key) => {
-    if (key.includes(u.PATH_SEPARATOR)) {return key}
+    if (key.slice(0, 2) === 'XX') {
+        return key
+    }
 
     let components = key.split('.')
     let encodedComponents = []
     components.forEach(component => {
-        encodedComponents.push(base64url.encode(component))
+        encodedComponents.push('XX' + base64url.encode(component))
     })
     return encodedComponents.join(u.PATH_SEPARATOR)
 }
 
 u.unpackKey = (key) => {
-    if (key.includes('.')) {return key}
+    if (key.slice(0, 2) !== 'XX') {
+        return key
+    }
 
     let components = key.split(u.PATH_SEPARATOR)
     let decodedComponents = []
     components.forEach(component => {
+        component = component.slice(2)
         decodedComponents.push(base64url.decode(component))
     })
     return decodedComponents.join('.')
