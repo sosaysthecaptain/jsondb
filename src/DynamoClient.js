@@ -16,7 +16,8 @@ class DynamoClient {
         })
 
         this.doc = require('dynamodb-doc');
-        this.dynamo = new this.doc.DynamoDB();
+        let awsClient = new aws.DynamoDB()
+        this.dynamo = new this.doc.DynamoDB(awsClient);
     }
 
     // Gets single object by id
