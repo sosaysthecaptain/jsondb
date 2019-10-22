@@ -182,6 +182,9 @@ class DBObjectHandler {
         // (3)
         if (params) {
             let lastOperator = null
+            params.forEach(param => {
+                param[0] = u.packKeys(param[0])
+            })
             query = new ScanQuery(this.tableName)
             params.forEach(item => {
                 query.addParam({
@@ -210,7 +213,6 @@ class DBObjectHandler {
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
     async _objectsOrDataFromRaw(raw, attributes, idOnly, user, permission) {
-        debugger
         let dbobjects = []
         raw.forEach(data => {
             let id = data[u.PK] + '-' + data[u.SK]
