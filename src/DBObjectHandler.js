@@ -77,14 +77,22 @@ class DBObjectHandler {
         }
     }
 
-    // Doesn't load anything yet
+    // Instantiates without hitting db
     async instantiate({id, ids}) {
+    
+        // Single case
         if (id) {
-            ids = [id]
+            let dbobject = new this.Subclass({
+                id: id,
+                dynamoClient: this.dynamoClient,
+                tableName: this.tableName
+            })
+            return dbobject
         }
+
+        // Multiple case
         let dbobjects = {}
         ids.forEach(id => {
-            // dbobjects[id] = new DBObject({
             dbobjects[id] = new this.Subclass({
                 id: id,
                 dynamoClient: this.dynamoClient,
