@@ -78,7 +78,7 @@ class DBObjectHandler {
     }
 
     // Instantiates without hitting db
-    async instantiate({id, ids}) {
+    instantiate({id, ids}) {
     
         // Single case
         if (id) {
