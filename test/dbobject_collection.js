@@ -45,25 +45,28 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     // Create collection, add something to it
     let collectionPath = 'parentKey1.messages'
-    await parentObj.createCollection({path: collectionPath})
+    await parentObj.createCollection({
+        path: collectionPath,
+        c
+    })
     
-    let message_0 = await parentObj.collection(collectionPath).createObject({
+    let message_0 = await parentObj.collection({path: collectionPath}).createObject({
         data: {
             body: 'this is a message',
         },
         sensitivity: 5
     })
 
-    let message_1 = await parentObj.collection(collectionPath).createObject({data: {body: 'second message'}})
-    let message_2 = await parentObj.collection(collectionPath).createObject({data: {body: 'third message'}})
-    let message_3 = await parentObj.collection(collectionPath).createObject({data: {body: 'fourth message'}})
+    let message_1 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'second message'}})
+    let message_2 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'third message'}})
+    let message_3 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'fourth message'}})
     let passed1 = message_0.id.split('-').length === 2
     assert.equal(passed1, true)
     
     // sensitivity
     
     // Get a single message
-    let message0_data = await parentObj.collection(collectionPath).getObject({
+    let message0_data = await parentObj.collection({path: collectionPath}).getObject({
         id: message_0.id, 
         returnData: true
     })
@@ -71,14 +74,14 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed2, true)
     
     // Retrieve a DBObject and modify it, see that it is changed
-    let message0_dbobject = await parentObj.collection(collectionPath).getObject({id: message_0.id})
+    let message0_dbobject = await parentObj.collection({path: collectionPath}).getObject({id: message_0.id})
     await message0_dbobject.set({attributes: {body: 'modified first message'}})
     let read3 = await message0_dbobject.get({path: 'body'})
     let passed3 = read3 === 'modified first message'
     assert.equal(passed3, true)
     
     // Pagewise
-    let read4 = await parentObj.collection(collectionPath).getObjects({
+    let read4 = await parentObj.collection({path: collectionPath}).getObjects({
         limit: 4,
         attributes: ['body']
     })
@@ -86,7 +89,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed4, true)
     
     // Scan
-    let read5 = await parentObj.collection('parentKey1.messages').scan({
+    let read5 = await parentObj.collection({path: 'parentKey1.messages'}).scan({
         params: [
             ['body', '=', 'third message']
         ],
@@ -97,18 +100,18 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Delete one message
-    let deleted = await parentObj.collection('parentKey1.messages').destroyObject({id: message_1.id, confirm: true})
+    let deleted = await parentObj.collection({path: 'parentKey1.messages'}).destroyObject({id: message_1.id, confirm: true})
     assert.equal(deleted, true)
 
     // Scan, round 2
     let friendsPath = 'friends'
     await parentObj.createCollection({path: friendsPath})
-    await parentObj.collection(friendsPath).createObject({data: {firstName: 'joe', friends: ['danny', 'irene']}})
-    await parentObj.collection(friendsPath).createObject({data: {firstName: 'danny', friends: ['joe', 'irene']}})
-    await parentObj.collection(friendsPath).createObject({data: {firstName: 'irene', friends: ['joe', 'danny']}})
-    await parentObj.collection(friendsPath).createObject({data: {firstName: 'joe', friends: ['johnny']}})
+    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'joe', friends: ['danny', 'irene']}})
+    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'danny', friends: ['joe', 'irene']}})
+    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'irene', friends: ['joe', 'danny']}})
+    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'joe', friends: ['johnny']}})
     
-    let read8 = await parentObj.collection(friendsPath).scan({
+    let read8 = await parentObj.collection({path: friendsPath}).scan({
         params: [
             ['firstName', '=', 'joe', 'AND'],
             ['friends', 'contains', 'danny']
@@ -118,7 +121,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let passed8 = (read8[0].firstName === 'joe') && (read8[0].friends.includes('irene'))
     assert.equal(passed8, true)
     
-    let read9 = await parentObj.collection(friendsPath).scan({
+    let read9 = await parentObj.collection({path: friendsPath}).scan({
         params: [
             ['firstName', '=', 'danny', 'OR'],
             ['firstName', '=', 'irene'],
@@ -186,14 +189,14 @@ it('DBObject_collection (2) - subclasses', async function() {
         subclass: TestSubclass
     })
     
-    let subclassDBObject = await parentObj.collection(collectionPath).createObject({
+    let subclassDBObject = await parentObj.collection({path: collectionPath}).createObject({
         data: {
             body: "this isn't actually doing anything",
         }
     })
 
     // Execute a method on the subclass
-    let testClassInstance = await parentObj.collection(collectionPath).getObject({id: subclassDBObject.id})
+    let testClassInstance = await parentObj.collection({path: collectionPath}).getObject({id: subclassDBObject.id})
     await testClassInstance.setTheThing()
     let resultOfTest = await testClassInstance.getTheThing()
     

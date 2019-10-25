@@ -430,12 +430,15 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, sensitivity, subclass}) {
+    async createCollection({path, sensitivity, owner, members, subclass}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
+        this.index.setNodeProperty(path, 'owner', owner)
+        this.index.setNodeProperty(path, 'creationDate', Date.now())
+        this.index.setNodeProperty(path, 'members', members)
         this.index.setDontDelete(path, true)
         let attributes = {}
         attributes[path] = '<COLLECTION>'
@@ -450,18 +453,43 @@ class DBObject {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         while (true) {
-            let dbobjects = await this.collection(path).getObjects()
+            let dbobjects = await this.collection({path}).getObjects()
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                await this.collection(path).destroyObject({id: dbobject.id})
+                await this.collection({path}).destroyObject({id: dbobject.id})
             }
         }
     }
 
-    collection(path) {
+    async setCollectionMember({path, member, permissionObject, deleteMember}) {
+        debugger
+        this.index.setDontDelete(path, true)
+        let members = this.index.getNodeProperty(path, 'members')
+
+        if (!deleteMember) {
+            delete members[member]
+        } else {
+            members[member] = permissionObject
+        }
+
+        this.index.setNodeProperty(path, 'members', members)
+        
+        // To set we have to do an empty write
+        let attributes = {}
+        attributes[path] = '<COLLECTION>'
+        await this.set({attributes})
+        return this._getCollectionSeriesKey(path)
+    }
+
+    // marc-look-here
+    collection({path, creator, members, permission}) {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
+
+        debugger
+        // marc-to-do: check creator/members/permission
+
         let seriesKey = this._getCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
         let DBObjectHandler = require('./DBObjectHandler')
@@ -473,7 +501,13 @@ class DBObject {
             tableName: this.tableName,
             subclass: subclass,
             isTimeOrdered: true, 
-            doNotCache: true
+            doNotCache: true,
+
+            // MARC ADD THIS ON OTHER END
+            sensitivity: this.index.getNodeSensitivity(path),
+            owner: this.index.getNodeProperty(path, 'owner'),
+            members: this.index.getNodeProperty(path, 'members'),
+            creationDate: this.index.getNodeProperty(path, 'creationDate')
         })
     }
     
