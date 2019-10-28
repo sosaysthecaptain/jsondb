@@ -5,7 +5,7 @@ const S3Client = require('./S3Client')
 const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
-    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache}) {
+    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache, nodeSensitivity, userPermission}) {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion || 'us-east-2'
@@ -16,6 +16,8 @@ class DBObjectHandler {
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
         this.doNotCache = doNotCache
+        this.nodeSensitivity = nodeSensitivity || {read: 0, write: 0}
+        this.userPermission = userPermission || {read: 0, write: 0}
 
         this.lastTimestampsByPath = {}
         
@@ -34,7 +36,17 @@ class DBObjectHandler {
         })
     }
 
+    permissionCheck(write) {
+        if (write) {
+            if (this.userPermission.write >= this.nodeSensitivity.write) {return true}
+        } else {
+            if (this.userPermission.read >= this.nodeSensitivity.read) {return true}
+        }
+        return false
+    }
+
     async createObject({id, data, allowOverwrite, sensitivity}) {
+        if (!this.permissionCheck(true)) {return undefined}
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
         let dbobject = new this.Subclass({
@@ -52,6 +64,7 @@ class DBObjectHandler {
     async addObject() {}
 
     async destroyObject({id, confirm}) {
+        if (!this.permissionCheck(true)) {return undefined}
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -61,6 +74,7 @@ class DBObjectHandler {
     }
 
     async getObject({id, returnData, attributes, user, permission}) {
+        if (!this.permissionCheck()) {return undefined}
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -79,6 +93,7 @@ class DBObjectHandler {
 
     // Instantiates without hitting db
     instantiate({id, ids}) {
+        if (!this.permissionCheck()) {return undefined}
     
         // Single case
         if (id) {
@@ -103,6 +118,7 @@ class DBObjectHandler {
     }
 
     async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, permission, user}={}) {
+        if (!this.permissionCheck()) {return undefined}
         ascending = ascending || false
         limit = limit || 10000
 
@@ -135,6 +151,7 @@ class DBObjectHandler {
     }
     
     async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission}) {
+        if (!this.permissionCheck()) {return undefined}
         if (returnData && !attributes) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
@@ -152,6 +169,7 @@ class DBObjectHandler {
     resetPage() {this.exclusiveStartTimestamp = null}
     
     async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, user, permission}) {
+        if (!this.permissionCheck()) {return undefined}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
@@ -175,6 +193,7 @@ class DBObjectHandler {
         ]
     */
     async scan({params, param, value, attributes, query, returnData, idOnly, user, permission}) {
+        if (!this.permissionCheck()) {return undefined}
         
         // (2)
         if (!query && !params) {

@@ -41,32 +41,53 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let read0 = await parentObj.get()
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
-    
+
     
     // Create collection, add something to it
-    let collectionPath = 'parentKey1.messages'
+    let path = 'parentKey1.messages'
+    let user = 'testUser@gmail.com'
     await parentObj.createCollection({
-        path: collectionPath,
-        c
-    })
-    
-    let message_0 = await parentObj.collection({path: collectionPath}).createObject({
-        data: {
-            body: 'this is a message',
-        },
-        sensitivity: 5
+        path,
+        owner: user,
+        members: [{
+            'member@gmail.com': {read: 5, write: 5}
+        }],
+        sensitivity: {read: 5, write: 7}
     })
 
-    let message_1 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'second message'}})
-    let message_2 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'third message'}})
-    let message_3 = await parentObj.collection({path: collectionPath}).createObject({data: {body: 'fourth message'}})
+    let writeShouldFail0 = await parentObj.collection({path}).createObject({
+        data: {body: "won't get written cuz no user"}
+    })
+    assert.equal(writeShouldFail0, undefined)
+    
+    let writeShouldFail1 = await parentObj.collection({path, user: 'imposter@gmail.com'}).createObject({
+        data: {body: "won't get written cuz bad user"}
+    })
+    assert.equal(writeShouldFail1, undefined)
+    
+    let writeShouldFail2 = await parentObj.collection({path, user: 'member@gmail.com'}).createObject({
+        data: {body: "won't get written cuz user has low write permission"}
+    })
+    assert.equal(writeShouldFail2, undefined)
+
+    
+    
+    let message_0 = await parentObj.collection({path, user}).createObject({
+        data: {
+            body: 'this is a message',
+        }
+    })
+    let message_1 = await parentObj.collection({path, user}).createObject({data: {body: 'second message'}})
+    let message_2 = await parentObj.collection({path, user}).createObject({data: {body: 'third message'}})
+    let message_3 = await parentObj.collection({path, user}).createObject({data: {body: 'fourth message'}})
     let passed1 = message_0.id.split('-').length === 2
+
     assert.equal(passed1, true)
     
     // sensitivity
     
     // Get a single message
-    let message0_data = await parentObj.collection({path: collectionPath}).getObject({
+    let message0_data = await parentObj.collection({path, user}).getObject({
         id: message_0.id, 
         returnData: true
     })
@@ -74,14 +95,14 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed2, true)
     
     // Retrieve a DBObject and modify it, see that it is changed
-    let message0_dbobject = await parentObj.collection({path: collectionPath}).getObject({id: message_0.id})
+    let message0_dbobject = await parentObj.collection({path, user}).getObject({id: message_0.id})
     await message0_dbobject.set({attributes: {body: 'modified first message'}})
     let read3 = await message0_dbobject.get({path: 'body'})
     let passed3 = read3 === 'modified first message'
     assert.equal(passed3, true)
     
     // Pagewise
-    let read4 = await parentObj.collection({path: collectionPath}).getObjects({
+    let read4 = await parentObj.collection({path, user}).getObjects({
         limit: 4,
         attributes: ['body']
     })
@@ -89,7 +110,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed4, true)
     
     // Scan
-    let read5 = await parentObj.collection({path: 'parentKey1.messages'}).scan({
+    let read5 = await parentObj.collection({path, user}).scan({
         params: [
             ['body', '=', 'third message']
         ],
@@ -100,9 +121,9 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Delete one message
-    let deleted = await parentObj.collection({path: 'parentKey1.messages'}).destroyObject({id: message_1.id, confirm: true})
+    let deleted = await parentObj.collection({path, user}).destroyObject({id: message_1.id, confirm: true})
     assert.equal(deleted, true)
-
+    
     // Scan, round 2
     let friendsPath = 'friends'
     await parentObj.createCollection({path: friendsPath})
@@ -129,11 +150,12 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         returnData: true
     })
     let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
+    debugger
     assert.equal(passed9, true)
     
     
     // Destroy parent object and see that collection is destroyed as well
-    await parentObj.destroy()
+    await parentObj.destroy({user})
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
 })
@@ -202,6 +224,6 @@ it('DBObject_collection (2) - subclasses', async function() {
     
     assert.equal(resultOfTest, 'this is the thing')
     
-    
-    await parentObj.destroy()
+    debugger
+    await parentObj.destroy({user: 'testUser@gmail.com'})
 })

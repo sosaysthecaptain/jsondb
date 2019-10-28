@@ -41,9 +41,14 @@ u.NT_REF = 'REF'                            // reference to another DBObject
 u.MEMBERS = 'MEMBERS'
 u.CREATOR = 'CREATOR'
 u.CREATED_DATE = 'C_TS'
-u.MAX_PERMISSION = 9
-u.DEFAULT_PERMISSION = 5
-u.DEFAULT_SENSITIVITY = 5
+u.MAX_PERMISSION = {read: 9, write: 9}
+// u.DEFAULT_PERMISSION = 5
+// u.DEFAULT_SENSITIVITY = 5
+u.DEFAULT_PERMISSION = {read: 0, write: 0}
+u.DEFAULT_SENSITIVITY = {read: 0, write: 0}
+
+u.DEFAULT_READ_PERMISSION = 5
+u.DEFAULT_WRITE_PERMISSION = 5
 
 
 u.TEST_TIMEOUT = 10 * 60 * 1000
