@@ -48,13 +48,12 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let user = 'testUser@gmail.com'
     await parentObj.createCollection({
         path,
-        owner: user,
-        members: [{
+        creator: user,
+        members: {
             'member@gmail.com': {read: 5, write: 5}
-        }],
-        sensitivity: {read: 5, write: 7}
+        },
+        permission: {read: 5, write: 7}
     })
-
     let writeShouldFail0 = await parentObj.collection({path}).createObject({
         data: {body: "won't get written cuz no user"}
     })
@@ -69,7 +68,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         data: {body: "won't get written cuz user has low write permission"}
     })
     assert.equal(writeShouldFail2, undefined)
-
+    
     
     
     let message_0 = await parentObj.collection({path, user}).createObject({
@@ -80,8 +79,9 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let message_1 = await parentObj.collection({path, user}).createObject({data: {body: 'second message'}})
     let message_2 = await parentObj.collection({path, user}).createObject({data: {body: 'third message'}})
     let message_3 = await parentObj.collection({path, user}).createObject({data: {body: 'fourth message'}})
+    debugger
     let passed1 = message_0.id.split('-').length === 2
-
+    
     assert.equal(passed1, true)
     
     // sensitivity

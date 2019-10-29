@@ -57,7 +57,7 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create({data, permission, parent, allowOverwrite, creator, members}) {
+    async create({data, sensitivity, objectPermission, parent, allowOverwrite, creator, members}) {
         if (!allowOverwrite) {
             if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
         }
@@ -67,9 +67,8 @@ class DBObject {
         if (data[u.INDEX_KEY]) {
             delete initialData[u.INDEX_KEY]
         }
-        await this.setObjectPermission(permission)
         u.validateKeys(data)
-        return await this.set({attributes: data, creator, members})
+        return await this.set({attributes: data, creator, members, sensitivity, objectPermission})
     }
 
     async destroy({user, confirm}) {
@@ -253,7 +252,7 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set({attributes, sensitivity, creator, members}) {
+    async set({attributes, sensitivity, creator, members, objectPermission}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         u.processAttributes(newAttributes)
@@ -275,6 +274,7 @@ class DBObject {
 
         // Set top level creator/member data
         await this.setCreator({id: creator})
+        await this.setObjectPermission({objectPermission})
         if (members) {
             let memberIDs = Object.keys(members)
             for (let i = 0; i < memberIDs.length; i++) {
@@ -432,20 +432,18 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, sensitivity, members, subclass}) {
+    async createCollection({path, permission, creator, members, subclass}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        let creator = await this.getCreator()
         members = members || {}
-        members[creator] = u.MAX_PERMISSION
 
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
         this.index.setNodeProperty(path, 'creator', creator)
         this.index.setNodeProperty(path, 'members', members)
-        this.index.setNodeSensitivity(path, sensitivity)
-        // this.index.setNodeProperty(path, 'permission', permission)
+        // this.index.setNodeSensitivity(path, sensitivity)
+        this.index.setNodeProperty(path, 'permission', permission)
         this.index.setNodeProperty(path, 'creationDate', Date.now())
         this.index.setDontDelete(path, true)
         let attributes = {}
@@ -471,7 +469,7 @@ class DBObject {
         }
     }
 
-    async setCollectionMember({path, member, permissionObject, deleteMember}) {
+    async setCollectionMember({path, member, permission, deleteMember}) {
         debugger
         this.index.setDontDelete(path, true)
         let members = this.index.getNodeProperty(path, 'members')
@@ -479,7 +477,7 @@ class DBObject {
         if (!deleteMember) {
             delete members[member]
         } else {
-            members[member] = permissionObject
+            members[member] = permission
         }
 
         this.index.setNodeProperty(path, 'members', members)
@@ -491,14 +489,16 @@ class DBObject {
         return this._getCollectionSeriesKey(path)
     }
 
+    // Zero permission unless member set, or unless collection was created by object creator
     _getCollectionUserPermission({path, user}) {
-        let owner = this.index.getNodeProperty(path, 'owner')
-        if (owner === user) {
-            return {read: 9, write: 9}
-        }
-        let members = this.index.getNodeProperty(path, 'members')
-        if (members[user]) {
-            return members[user]
+        debugger
+        if (user) {
+            let creator = this.index.getNodeProperty(path, 'creator')
+            if (creator === user) {return {read: 9, write: 9}}
+            let members = this.index.getNodeProperty(path, 'members')
+            if (members[user]) {
+                return members[user]
+            }
         }
         return {read: 0, write: 0}
     }
@@ -514,7 +514,7 @@ class DBObject {
             userPermission = {read: 0, write: 0}
         }
         
-        let nodeSensitivity = this.index.getNodeSensitivity(path)
+        let permission = this.index.getNodeProperty(path, 'permission')
 
         let seriesKey = this._getCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
@@ -529,7 +529,7 @@ class DBObject {
             isTimeOrdered: true, 
             doNotCache: true,
             
-            nodeSensitivity: nodeSensitivity,
+            permission: permission,
             userPermission: userPermission, 
         })
     }
@@ -595,10 +595,12 @@ class DBObject {
         return (userPermission.read >= objectPermission.read)
     }
 
-    async setObjectPermission(permission) {
-        await this.ensureIndexLoaded()
-        debugger
-        this.index.metaIndex().permission = permission
+    async setObjectPermission({objectPermission}) {
+        if (objectPermission) {
+            await this.ensureIndexLoaded()
+            debugger
+            this.index.metaIndex().permission = permission
+        }
     }
     
     async getObjectPermission() {
