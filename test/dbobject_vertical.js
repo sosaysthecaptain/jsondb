@@ -115,6 +115,6 @@ it('DBObject_vertical (2) modification on secondary nodes', async function() {
     
     
     // Clean up
-    let destroyed = await dbobject.destroy(true)
+    let destroyed = await dbobject.destroy({confirm: true})
     assert.equal(destroyed, true)
 })
