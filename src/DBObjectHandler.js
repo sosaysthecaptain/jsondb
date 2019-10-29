@@ -15,7 +15,7 @@ class DBObjectHandler {
         this.isTimeOrdered = isTimeOrdered
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
-        this.doNotCache = doNotCache
+        this.doNotCache = doNotCache || true
         this.permission = permission || {read: 0, write: 0}
         this.userPermission = userPermission || {read: 0, write: 0}
 

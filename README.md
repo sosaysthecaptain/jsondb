@@ -25,7 +25,7 @@ let handler = new jsondb.DBObjectHandler({
     bucketName: 'your-s3-bucket-for-files'
     isTimeOrdered: false,                   // optional, false by default
     defaultCacheSize: 50 * 1024 * 1024,     // optional, 50 mb by default
-    doNotCache: false                       // optional, false by default
+    doNotCache: false                       // optional, true by default
 }
 ```
 Note on Dynamo setup: jsondb expects your DynamoDB table to be set up with primary key `uid` and sort key `ts`, of types String and Number respectively. Many objectTypes can share the same table.
@@ -50,9 +50,9 @@ When you "get" a DBObject, you don't actually hit the DB yet, you merely create 
 Getting can be done by ID, by page or time in the case of timeOrdered objects, or by a scan operation.
 
 ```javascript
-let object = await myObjectTypeHandler.getObject({id})
+let object = myObjectTypeHandler.instantiate({id})
 
-let convoParticipants = await userHandler.instantiate({ids: ['joe@gmail.com', 'susan@gmail.com']})
+let convoParticipants = userHandler.instantiate({ids: ['joe@gmail.com', 'susan@gmail.com']})
 
 let firstTen = await handler.getPagewise({limit: 10})
 let secondTenTen = await handler.getPagewise({limit: 10})
