@@ -36,7 +36,7 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     let read1 = await dbobject.get()
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
-
+    
     // Clear the variable in memory, make sure we can still get
     dbobject = null
     dbobject = new jsondb.DBObject({
@@ -123,7 +123,9 @@ it('DBObject_basic (3) modify', async function() {
     await dbobject.create({data: testObj})
 
     // Sanity check
+    debugger
     let read0 = await dbobject.get({path: 'arr'})
+    debugger
     let passed0 = _.isEqual(testObj.arr, read0)
     assert.equal(passed0, true)
     

@@ -71,7 +71,7 @@ class DBObject {
         return await this.set({attributes: data, creator, members, sensitivity, objectPermission})
     }
 
-    async destroy({user, confirm, permissionOverride}) {
+    async destroy({user, confirm, permissionOverride}={}) {
         await this.ensureIndexLoaded()
         
         if (!permissionOverride) {
@@ -119,7 +119,7 @@ class DBObject {
         }
     }
 
-    async ensureDestroyed({user, permissionOverride}) {
+    async ensureDestroyed({user, permissionOverride}={}) {
         let exists = await this.checkExists()
         if (!exists) {
             return true
@@ -619,11 +619,16 @@ class DBObject {
 
 
     // Takes object of attributes to get, filters down those user has read permission for
+    // Can take permission object {read: x, write: y} or simply integer read permission
     async _permissionFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
+        let readPermission = permission
+        if (permission.read !== undefined) {readPermission = permission.read}
+
         let filtered = {}
         Object.keys(attributes).forEach((path) => {
             let nodeSensitivity = this.index.getNodeSensitivity(path)
-            if (nodeSensitivity.read <= permission.read) {
+            nodeSensitivity = nodeSensitivity || u.DEFAULT_SENSITIVITY
+            if (nodeSensitivity <= readPermission) {
                 filtered[path] = attributes[path]
             }
         })
