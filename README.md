@@ -77,19 +77,19 @@ let usersSister = await user.getReference({path: 'sister'})
 
 ## DBObjectHandler
 
-[Instantiating a DBObjectHandler] (./docs/handlerInstantiate.md)
-[Creating and destroying objects] (./docs/handlerCreateDestroy.md)
-[Instantiating objects] (./docs/handlerInstantiate.md)
-[Getting data directly from objects] (./docs/handlerDirectGet.md)
-[Getting objects in a pagewise fashion] (./docs/handlerPagewise.md)
-[Querying objects] (./docs/handlerQuery.md)
+[Instantiating a DBObjectHandler] (./docs/handlerInstantiate)
+[Creating and destroying objects] (./docs/handlerCreateDestroy)
+[Instantiating objects] (./docs/handlerInstantiate)
+[Getting data directly from objects] (./docs/handlerDirectGet)
+[Getting objects in a pagewise fashion] (./docs/handlerPagewise)
+[Querying objects] (./docs/handlerQuery)
 
 ## DBObject
-[Getting and setting basic values] (./docs/dbobjectGetSet.md)
-[References: DBObjects as properties of other DBObjects] (./docs/dbobjectReferences.md)
-[Files: S3 Integration] (./docs/dbobjectFiles.md)
-[Collections: Time-ordered DBObjectHandlers as properties of DBObjects] (./docs/dbobjectCollections.md)
+[Getting and setting basic values] (./docs/dbobjectGetSet)
+[References: DBObjects as properties of other DBObjects] (./docs/dbobjectReferences)
+[Files: S3 Integration] (./docs/dbobjectFiles)
+[Collections: Time-ordered DBObjectHandlers as properties of DBObjects] (./docs/dbobjectCollections)
 
 ## Permissions
-[Permissions: understanding object permissions, collection permissions, and node sensitivities] (./docs/permissions.md)
+[Permissions: understanding object permissions, collection permissions, and node sensitivities] (./docs/permissions)
 
