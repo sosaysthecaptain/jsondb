@@ -28,9 +28,9 @@ it('DBObject_permission (1) keys only', async function() {
     // SETUP: create an object with three users and three paths of different permission levels
     await dbobject.create({
         data: {
-            regular: 'default permission'
+            regular: 'medium permission'
         }, 
-        // sensitivity: 5,
+        sensitivity: 5,
         creator: 'user0@gmail.com',
         members: {
             'highPermission@gmail.com': 8,
@@ -41,9 +41,9 @@ it('DBObject_permission (1) keys only', async function() {
     
     await dbobject.set({
         attributes: {
-            pub: 'permission 2'
+            pub: 'default_permission'
         },
-        sensitivity: 2
+        sensitivity: 0
     })
     await dbobject.set({
         attributes: {
@@ -52,26 +52,25 @@ it('DBObject_permission (1) keys only', async function() {
         sensitivity: 8
     })
     
-    // ZERO: with no user specified, should get pub and regular
+    // ZERO: with no user specified, should get only public
     let read0 = await dbobject.get()
     let passed0 = _.isEqual(read0, {
-        regular: 'default permission',
-        pub: 'permission 2'
+        pub: 'default_permission'
     })
     assert.equal(passed0, true)
     
     // ONE: low permission user
     let read1 = await dbobject.get({user: 'lowPermission@gmail.com'})
     let passed1 = _.isEqual(read1, {
-        pub: 'permission 2'
+        pub: 'default_permission'
     })
     assert.equal(passed1, true)
     
     // TWO: medium permission user
     let read2 = await dbobject.get({user: 'mediumPermission@gmail.com'})
     let passed2 = _.isEqual(read2, {
-        regular: 'default permission',
-        pub: 'permission 2'
+        regular: 'medium permission',
+        pub: 'default_permission'
     })
     assert.equal(passed2, true)
     
@@ -79,15 +78,15 @@ it('DBObject_permission (1) keys only', async function() {
     let read3 = await dbobject.get({user: 'highPermission@gmail.com'})
     let passed3 = _.isEqual(read3, {
         password: 'permission 8',
-        regular: 'default permission',
-        pub: 'permission 2'
+        regular: 'medium permission',
+        pub: 'default_permission'
     })
     assert.equal(passed3, true)
     
     // FOUR: manual low permission
     let read4 = await dbobject.get({permission: 2})
     let passed4 = _.isEqual(read4, {
-        pub: 'permission 2'
+        pub: 'default_permission'
     })
     assert.equal(passed4, true)
     
@@ -95,16 +94,15 @@ it('DBObject_permission (1) keys only', async function() {
     let read5 = await dbobject.get({permission: 8})
     let passed5 = _.isEqual(read5, {
         password: 'permission 8',
-        regular: 'default permission',
-        pub: 'permission 2'
+        regular: 'medium permission',
+        pub: 'default_permission'
     })
     assert.equal(passed5, true)
     
     // SIX: a different user
     let read6 = await dbobject.get({user: 'wrong@gmail.com'})
     let passed6 = _.isEqual(read6, {
-        regular: 'default permission',
-        pub: 'permission 2'
+        pub: 'default_permission'
     })
     assert.equal(passed6, true)
     
