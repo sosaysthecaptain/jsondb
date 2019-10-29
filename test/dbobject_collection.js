@@ -79,7 +79,6 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let message_1 = await parentObj.collection({path, user}).createObject({data: {body: 'second message'}})
     let message_2 = await parentObj.collection({path, user}).createObject({data: {body: 'third message'}})
     let message_3 = await parentObj.collection({path, user}).createObject({data: {body: 'fourth message'}})
-    debugger
     let passed1 = message_0.id.split('-').length === 2
     
     assert.equal(passed1, true)
@@ -97,7 +96,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     // Retrieve a DBObject and modify it, see that it is changed
     let message0_dbobject = await parentObj.collection({path, user}).getObject({id: message_0.id})
     await message0_dbobject.set({attributes: {body: 'modified first message'}})
-    let read3 = await message0_dbobject.get({path: 'body'})
+    let read3 = await message0_dbobject.get({path: 'body', user})
     let passed3 = read3 === 'modified first message'
     assert.equal(passed3, true)
     
@@ -150,7 +149,6 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         returnData: true
     })
     let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
-    debugger
     assert.equal(passed9, true)
     
     
@@ -205,25 +203,21 @@ it('DBObject_collection (2) - subclasses', async function() {
     
     
     // Create collection, add something to it
-    let collectionPath = 'subclassPath'
-    await parentObj.createCollection({
-        path: collectionPath,
-        subclass: TestSubclass
-    })
+    let path = 'subclassPath'
+    await parentObj.createCollection({path, subclass: TestSubclass})
     
-    let subclassDBObject = await parentObj.collection({path: collectionPath}).createObject({
+    let subclassDBObject = await parentObj.collection({path}).createObject({
         data: {
             body: "this isn't actually doing anything",
         }
     })
 
     // Execute a method on the subclass
-    let testClassInstance = await parentObj.collection({path: collectionPath}).getObject({id: subclassDBObject.id})
+    let testClassInstance = await parentObj.collection({path}).getObject({id: subclassDBObject.id})
     await testClassInstance.setTheThing()
     let resultOfTest = await testClassInstance.getTheThing()
     
     assert.equal(resultOfTest, 'this is the thing')
     
-    debugger
     await parentObj.destroy({user: 'testUser@gmail.com'})
 })

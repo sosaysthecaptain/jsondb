@@ -70,7 +70,7 @@ class DBObjectHandler {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        return await dbobject.destroy(confirm)
+        return await dbobject.destroy({permissionOverride: true, confirm})
     }
 
     async getObject({id, returnData, attributes, user, permission}) {

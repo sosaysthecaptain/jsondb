@@ -71,10 +71,12 @@ class DBObject {
         return await this.set({attributes: data, creator, members, sensitivity, objectPermission})
     }
 
-    async destroy({user, confirm}) {
+    async destroy({user, confirm, permissionOverride}) {
         await this.ensureIndexLoaded()
         
-        if (!this.checkPermission({user, write: true})) {return undefined}
+        if (!permissionOverride) {
+            if (!this.checkPermission({user, write: true})) {return undefined}
+        }
 
         // Lateral and collection nodes require special destruction steps
         let allNodes = this.index.getChildren()
@@ -86,7 +88,7 @@ class DBObject {
         let collectionNodePaths = Object.keys(nodesByType.collection)
         for (let i = 0; i < collectionNodePaths.length; i++) {
             let path = collectionNodePaths[i]
-            await this.emptyCollection(path)
+            await this.emptyCollection({path, user})
         }
 
         // Delete files
@@ -117,13 +119,13 @@ class DBObject {
         }
     }
 
-    async ensureDestroyed({user}) {
+    async ensureDestroyed({user, permissionOverride}) {
         let exists = await this.checkExists()
         if (!exists) {
             return true
         } else {
-            await this.destroy({user})
-            return await this.ensureDestroyed()
+            await this.destroy({user, permissionOverride})
+            return await this.ensureDestroyed({user, permissionOverride})
         }
     }
 
@@ -454,8 +456,7 @@ class DBObject {
 
     _getCollectionSeriesKey(path) {return this.id + '_' + path}
     
-    async emptyCollection(path, user) {
-        debugger
+    async emptyCollection({path, user}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         this._ensureIsCollection(path)
@@ -464,7 +465,7 @@ class DBObject {
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                await this.collection({path}).destroyObject({id: dbobject.id})
+                await this.collection({path, user}).destroyObject({id: dbobject.id})
             }
         }
     }
@@ -491,12 +492,11 @@ class DBObject {
 
     // Zero permission unless member set, or unless collection was created by object creator
     _getCollectionUserPermission({path, user}) {
-        debugger
         if (user) {
             let creator = this.index.getNodeProperty(path, 'creator')
             if (creator === user) {return {read: 9, write: 9}}
             let members = this.index.getNodeProperty(path, 'members')
-            if (members[user]) {
+            if (members && members[user]) {
                 return members[user]
             }
         }
@@ -567,11 +567,14 @@ class DBObject {
     async getMemberPermission({id}) {
         await this.ensureIndexLoaded()
         if (id && (this.index.metaIndex()[u.CREATOR] === id)) {return u.MAX_PERMISSION}
-        if (this.index.metaIndex()[u.MEMBERS][id]) {
-            return this.index.metaIndex()[u.MEMBERS][id]
-        } else {
-            return u.DEFAULT_PERMISSION
+        
+        if (id) {
+            let members = this.index.metaIndex()[u.MEMBERS]
+            if (members) {
+                return this.index.metaIndex()[u.MEMBERS][id]   
+            }
         }
+        return u.DEFAULT_PERMISSION
     }
 
     async getMembers() {
@@ -589,7 +592,11 @@ class DBObject {
     async checkPermission({user, write}) {
         let userPermission = await this.getMemberPermission({id: user})
         let objectPermission = await this.getObjectPermission()
+
         if (write) {
+            if (!userPermission) {
+                return object
+            }
             return (userPermission.write >= objectPermission.write)
         }
         return (userPermission.read >= objectPermission.read)
@@ -598,14 +605,15 @@ class DBObject {
     async setObjectPermission({objectPermission}) {
         if (objectPermission) {
             await this.ensureIndexLoaded()
-            debugger
             this.index.metaIndex().permission = permission
         }
     }
     
     async getObjectPermission() {
         await this.ensureIndexLoaded()
-        return this.index.metaIndex().permission
+        let objectPermission = this.index.metaIndex().permission
+        objectPermission = objectPermission || u.DEFAULT_PERMISSION
+        return objectPermission
 
     }
 
