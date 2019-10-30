@@ -647,8 +647,6 @@ class DBObject {
         let writableIndexObject = this.index.write()
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
 
-        // Pack for dynamo
-        debugger
         u.packAttributes(attributes)
         
         // Write to dynamo
@@ -677,8 +675,6 @@ class DBObject {
             attributes: attributes
         }).catch((err) => {u.error('failure in DBObject._read', err)})
 
-        // Unpack attributes
-        debugger
         u.unpackAttributes(attributes)
 
         return data
