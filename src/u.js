@@ -165,7 +165,51 @@ u.keyFromID = (id) => {
     return key
 }
 
-u.packKey = (key) => {
+// These are designed to be run only once, and to handle quirks of storage in dynamo
+EMPTY_STRING_REPLACEMENT = 'ES'
+u.packValue = (value) => {
+    if (value === '') {
+        value = EMPTY_STRING_REPLACEMENT
+    }
+
+    return value
+}
+
+u.unpackValue = (value) => {
+    if (value === EMPTY_STRING_REPLACEMENT) {
+        value = ''
+    }
+
+    return value
+}
+
+u.packAttributes = (attributes) => {
+    let attributeKeys = Object.keys(attributes)
+    for (let i = 0; i < attributeKeys.length; i++) {
+        let key = attributeKeys[i]
+        let value = attributes[key]
+        let packedKey = key
+        let packedValue = u.packValue(value)
+        delete attributes[key]
+        attributes[packedKey] = packedValue
+    }
+    return attributes
+}
+
+u.unpackAttributes = (attributes) => {
+    let attributeKeys = Object.keys(attributes)
+    for (let i = 0; i < attributeKeys.length; i++) {
+        let key = attributeKeys[i]
+        let value = attributes[key]
+        let unpackedKey = key
+        let unpackedValue = u.unpackValue(value)
+        delete attributes[key]
+        attributes[unpackedKey] = unpackedValue
+    }
+    return attributes
+}
+
+u.packString = (key) => {
     if (key.slice(0, 2) === u.PACKED_DESIGNATOR) {
         return key
     }
@@ -178,7 +222,7 @@ u.packKey = (key) => {
     return encodedComponents.join(u.PATH_SEPARATOR)
 }
 
-u.unpackKey = (key) => {
+u.unpackString = (key) => {
     if (key.slice(0, 2) !== u.PACKED_DESIGNATOR) {
         return key
     }
@@ -194,12 +238,12 @@ u.unpackKey = (key) => {
 
 u.packKeys = (obj) => {
     if (typeof obj === 'string') {
-        return u.packKey(obj)
+        return u.packString(obj)
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            path = u.packKey(path)
+            path = u.packString(path)
             newArr.push(path)
         })
         return newArr
@@ -208,7 +252,7 @@ u.packKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.packKey(path)
+        path = u.packString(path)
         obj[path] = value
     })
     return obj
@@ -216,12 +260,12 @@ u.packKeys = (obj) => {
 
 u.unpackKeys = (obj) => {
     if (typeof obj === 'string') {
-        return (u.unpackKey(obj))
+        return (u.unpackString(obj))
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            newArr.push(u.unpackKey(path))
+            newArr.push(u.unpackString(path))
         })
         return newArr
     }
@@ -229,7 +273,7 @@ u.unpackKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.unpackKey(path)
+        path = u.unpackString(path)
         obj[path] = value
     })
     return obj
