@@ -266,7 +266,7 @@ u.getSize = (obj) => {
 
 u.validateKeys = (attributes) => {
     Object.keys(attributes).forEach((path) => {
-        let forbidden = [u.INDEX_KEY, u.PATH_SEPARATOR, 'array', 'index', 'file']
+        let forbidden = [u.INDEX_KEY, u.PATH_SEPARATOR]
         let arrPath = u.stringPathToArrPath(path)
         arrPath.forEach((part) => {
             forbidden.forEach((forbiddenString) => {
