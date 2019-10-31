@@ -209,7 +209,31 @@ u.unpackAttributes = (attributes) => {
     return attributes
 }
 
-u.packString = (key) => {
+u.HUMAN_READABLE = u.HUMAN_READABLE || true
+u.encodeString = (string) => {
+    if (!u.HUMAN_READABLE) {
+        return base64url.encode(string)
+    }
+    let encoded = ''
+    for (let i = 0; i < string.length; i++) {
+        encoded += string[i]
+        encoded += 'x'
+    }
+    return encoded
+}
+
+u.decodeString = (string) => {
+    if (!u.HUMAN_READABLE) {
+        return base64url.decode(string)
+    }
+    let decoded = ''
+    for (let i = 0; i < string.length; i+=2) {
+        decoded += string[i]
+    }
+    return decoded
+}
+
+u.packKey = (key) => {
     if (key.slice(0, 2) === u.PACKED_DESIGNATOR) {
         return key
     }
@@ -217,12 +241,14 @@ u.packString = (key) => {
     let components = key.split('.')
     let encodedComponents = []
     components.forEach(component => {
-        encodedComponents.push(u.PACKED_DESIGNATOR + base64url.encode(component))
+        let encodedComponent = u.encodeString(component)
+        // let encodedComponent = base64url.encode(component)
+        encodedComponents.push(u.PACKED_DESIGNATOR + encodedComponent)
     })
     return encodedComponents.join(u.PATH_SEPARATOR)
 }
 
-u.unpackString = (key) => {
+u.unpackKey = (key) => {
     if (key.slice(0, 2) !== u.PACKED_DESIGNATOR) {
         return key
     }
@@ -231,19 +257,21 @@ u.unpackString = (key) => {
     let decodedComponents = []
     components.forEach(component => {
         component = component.slice(2)
-        decodedComponents.push(base64url.decode(component))
+        // decodedComponent = base64url.decode(component)
+        decodedComponent = u.decodeString(component)
+        decodedComponents.push(decodedComponent)
     })
     return decodedComponents.join('.')
 }
 
 u.packKeys = (obj) => {
     if (typeof obj === 'string') {
-        return u.packString(obj)
+        return u.packKey(obj)
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            path = u.packString(path)
+            path = u.packKey(path)
             newArr.push(path)
         })
         return newArr
@@ -252,7 +280,7 @@ u.packKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.packString(path)
+        path = u.packKey(path)
         obj[path] = value
     })
     return obj
@@ -260,12 +288,12 @@ u.packKeys = (obj) => {
 
 u.unpackKeys = (obj) => {
     if (typeof obj === 'string') {
-        return (u.unpackString(obj))
+        return (u.unpackKey(obj))
     }
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
-            newArr.push(u.unpackString(path))
+            newArr.push(u.unpackKey(path))
         })
         return newArr
     }
@@ -273,7 +301,7 @@ u.unpackKeys = (obj) => {
     Object.keys(obj).forEach((path) => {
         let value = obj[path]
         delete obj[path]
-        path = u.unpackString(path)
+        path = u.unpackKey(path)
         obj[path] = value
     })
     return obj

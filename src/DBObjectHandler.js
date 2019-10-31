@@ -5,7 +5,7 @@ const S3Client = require('./S3Client')
 const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
-    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache, permission, userPermission}) {
+    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache, permission, userPermission, humanReadable}) {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion || 'us-east-2'
@@ -18,6 +18,7 @@ class DBObjectHandler {
         this.doNotCache = doNotCache || true
         this.permission = permission || {read: 0, write: 0}
         this.userPermission = userPermission || {read: 0, write: 0}
+        if (humanReadable) {u.HUMAN_READABLE = true}
 
         this.lastTimestampsByPath = {}
         
