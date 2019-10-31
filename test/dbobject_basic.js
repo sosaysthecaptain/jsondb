@@ -29,13 +29,11 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     
     // Read one key (from cache)
     let read0 = await dbobject.get({path: 'key1'})
-    debugger
     let passed0 = _.isEqual(basicObj.key1, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
     let read1 = await dbobject.get()
-    debugger
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
     
@@ -49,7 +47,6 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     
     // Starting fresh, read one key
     let read2 = await dbobject.get({path: 'key1'})
-    debugger
     let passed2 = _.isEqual(basicObj.key1, read2)
     assert.equal(passed2, true)
     
@@ -126,9 +123,7 @@ it('DBObject_basic (3) modify', async function() {
     await dbobject.create({data: testObj})
 
     // Sanity check
-    debugger
     let read0 = await dbobject.get({path: 'arr'})
-    debugger
     let passed0 = _.isEqual(testObj.arr, read0)
     assert.equal(passed0, true)
     
