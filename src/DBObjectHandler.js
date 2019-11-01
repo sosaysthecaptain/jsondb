@@ -209,12 +209,26 @@ class DBObjectHandler {
 
         // (3)
         if (params) {
+            
             let lastOperator = null
             params.forEach(param => {
                 param[0] = u.packKeys(param[0])
             })
             query = new ScanQuery(this.tableName)
+            let addParamToQuery = (item) => {
+                query.addParam({
+                    param: item[0],
+                    message: item[1],
+                    value: item[2],
+                    operator: lastOperator
+                })                
+                lastOperator = item[3]
+            }
             params.forEach(item => {
+                debugger
+                
+                // addParamToQuery(item)
+
                 query.addParam({
                     param: item[0],
                     message: item[1],

@@ -138,6 +138,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         ],
         returnData: true
     })
+    debugger
     let passed8 = (read8[0].firstName === 'joe') && (read8[0].friends.includes('irene'))
     assert.equal(passed8, true)
     

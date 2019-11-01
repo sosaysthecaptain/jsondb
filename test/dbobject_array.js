@@ -14,10 +14,8 @@ let dynamoClient = new DynamoClient({
     awsRegion: config.AWS_REGION
 })
 it('DBObject_array (1)', async function() {
-
     this.timeout(u.TEST_TIMEOUT)
 
-    // Create fresh object
     let testObjID = 'dbobject_array_1'
     let dbobject = new jsondb.DBObject({
         id: testObjID,
@@ -25,30 +23,22 @@ it('DBObject_array (1)', async function() {
         tableName: config.tableName
     })
     await dbobject.ensureDestroyed()
-    debugger
     await dbobject.create({data: testObj})
-    debugger
     
     // Read one key (from cache)
     let read0 = await dbobject.get()
-    debugger
     let passed0 = _.isEqual(testObj, read0)
     assert.equal(passed0, true)
     
     let read1 = await dbobject.get({path: 'imanobject.arr'})
     let passed1 = _.isEqual(testObj.imanobject.arr, read1)
     assert.equal(passed1, true)
-    debugger
     
     let read2 = await dbobject.get({path: 'imanarray'})
     let passed2 = _.isEqual(testObj.imanarray, read2)
     assert.equal(passed2, true)
-    debugger
     
-   
-    // Clean up
     await dbobject.destroy()
-    // assert.equal(dbObjectExists, false)
 })
 
 let testObj = {
