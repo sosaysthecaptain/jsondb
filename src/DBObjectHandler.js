@@ -193,6 +193,7 @@ class DBObjectHandler {
             ['friends', 'contains', 'danny']
         ]
     */
+   // EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
     async scan({params, param, value, attributes, query, returnData, idOnly, user, permission}) {
         if (!this.permissionCheck()) {return undefined}
         
@@ -225,17 +226,22 @@ class DBObjectHandler {
                 lastOperator = item[3]
             }
             params.forEach(item => {
-                debugger
-                
-                // addParamToQuery(item)
+                if (item[1] === 'INTERSECTS') {
+                    debugger
+                    let value = item[2]
+                    value.forEach(val => {
+                        let subItem = []
+                        subItem.push(item[0])
+                        subItem.push('contains')
+                        subItem.push(val)
+                        subItem.push('OR')
+                        addParamToQuery(subItem)
 
-                query.addParam({
-                    param: item[0],
-                    message: item[1],
-                    value: item[2],
-                    operator: lastOperator
-                })
-                lastOperator = item[3]
+                    })
+
+                } else {
+                    addParamToQuery(item)
+                }
             })
         }
 

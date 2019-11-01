@@ -138,7 +138,6 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         ],
         returnData: true
     })
-    debugger
     let passed8 = (read8[0].firstName === 'joe') && (read8[0].friends.includes('irene'))
     assert.equal(passed8, true)
     
@@ -151,6 +150,15 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     })
     let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
     assert.equal(passed9, true)
+
+    let read10 = await parentObj.collection({path: friendsPath}).scan({
+        params: [
+            ['friends', 'INTERSECTS', ['irene', 'someone else']],
+        ],
+        returnData: true
+    })
+    let passed10 = read10.length === 2
+    assert.equal(passed10, true)
     
     
     // Destroy parent object and see that collection is destroyed as well

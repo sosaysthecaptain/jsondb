@@ -45,16 +45,20 @@ class ScanQuery {
         this.paramsObject.ExpressionAttributeValues[`:key_${this.index}`] = value
         
         let filterExpressionComponent
+        // filterExpressionComponent = `(${param} ${message} :key_${this.index})`
         if (message === '=') {
             filterExpressionComponent = `(${param} = :key_${this.index})`
-        } else if (message === 'contains') {
-            filterExpressionComponent = `(contains (${param}, :key_${this.index}))`
+        } else {
+            filterExpressionComponent = `(${message} (${param}, :key_${this.index}))`
+        // } else if (message === 'contains') {
+        //     filterExpressionComponent = `(contains (${param}, :key_${this.index}))`
         }
         if (this.index !== 0) {
             filterExpressionComponent = ` ${operator} ${filterExpressionComponent}`
         }
         this.paramsObject.FilterExpression += filterExpressionComponent
         this.index += 1
+        debugger
     }
 
     write() {

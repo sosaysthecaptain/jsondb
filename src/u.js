@@ -300,7 +300,6 @@ u.packKeys = (obj) => {
     if (typeof obj === 'string') {
         return u.packKey(obj)
     }
-
     if (obj instanceof Array) {
         let newArr = []
         obj.forEach((path) => {
@@ -438,12 +437,12 @@ u.processAttributes = (attributes) => {
         if (arr instanceof Array) {
             return u.ARRAY_PACKAGE_PREFACE + JSON.stringify(arr)} else {return arr}
     }
-    // Object.keys(attributes).forEach((key) => {
-    //     let value = attributes[key]
-    //     // if ((value instanceof Array)) {
-    //     //     attributes[key] = packageArray(value)
-    //     // }
-    // })
+    Object.keys(attributes).forEach((key) => {
+        let value = attributes[key]
+        if ((value instanceof Array)) {
+            attributes[key] = packageArray(value)
+        }
+    })
     return attributes
 }
 
@@ -453,12 +452,12 @@ u.processReturn = (attributes) => {
         return JSON.parse(package)
     }
 
-    // Object.keys(attributes).forEach((key) => {
-    //     let value = attributes[key]
-    //     // if ((typeof value === 'string') && (value.startsWith(u.ARRAY_PACKAGE_PREFACE))) {
-    //     //     attributes[key] = unpackageArray(value)
-    //     // }
-    // })
+    Object.keys(attributes).forEach((key) => {
+        let value = attributes[key]
+        if ((typeof value === 'string') && (value.startsWith(u.ARRAY_PACKAGE_PREFACE))) {
+            attributes[key] = unpackageArray(value)
+        }
+    })
     return attributes
 }
 
