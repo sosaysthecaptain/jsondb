@@ -123,6 +123,7 @@ it('DBObject_basic (3) modify', async function() {
     await dbobject.create({data: testObj})
 
     // Sanity check
+
     let read0 = await dbobject.get({path: 'arr'})
     let passed0 = _.isEqual(testObj.arr, read0)
     assert.equal(passed0, true)
