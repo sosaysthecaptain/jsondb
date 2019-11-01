@@ -58,7 +58,6 @@ class ScanQuery {
         }
         this.paramsObject.FilterExpression += filterExpressionComponent
         this.index += 1
-        debugger
     }
 
     write() {

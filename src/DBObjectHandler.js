@@ -227,7 +227,6 @@ class DBObjectHandler {
             }
             params.forEach(item => {
                 if (item[1] === 'INTERSECTS') {
-                    debugger
                     let value = item[2]
                     value.forEach(val => {
                         let subItem = []
