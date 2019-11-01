@@ -5,8 +5,6 @@ are designated as such upon instantiation, and keep a cache, while child nodes d
 
 */
 
-const flatten = require('flat')
-const unflatten = require('flat').unflatten
 const _ = require('lodash')
 
 
@@ -136,14 +134,14 @@ class DBObject {
         // No path == entire object, gotten by a different methodology
         if (!path) {
             let allKeysFlat = await this._getEntireObject({permission, noCache})
-            return unflatten(allKeysFlat)
+            return u.unflatten(allKeysFlat)
         }
         
         // Otherwise use batchGet and pull out path from naturally formatted object
         let data = await this.batchGet({paths: path, permission, noCache})
         
         if (path !== '') {
-            data = unflatten(data)
+            data = u.unflatten(data)
             let humanPath = u.unpackKeys(path)
             let arrPath = u.stringPathToArrPath(humanPath)
             data = _.get(data, arrPath)
@@ -151,7 +149,7 @@ class DBObject {
             return data
         } 
         
-        data = unflatten(data)
+        data = u.unflatten(data)
         return data
     }
     
@@ -249,7 +247,7 @@ class DBObject {
         }
             
         // Cache and return
-        u.processReturn(data)
+        // u.processReturn(data)
         this._cacheSet(data)
         return u.unpackKeys(data)
     }
@@ -257,8 +255,8 @@ class DBObject {
     async set({attributes, sensitivity, creator, members, objectPermission}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
-        u.processAttributes(newAttributes)
-        newAttributes = flatten(newAttributes)
+        // u.processAttributes(newAttributes)
+        newAttributes = u.flatten(newAttributes)
         u.packKeys(newAttributes)
         await this.getChildNodes()
 

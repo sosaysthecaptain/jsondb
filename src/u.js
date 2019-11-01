@@ -2,8 +2,8 @@ const LOGGING_ON = false
 const LOG_METRICS = false
 
 // const dynoItemSize = require('dyno-item-size')
-// const flatten = require('flat')
-// const unflatten = require('flat').unflatten
+const flatten = require('flat')
+const unflatten = require('flat').unflatten
 const uuidv4 = require('uuid/v4')
 const base64url = require('base64url')
 const _ = require('lodash')
@@ -57,6 +57,14 @@ u.DYNAMO_RESERVED_WORDS = ["ABORT","ABSOLUTE","ACTION","ADD","AFTER","AGENT","AG
 
 
 /* NODE & INDEXING UTILITIES */
+
+u.flatten = (obj) => {
+    return flatten(obj, {safe: true})
+}
+
+u.unflatten = (obj) => {
+    return unflatten(obj)
+}
 
 
 // Excludes intermediate
@@ -433,31 +441,31 @@ u.dedupe = (arr) => {
 
 // JS arrays don't play nicely with flatten or dynamo, so we package them into strings
 u.processAttributes = (attributes) => {
-    packageArray = (arr) => {
-        if (arr instanceof Array) {
-            return u.ARRAY_PACKAGE_PREFACE + JSON.stringify(arr)} else {return arr}
-    }
-    Object.keys(attributes).forEach((key) => {
-        let value = attributes[key]
-        if ((value instanceof Array)) {
-            attributes[key] = packageArray(value)
-        }
-    })
+    // packageArray = (arr) => {
+    //     if (arr instanceof Array) {
+    //         return u.ARRAY_PACKAGE_PREFACE + JSON.stringify(arr)} else {return arr}
+    // }
+    // Object.keys(attributes).forEach((key) => {
+    //     let value = attributes[key]
+    //     if ((value instanceof Array)) {
+    //         attributes[key] = packageArray(value)
+    //     }
+    // })
     return attributes
 }
 
 u.processReturn = (attributes) => {
-    unpackageArray = (package) => {
-        package = package.slice(u.ARRAY_PACKAGE_PREFACE.length)
-        return JSON.parse(package)
-    }
+    // unpackageArray = (package) => {
+    //     package = package.slice(u.ARRAY_PACKAGE_PREFACE.length)
+    //     return JSON.parse(package)
+    // }
 
-    Object.keys(attributes).forEach((key) => {
-        let value = attributes[key]
-        if ((typeof value === 'string') && (value.startsWith(u.ARRAY_PACKAGE_PREFACE))) {
-            attributes[key] = unpackageArray(value)
-        }
-    })
+    // Object.keys(attributes).forEach((key) => {
+    //     let value = attributes[key]
+    //     if ((typeof value === 'string') && (value.startsWith(u.ARRAY_PACKAGE_PREFACE))) {
+    //         attributes[key] = unpackageArray(value)
+    //     }
+    // })
     return attributes
 }
 
