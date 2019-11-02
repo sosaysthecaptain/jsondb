@@ -4,6 +4,8 @@ More convenient handle on aws-sdk, instantiated with aws credentials})
 
 let aws = require('aws-sdk')
 
+let u = require('./u')
+
 class DynamoClient {
     constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion}) {
         this.awsAccessKeyId = awsAccessKeyId
@@ -212,6 +214,22 @@ class DynamoClient {
     async scan(scanQueryInstance) {
         let params = scanQueryInstance.write()
         const data = await this.dynamo.scan(params).promise().catch((err) => {
+            throw(err)
+        })
+        return data.Items
+    }
+    
+    async query(scanQueryInstance, seriesKey) {
+        let params = scanQueryInstance.write()
+        
+        // Add seriesKey as KeyConditionExpression
+        params.ExpressionAttributeNames = params.ExpressionAttributeNames || {}
+        params.ExpressionAttributeValues = params.ExpressionAttributeValues || {}
+        params.KeyConditionExpression = '#pk = :pk_string'
+        params.ExpressionAttributeNames['#pk'] = 'uid'
+        params.ExpressionAttributeValues[':pk_string'] = seriesKey
+
+        const data = await this.dynamo.query(params).promise().catch((err) => {
             throw(err)
         })
         return data.Items

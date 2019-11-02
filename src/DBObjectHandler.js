@@ -244,16 +244,13 @@ class DBObjectHandler {
             })
         }
 
-        if (this.seriesKey) {
-            query.addParam({
-                param: u.PK,
-                message: '=',
-                value: this.seriesKey,
-                operator: 'AND'
-            })
+        // If this is a collection, the scan is actually a query
+        let data
+        if (this.isTimeOrdered) {
+            data = await this.dynamoClient.query(query, this.seriesKey)
+        } else {
+            data = await this.dynamoClient.scan(query)
         }
-
-        let data = await this.dynamoClient.scan(query)
         if (returnData && !attributes) {attributes = true}
         return await this._objectsOrDataFromRaw(data, attributes, idOnly, user, permission)
     }
@@ -302,7 +299,7 @@ class DBObjectHandler {
                     obj.id = dbobject.id
                 }
             }
-            data.push(obj)
+            if (obj) {data.push(obj)}
         }
         return data
     }
