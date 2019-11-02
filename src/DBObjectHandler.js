@@ -228,15 +228,20 @@ class DBObjectHandler {
             params.forEach(item => {
                 if (item[1] === 'INTERSECTS') {
                     let value = item[2]
-                    value.forEach(val => {
+                    for (let i = 0; i < value.length; i++) {
+                        let val = value[i]
                         let subItem = []
                         subItem.push(item[0])
                         subItem.push('contains')
                         subItem.push(val)
-                        subItem.push('OR')
+                        debugger
+                        if (i+1 !== value.length) {
+                            subItem.push('OR')
+                        } else {
+                            subItem.push(item[3])
+                        }
                         addParamToQuery(subItem)
-
-                    })
+                    }
 
                 } else {
                     addParamToQuery(item)
