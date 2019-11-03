@@ -64,14 +64,14 @@ class DBObjectHandler {
     // TODO: like create, except create ID on the basis of SK/path
     async addObject() {}
 
-    async destroyObject({id, confirm}) {
+    async destroyObject({id, user, confirm, permissionOverride}) {
         if (!this.permissionCheck(true)) {return undefined}
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        return await dbobject.destroy({permissionOverride: true, confirm})
+        return await dbobject.destroy({user, permissionOverride, confirm})
     }
 
     async getObject({id, returnData, attributes, user, permission}) {

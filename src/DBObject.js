@@ -463,7 +463,7 @@ class DBObject {
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                await this.collection({path, user}).destroyObject({id: dbobject.id})
+                await this.collection({path, user}).destroyObject({id: dbobject.id, permissionOverride: true})
             }
         }
     }
@@ -700,7 +700,6 @@ class DBObject {
 
         // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
         this._permissionFilterAttributes(data, permission)
-        data.id = this.id
         return u.unpackKeys(data)
     }
 
@@ -748,7 +747,7 @@ class DBObject {
             })
             this.index.updateMetaNodes()
             let allKeysInIndex = this.index.getChildren()
-            if (!allKeysInIndex.length) {this.destroy()}
+            if (!allKeysInIndex.length) {await this.destroy()}
         }
 
         // TODO: COLLECTION, FILE, REF
