@@ -45,19 +45,31 @@ class ScanQuery {
         this.paramsObject.ExpressionAttributeValues[`:key_${this.index}`] = value
         
         let filterExpressionComponent
-        // filterExpressionComponent = `(${param} ${message} :key_${this.index})`
         if (message === '=') {
             filterExpressionComponent = `(${param} = :key_${this.index})`
         } else {
             filterExpressionComponent = `(${message} (${param}, :key_${this.index}))`
-        // } else if (message === 'contains') {
-        //     filterExpressionComponent = `(contains (${param}, :key_${this.index}))`
         }
         if (this.index !== 0) {
             filterExpressionComponent = ` ${operator} ${filterExpressionComponent}`
         }
         this.paramsObject.FilterExpression += filterExpressionComponent
         this.index += 1
+    }
+
+    // NULL, NOT_NULL
+    addSimpleCondition({path, condition}) {
+
+        
+    }
+
+    addNotNull(path) {
+        debugger
+        this.paramsObject.AttributeValueList
+        this.paramsObject.FilterExpression += path + ' NOT_NULL'
+        // TableName : 'Table',
+        // FilterExpression : 'Year = :this_year',
+        // ExpressionAttributeValues : {':this_year' : 2015}
     }
 
     write() {

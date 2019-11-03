@@ -225,6 +225,8 @@ class DBObjectHandler {
                 })                
                 lastOperator = item[3]
             }
+            
+            // Add params. "INTERSECTS" is represented as a series of "CONTAINS" params.
             params.forEach(item => {
                 if (item[1] === 'INTERSECTS') {
                     let value = item[2]
@@ -234,7 +236,6 @@ class DBObjectHandler {
                         subItem.push(item[0])
                         subItem.push('contains')
                         subItem.push(val)
-                        debugger
                         if (i+1 !== value.length) {
                             subItem.push('OR')
                         } else {
@@ -242,8 +243,13 @@ class DBObjectHandler {
                         }
                         addParamToQuery(subItem)
                     }
-
-                } else {
+                }
+                // } else if (item[1] === 'NOT_NULL') {
+                //     query.addNotNull(item[0])
+                //     debugger
+                // }
+                
+                else {
                     addParamToQuery(item)
                 }
             })

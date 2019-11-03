@@ -151,6 +151,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
     assert.equal(passed9, true)
 
+    // INTERSECTS
     let read10 = await parentObj.collection({path: friendsPath}).scan({
         params: [
             ['friends', 'INTERSECTS', ['irene', 'someone else']],
@@ -159,6 +160,19 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     })
     let passed10 = read10.length === 2
     assert.equal(passed10, true)
+    
+    // // NOT_NULL
+    // await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'snitcher'}})
+    // debugger
+    // let read11 = await parentObj.collection({path: friendsPath}).scan({
+    //     params: [
+    //         ['friends', 'NOT_NULL'],
+    //     ],
+    //     returnData: true
+    // })
+    // debugger
+    // let passed11 = read10.length === 4
+    // assert.equal(passed11, true)
     
     
     // Destroy parent object and see that collection is destroyed as well
