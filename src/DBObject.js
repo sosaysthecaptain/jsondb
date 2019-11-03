@@ -700,7 +700,7 @@ class DBObject {
 
         // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
         this._permissionFilterAttributes(data, permission)
-
+        data.id = this.id
         return u.unpackKeys(data)
     }
 
