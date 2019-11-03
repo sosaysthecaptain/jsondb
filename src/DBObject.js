@@ -654,7 +654,7 @@ class DBObject {
             attributes: attributes
         }).catch((err) => {
             console.log('failure in DBObject._write')
-            console.error(err)
+            throw(err)
         })
 
         this.indexLoaded = true
