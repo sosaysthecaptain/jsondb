@@ -164,7 +164,7 @@ class DBObjectHandler {
             ascending,
             exclusiveFirstSk: exclusiveFirstTimestamp
         })
-        return await this._objectsOrDataFromRaw(allObjectData, attributes, idOnly, user, permission)
+        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, idOnly, user, permission})
     }
 
     resetPage() {this.exclusiveStartTimestamp = null}
@@ -180,7 +180,7 @@ class DBObjectHandler {
             ascending
         })
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw(allObjectData, attributes, user, permission)
+        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, user, permission})
     }
 
     // Pass a single path and value, or else a completed ScanQuery object
@@ -244,15 +244,19 @@ class DBObjectHandler {
                         addParamToQuery(subItem)
                     }
                 }
-                // } else if (item[1] === 'NOT_NULL') {
-                //     query.addNotNull(item[0])
-                //     debugger
-                // }
                 
                 else {
                     addParamToQuery(item)
                 }
             })
+        }
+
+        // What data to get: everything / only some things / only PK/SK
+        if (attributes) {
+            attributes = u.packKeys(attributes)
+            query.addAttributes(attributes)
+        } else if (returnData) {
+            query.addAttributes([])
         }
 
         // If this is a collection, the scan is actually a query
@@ -262,12 +266,17 @@ class DBObjectHandler {
         } else {
             data = await this.dynamoClient.scan(query)
         }
+
+        
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw(data, attributes, idOnly, user, permission)
+        return await this._objectsOrDataFromRaw({raw: data, attributes, returnData, idOnly, user, permission})
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
-    async _objectsOrDataFromRaw(raw, attributes, idOnly, user, permission) {
+    // Note that for the sake of permission we go through DBObjects in all cases
+    async _objectsOrDataFromRaw({raw, attributes, returnData, idOnly, user, permission}) {
+        
+        // Make DBObjects
         let dbobjects = []
         raw.forEach(data => {
             let id = data[u.PK] + '-' + data[u.SK]
@@ -276,7 +285,7 @@ class DBObjectHandler {
             delete data[u.PK]
             delete data[u.SK]
             
-            // dbobjects.push(new DBObject({
+            
             dbobjects.push(new this.Subclass({
                 id: id,
                 tableName: this.tableName,
@@ -306,12 +315,17 @@ class DBObjectHandler {
             } else {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
-                    obj[attribute] = await dbobject.get({path: attribute, user, permission})
-                    obj.id = dbobject.id
+                    attribute = u.unpackKeys(attribute)
+                    if ((attribute !== u.PK) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
+                        obj[attribute] = await dbobject.get({path: attribute, user, permission})
+                    }
                 }
+                obj.id = dbobject.id
+                obj.timestamp = dbobject.timestamp()
             }
             if (obj) {data.push(obj)}
         }
+
         return data
     }
 

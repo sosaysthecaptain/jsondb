@@ -23,6 +23,8 @@ EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS
 https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Condition.html
 */
 
+const u = require('./u')
+
 
 class ScanQuery {
     constructor(table_name) {
@@ -57,19 +59,13 @@ class ScanQuery {
         this.index += 1
     }
 
-    // NULL, NOT_NULL
-    addSimpleCondition({path, condition}) {
-
-        
-    }
-
-    addNotNull(path) {
-        debugger
-        this.paramsObject.AttributeValueList
-        this.paramsObject.FilterExpression += path + ' NOT_NULL'
-        // TableName : 'Table',
-        // FilterExpression : 'Year = :this_year',
-        // ExpressionAttributeValues : {':this_year' : 2015}
+    // Adds specification to get only one attribute. Pass true for all
+    addAttributes(attributes) { 
+        if (attributes === true) {return}
+        attributes.push(u.PK)
+        attributes.push(u.SK)
+        attributes.push(u.INDEX_KEY)
+        this.paramsObject.ProjectionExpression = attributes.join(', ')
     }
 
     write() {

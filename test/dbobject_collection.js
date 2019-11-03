@@ -161,6 +161,25 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let passed10 = read10.length === 2
     assert.equal(passed10, true)
     
+    // Only some properties
+    let firstNameOnly = await parentObj.collection({path: friendsPath}).scan({
+        params: [
+            ['firstName', '=', 'danny', 'OR'],
+            ['firstName', '=', 'irene'],
+        ],
+        attributes: ['firstName']
+    })
+    let objectsOnly = await parentObj.collection({path: friendsPath}).scan({
+        params: [
+            ['firstName', '=', 'danny', 'OR'],
+            ['firstName', '=', 'irene'],
+        ]
+    })
+    let passed11 = firstNameOnly[0].firstName && !firstNameOnly[0].friends
+    assert.equal(passed11, true)
+    let passed12 = objectsOnly[0].set !== undefined
+    assert.equal(passed12, true)
+    
     // // NOT_NULL
     // await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'snitcher'}})
     // debugger

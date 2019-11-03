@@ -305,6 +305,7 @@ u.unpackKey = (key) => {
 }
 
 u.packKeys = (obj) => {
+    if ((obj === true) || (obj === undefined)) {return obj}
     if (typeof obj === 'string') {
         return u.packKey(obj)
     }
