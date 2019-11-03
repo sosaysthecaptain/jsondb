@@ -321,7 +321,10 @@ class DBObjectHandler {
                     }
                 }
                 obj.id = dbobject.id
-                obj.timestamp = dbobject.timestamp()
+                let timestamp = dbobject.timestamp()
+                if (timestamp) {
+                    obj.timestamp = timestamp
+                }
             }
             if (obj) {data.push(obj)}
         }
