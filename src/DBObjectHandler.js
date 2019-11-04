@@ -102,6 +102,7 @@ class DBObjectHandler {
             let dbobject = new this.Subclass({
                 id: id,
                 dynamoClient: this.dynamoClient,
+                s3Client: this.s3Client,
                 tableName: this.tableName
             })
             return dbobject
