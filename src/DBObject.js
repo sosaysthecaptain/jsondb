@@ -544,33 +544,33 @@ class DBObject {
 
     async setCreator({id}) {
         await this.ensureIndexLoaded()
-        this.index.metaIndex()[u.CREATOR] = id
-        this.index.metaIndex()[u.CREATED_DATE] = Date.now()
+        this.index.metaIndex().data[u.CREATOR] = id
+        this.index.metaIndex().data[u.CREATED_DATE] = Date.now()
     }
     async getCreator() {
         await this.ensureIndexLoaded()
-        return this.index.metaIndex()[u.CREATOR]
+        return this.index.metaIndex().data[u.CREATOR]
     }
     
     async getCreatedDate() {
         await this.ensureIndexLoaded()
-        return this.index.metaIndex()[u.CREATED_DATE]
+        return this.index.metaIndex().data[u.CREATED_DATE]
     }
 
     async setMemberPermission({id, permission}) {
         await this.ensureIndexLoaded()
-        this.index.metaIndex()[u.MEMBERS] = this.index.metaIndex()[u.MEMBERS] || {}
-        this.index.metaIndex()[u.MEMBERS][id] = permission
+        this.index.metaIndex().data[u.MEMBERS] = this.index.metaIndex().data[u.MEMBERS] || {}
+        this.index.metaIndex().data[u.MEMBERS][id] = permission
     }
     
     async getMemberPermission({id}) {
         await this.ensureIndexLoaded()
-        if (id && (this.index.metaIndex()[u.CREATOR] === id)) {return u.MAX_PERMISSION}
+        if (id && (this.index.metaIndex().data[u.CREATOR] === id)) {return u.MAX_PERMISSION}
         
         if (id) {
-            let members = this.index.metaIndex()[u.MEMBERS]
+            let members = this.index.metaIndex().data[u.MEMBERS]
             if (members) {
-                return this.index.metaIndex()[u.MEMBERS][id]   
+                return this.index.metaIndex().data[u.MEMBERS][id]   
             }
         }
         return u.DEFAULT_PERMISSION
@@ -578,14 +578,14 @@ class DBObject {
 
     async getMembers() {
         await this.ensureIndexLoaded()
-        return this.index.metaIndex()[u.MEMBERS]
+        return this.index.metaIndex().data[u.MEMBERS]
 
     }
     
     async removeMember({id}) {
         await this.ensureIndexLoaded()
-        this.index.metaIndex()[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
-        delete this.index.metaIndex()[u.MEMBERS][id]
+        this.index.metaIndex().data[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
+        delete this.index.metaIndex().data[u.MEMBERS][id]
     }
 
     async checkPermission({user, write}) {
@@ -604,13 +604,13 @@ class DBObject {
     async setObjectPermission({objectPermission}) {
         if (objectPermission) {
             await this.ensureIndexLoaded()
-            this.index.metaIndex().permission = permission
+            this.index.metaIndex().data.permission = permission
         }
     }
     
     async getObjectPermission() {
         await this.ensureIndexLoaded()
-        let objectPermission = this.index.metaIndex().permission
+        let objectPermission = this.index.metaIndex().data.permission
         objectPermission = objectPermission || u.DEFAULT_PERMISSION
         return objectPermission
 

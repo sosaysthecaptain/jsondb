@@ -341,12 +341,8 @@ class NodeIndex {
         let writtenIndex = {}
         Object.keys(this.i).forEach((path) => {
             let nodeObject = this.i[path]
-            if (path === u.INDEX_KEY) {
-                writtenIndex[path] = nodeObject
-            } else {
-                let nodeData = nodeObject.write(complete)
-                if (nodeData) {writtenIndex[path] = nodeData}
-            }
+            let nodeData = nodeObject.write(complete)
+            if (nodeData) {writtenIndex[path] = nodeData}
         })
         return writtenIndex
     }
