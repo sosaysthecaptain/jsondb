@@ -84,7 +84,7 @@ class DBObjectHandler {
 
         // Return some data, all data, or just the dbobject
         if (attributes) {
-            return await dbobject.batchGet({attributes, user, permission})
+            return await dbobject.batchGet({paths: attributes, user, permission})
         } else if (returnData && !attributes) {
             return await dbobject.get({user, permission})
         } else  {
