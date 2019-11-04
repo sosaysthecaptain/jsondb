@@ -71,6 +71,7 @@ class DBObjectHandler {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
+        if (permissionOverride) {user = undefined}
         return await dbobject.destroy({user, permissionOverride, confirm})
     }
 
@@ -112,6 +113,7 @@ class DBObjectHandler {
             dbobjects[id] = new this.Subclass({
                 id: id,
                 dynamoClient: this.dynamoClient,
+                s3Client: this.s3Client,
                 tableName: this.tableName
             })
         })
