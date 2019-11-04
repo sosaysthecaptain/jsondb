@@ -523,6 +523,7 @@ class DBObject {
             awsAccessKeyId: this.dynamoClient.awsAccessKeyId,
             awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
             awsRegion: this.dynamoClient.awsRegion,
+            bucketName: this.s3Client.bucketName,
             tableName: this.tableName,
             subclass: subclass,
             isTimeOrdered: true, 
