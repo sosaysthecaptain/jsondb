@@ -273,6 +273,7 @@ class DBObject {
         this._cacheSet(newAttributes)
 
         // Set top level creator/member data
+    
         await this.setCreator({id: creator})
         await this.setObjectPermission({objectPermission})
         if (members) {
