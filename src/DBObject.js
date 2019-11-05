@@ -274,8 +274,8 @@ class DBObject {
 
         // Set top level creator/member data
     
-        await this.setCreator({id: creator})
-        await this.setObjectPermission({objectPermission})
+        if (creator) {await this.setCreator({id: creator})}
+        if (objectPermission) {await this.setObjectPermission({objectPermission})}        
         if (members) {
             let memberIDs = Object.keys(members)
             for (let i = 0; i < memberIDs.length; i++) {
