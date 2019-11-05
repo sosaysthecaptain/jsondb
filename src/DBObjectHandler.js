@@ -315,6 +315,9 @@ class DBObjectHandler {
             let obj = {}
             if (attributes === true) {
                 obj = await dbobject.get({user, permission})
+                let timestamp = dbobject.timestamp()
+                if (timestamp) {obj.timestamp = timestamp}
+                if (includeID) {obj.id = dbobject.id}
             } else {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
@@ -325,12 +328,8 @@ class DBObjectHandler {
                 }
                 obj.id = dbobject.id
                 let timestamp = dbobject.timestamp()
-                if (timestamp) {
-                    obj.timestamp = timestamp
-                }
-                if (includeID) {
-                    obj.id = dbobject.id
-                }
+                if (timestamp) {obj.timestamp = timestamp}
+                if (includeID) {obj.id = dbobject.id}
             }
             if (obj) {data.push(obj)}
         }
