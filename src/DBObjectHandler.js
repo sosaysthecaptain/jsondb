@@ -98,10 +98,15 @@ class DBObjectHandler {
     async batchGet({ids, user, permission, attributes, returnData, includeID}) {
         if (!this.permissionCheck()) {return undefined}
 
+        // ids -> dynamo keys
         let keys = []
         ids.forEach(id=>{
             keys.push(u.keyFromID(id))
         })
+
+        // paths -> packed paths
+        let flat = u.flatten(attributes)
+        attributes = u.packKeys(flat)
 
         let data = await this.dynamoClient.batchGet({
             attributes, keys,
