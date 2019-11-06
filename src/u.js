@@ -176,7 +176,7 @@ u.keyFromID = (id) => {
 }
 
 // These are designed to be run only once, and to handle quirks of storage in dynamo
-EMPTY_STRING_REPLACEMENT = 'ES'
+EMPTY_STRING_REPLACEMENT = 'XX_ES'
 u.packValue = (value) => {
     if (value === '') {
         value = EMPTY_STRING_REPLACEMENT
@@ -225,7 +225,6 @@ u.stringContainsReservedWord = (string) => {
     upper = string.toUpperCase()
     for (let i = 0; i < u.DYNAMO_RESERVED_WORDS.length; i++) {
         let word = u.DYNAMO_RESERVED_WORDS[i]
-        // if (upper.includes(word)) {
         if (upper === word) {
             return true
         }

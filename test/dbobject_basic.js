@@ -54,10 +54,9 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     let read3 = await dbobject.get()
     let passed3 = _.isEqual(basicObj, read3)
     assert.equal(passed3, true)
-
+    
     // Clean up
     await dbobject.destroy()
-    // assert.equal(dbObjectExists, false)
 })
 
 it('DBObject_basic (2) sensitivity levels', async function() {
@@ -172,6 +171,7 @@ let basicObj = {
         subkey1: 'this is key3.subkey1',
         subkey2: 'this is key3.subkey2',
         subkey3: 'this is key3.subkey3',
+        emptyString: ''
     }
 }
 

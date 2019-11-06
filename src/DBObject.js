@@ -385,8 +385,9 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile({path, data, sensitivity}) {
+    async setFile({path, data, sensitivity, user, permission}) {
         await this.ensureIndexLoaded()
+        await this.checkPermission({user, permission, write: true})
         path = u.packKeys(path)
 
         // Generate fileID, store it on the index, set nodetype
@@ -589,8 +590,13 @@ class DBObject {
         delete this.index.metaIndex().data[u.MEMBERS][id]
     }
 
-    async checkPermission({user, write}) {
-        let userPermission = await this.getMemberPermission({id: user})
+    // Checks the user's permission, unless an override permission is passed
+    async checkPermission({user, write, permission}) {
+        let userPermission = permission || await this.getMemberPermission({id: user})
+        // if (!userPermission) {
+
+        //     userPermission = await this.getMemberPermission({id: user})
+        // }
         let objectPermission = await this.getObjectPermission()
 
         if (write) {
@@ -675,8 +681,7 @@ class DBObject {
             attributes: attributes
         }).catch((err) => {u.error('failure in DBObject._read', err)})
 
-        u.unpackAttributes(attributes)
-
+        u.unpackAttributes(data)
         return data
     }
 
