@@ -106,6 +106,8 @@ class DBObjectHandler {
 
         // paths -> packed paths
         if (attributes) {
+            attributes.push(u.PK)
+            attributes.push(u.SK)
             attributes = u.packKeys(attributes)
         }
 
