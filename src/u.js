@@ -27,7 +27,7 @@ u.INDEX_KEY = 'META'
 u.LARGE_EXT_INDEX = 'LARGE_EXT_INDEX'
 u.LARGE_SERIALIZED_PAYLOAD = 'ENC'    
 u.ARRAY_PACKAGE_PREFACE = 'META_ARRAY_'
-u.PATH_SEPARATOR = '__'
+u.PATH_SEPARATOR = '_x_'
 u.PACKED_DESIGNATOR = 'XX'
 
 u.NT_DEFAULT = 'D'                          // default terminal node (get node)
