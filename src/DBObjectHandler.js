@@ -106,8 +106,12 @@ class DBObjectHandler {
 
         // paths -> packed paths
         if (attributes) {
+            let newAttributes = []
             let flat = u.flatten(attributes)
-            attributes = u.packKeys(flat)
+            flat.forEach(attr=>{
+                newAttributes.push(u.packKeys(attr))
+            })
+            attributes = newAttributes
         }
 
         let data = await this.dynamoClient.batchGet({
