@@ -93,6 +93,33 @@ class DBObjectHandler {
         }
     }
 
+    // Gets specified data from a number of SIMPLE dbobjects at once
+    // Bypasses the index
+    async batchGet({ids, user, permission, attributes, returnData, includeID}) {
+        if (!this.permissionCheck()) {return undefined}
+
+        let keys = []
+        ids.forEach(id=>{
+            keys.push(u.keyFromID(id))
+        })
+
+        let data = await this.dynamoClient.batchGet({
+            attributes, keys,
+            tableName: this.tableName
+        })
+
+        if (returnData) {attributes = true}
+        let ret = await this._objectsOrDataFromRaw({
+            raw: data, 
+            attributes, 
+            returnData, 
+            user, 
+            permission, 
+            includeID
+        }).catch(err=> {debugger})
+        return ret
+    }
+
     // Instantiates without hitting db
     instantiate({id, ids}) {
         if (!this.permissionCheck()) {return undefined}
@@ -151,7 +178,6 @@ class DBObjectHandler {
             raw.push(ret)
         }
         return raw
-
     }
     
     async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission, includeID}) {
@@ -303,6 +329,7 @@ class DBObjectHandler {
             dbobjects.forEach(obj => {ids.push(obj.id)})
             return ids
         }
+        if (returnData) {attributes = true}
         if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, permission, includeID)}
         return dbobjects
     }

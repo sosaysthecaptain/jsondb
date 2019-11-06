@@ -686,10 +686,18 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject({permission, user, noCache}) {
+    async _getEntireObject({permission, user, noCache, dumpCache}) {
         await this.ensureIndexLoaded()
 
         if (user) {permission = await this.getMemberPermission({id: user})}
+
+        // QUICK OPTION: cache only
+        // TODO: set an isIncomplete flag, if this isn't true then this is all we do
+        if (dumpCache && this._isAllPresent()) {
+            let data = u.copy(this.cache)
+            this._permissionFilterAttributes(data, permission)
+            return u.unpackKeys(data)
+        }
 
         // Get everything locally available
         let data = await this.batchGet({permission, noCache})
@@ -708,6 +716,16 @@ class DBObject {
         // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
         this._permissionFilterAttributes(data, permission)
         return u.unpackKeys(data)
+    }
+
+    _isAllPresent() {
+        let indexPaths = this.index.getTerminalNodes()
+        let cachePaths = Object.keys(this.cache)
+        for (let i = 0; i < indexPaths.length; i++) {
+            let path = indexPaths[i]
+            if (!cachePaths[path]) {return false}
+        }
+        return true
     }
 
     // Recursive, use cache on top level

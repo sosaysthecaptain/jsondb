@@ -104,6 +104,27 @@ it('DBObjectHandler (2) - batch operations', async function() {
     let messages = await messageHandler.instantiate({ids: messageIDs})
     let passed0 = ((messages[message0.id].id === message0.id) && (messages[message5.id].id === message5.id))
     assert.equal(passed0, true)
+
+    // Plain batchGet
+    let byIDsWhole = await messageHandler.batchGet({ids: messageIDs, returnData: true})
+    // let passedByIDsWhole = (byIDsWhole[0].message === 'first message') && (byIDsWhole[1].message === 'second message')
+    let passedByIDsWhole = byIDsWhole.length > 0
+    assert.equal(passedByIDsWhole, true)
+    
+    // let byIDsPart = await messageHandler.batchGet({
+    //     ids: messageIDs, 
+    //     attributes: ['message']
+    // })
+    
+    // TODO
+    // // let passedByIDsPart = (byIDsPart[0].message === 'first message') && (byIDsPart[1].message === 'second message')
+    // let passedByIDsPart = byIDsPart.length > 0
+    // assert.equal(passedByIDsPart, true)
+    
+    // let byIDsObj = await messageHandler.batchGet({ids: messageIDs, returnData: true})
+    // // let passedByIDsObj = (byIDsObj[0].id === messageIDs[0]) && (byIDsObj[1].message === messageIDs[1])
+    // let passedByIDsObj = byIDsObj.length > 0
+    // assert.equal(passedByIDsObj, true)
     
     // Getting by time range
     let byTime = await messageHandler.batchGetObjectsByTime({
