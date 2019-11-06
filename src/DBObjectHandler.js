@@ -106,9 +106,9 @@ class DBObjectHandler {
 
         // paths -> packed paths
         if (attributes) {
+            attributes = u.packKeys(attributes)
             attributes.push(u.PK)
             attributes.push(u.SK)
-            attributes = u.packKeys(attributes)
         }
 
         let data = await this.dynamoClient.batchGet({
