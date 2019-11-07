@@ -580,7 +580,9 @@ class DBObject {
 
     async getMembers() {
         await this.ensureIndexLoaded()
-        let creator = this.index.metaIndex().data[u.CREATOR]
+        let creatorKey = this.index.metaIndex().data[u.CREATOR]
+        let creator = {}
+        creator[creatorKey] = u.MAX_PERMISSION
         let members = this.index.metaIndex().data[u.MEMBERS]
         let allMembers = _.assign({}, members, creator)
         return allMembers
