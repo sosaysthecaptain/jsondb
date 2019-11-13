@@ -659,6 +659,11 @@ class DBObject {
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
 
         u.packAttributes(attributes)
+
+        // Write members to the object
+        let memberData = await this.getMembers()
+        let members = Object.keys(memberData)
+        if (members) {attributes.members = members}
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
