@@ -662,9 +662,6 @@ class DBObject {
         this.index.parent(this.parent)
         this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
-
-        debugger
-
         if (members) {
             attributes.members = members
             writableIndexObject.members = {S: 0}
