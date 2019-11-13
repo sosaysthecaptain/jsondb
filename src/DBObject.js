@@ -663,8 +663,8 @@ class DBObject {
         this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
         if (members) {
-            attributes.members = members
-            writableIndexObject.members = {S: 0}
+            attributes['XXmembers'] = members
+            writableIndexObject['XXmembers'] = {S: 0}
         }
         
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
