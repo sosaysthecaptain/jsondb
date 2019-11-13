@@ -653,6 +653,13 @@ class DBObject {
     async _write(attributes) {
 
         u.startTime('write')
+
+        // Write members to the object
+        let memberData = await this.getMembers()
+        let members = Object.keys(memberData)
+        if (members) {attributes.members = members}
+        
+        // Build index
         this.index.parent(this.parent)
         this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
@@ -660,10 +667,6 @@ class DBObject {
 
         u.packAttributes(attributes)
 
-        // Write members to the object
-        let memberData = await this.getMembers()
-        let members = Object.keys(memberData)
-        if (members) {attributes.members = members}
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
