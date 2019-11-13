@@ -654,19 +654,25 @@ class DBObject {
 
         u.startTime('write')
 
-        // Write members to the object
+        // Write members to the object, if present
         let memberData = await this.getMembers()
         let members = Object.keys(memberData)
-        if (members) {attributes.members = members}
-        
+
         // Build index
         this.index.parent(this.parent)
         this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
+
+        debugger
+
+        if (members) {
+            attributes.members = members
+            writableIndexObject.members = {S: 0}
+        }
+        
         attributes[u.INDEX_KEY] = u.encode(writableIndexObject)
 
         u.packAttributes(attributes)
-
         
         // Write to dynamo
         let data = await this.dynamoClient.update({
