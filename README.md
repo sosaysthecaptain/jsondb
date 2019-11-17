@@ -8,7 +8,7 @@ It consists (principally) of two classes:
 - `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
 
 
-## DBObjects are things you can put in a database
+## `DBObjects` are things you can put in a database
 `DBObjects` are class instances that represent virtual objects in the database. They can be arbitrary large, and they function more or less as objects in memory, with a few special features. Things you can do with a DBObject:
 - **get and set** properties as you would on an object in memory
 - create and retrieve from time-ordered **collections** 
@@ -19,7 +19,7 @@ It consists (principally) of two classes:
 - assign **creators and members** to objects
 
 
-### create puts objects into the database, destroy removes them
+### `create` puts objects into the database, `destroy` removes them
 `create` will put an object into the database, failing if it already exists.
 
 ```javascript
@@ -66,7 +66,7 @@ await thing.destroy({confirm: true})
 - `user`, `permission`: see below
 
 
-### get and set handle basic assignment
+### `get` and `set` handle basic assignment
 ```javascript
 
 
@@ -102,7 +102,7 @@ let entireObject = await user.get()
 - `noCache`: forces jsondb to hit the database again even if the cached value is present
 - `user`, `permission`: exactly the same as in `set`
 
-### setReference is used to set a DBObject field to reference another DBObject
+### `setReference` is used to set a DBObject field to reference another DBObject
 `setReference` is used to create a reference to another DBObject at a specified path. `getReference` will then return this DBObject, while an ordinary `get` operation will only return the id.
 ```javascript
 await user.setReference({
@@ -122,7 +122,7 @@ let motherID = await user.get({path: 'mother'})
 - `permission`, `user` as in ordinary `get`
 
 
-### setFile and getFile are used to store files in s3 and access them like other object fields
+### `setFile` and `getFile` are used to store files in s3 and access them like other object fields
 `setFile` is used to upload a file to s3 and store it on the object as if it were any other property. `getFile` will return the file as it went in, while an ordinary `get` operation will return an s3 link. See the section on instantiating a DBObjectHandler for information on how s3 credentials and bucket name are specified.
 ```javascript
 await user.setFile({
@@ -191,7 +191,7 @@ let severalMessages = messageHandler.instantiate({ids: [
 ]})
 ```
 
-### Basic operations: createObject, destroyObject
+### Basic operations: `createObject`, `destroyObject`
 While DBObjects can be instantiated and then created and destroyed with their own class methods, `DBObjectHandler` offers a more convenient interface:
 
 ```javascript
@@ -221,7 +221,7 @@ await handler.destroyObject({
 - `permissionOverride`: boolean, set `true` to override the DBObject's own write permission check, to which this operation is otherwise subject
 
 
-### getObject can get data directly from objects without first instantiating them
+### `getObject` can get data directly from objects without first instantiating them
 Similar to createObject and destroyObject, getObject skips over instantiating a DBObject and lets you access data directly. This is particularly useful if you are getting multiple objects at once, as this way you can perform a batchGet in one operation.
 
 ```javascript
@@ -245,7 +245,7 @@ let multipleUsers = await userHandler.getObject({
 - `user`, `permission`: as elsewhere
 
 
-### scan is used to search for DBObjects
+### `scan` is used to search for DBObjects
 `scan` allows you to perform basic search operations on the handler's table. `scan` can return:
 - DBObjects
 - some attributes only: pass an array of `attributes`
@@ -276,7 +276,7 @@ let read9 = await userHandler.scan({
 - `idOnly`: return nothing but an array of ids of found objects
 - `user`, `permission` as elsewhere
 
-## Collections are like handlers that are object properties
+## Collections are like handlers that are properties of objects
 Suppose you have a conversation object on which you want to store a potentially huge number of messages, which you'd like to be able to get one page at a time, sorted by when they were sent. In this case you'd use a `collection`, which is essentially a timeOrdered DBObjectHandler that exists as an attribute on a DBObject. Unlike freestanding handlers, collections can have permissions, creators, and members.
 
 **TODO: rename 'permission' to 'sensitivity', capitalize 'subclass'**
@@ -300,7 +300,7 @@ await parentObj.createCollection({
 - `subclass` as in DBObjectHandler constructor
 - `creator`, `members`, `permission` as elsewhere
 
-### You can think of a collection as a handler accessible with the collection method
+### You can think of a collection as a handler accessible with the `collection` method
 The `collection` method takes `path`, as well as `user` and `permission` as elsewhere, and returns the collection handler. The collection itself behaves exactly like any other DBObject handler. Note, however, that you should use the `query` method, which namespaces the search to within the primaryKey of the collection and is therefore considerably less expensive, in place of `scan`.
 
 Note also that, since `collection` is a synchronous method, the DBObject index must be loaded before it can be used.
@@ -346,7 +346,7 @@ let messagesAboutStuff = await convo.collection({path: 'messages'}).query({
 - `path` to collection
 - `user`, `permission`, as elsewhere
 
-### batchGetObjectsByPage and batchGetObjectsByTime can be used on collections
+### `batchGetObjectsByPage` and `batchGetObjectsByTime` can be used on collections
 Since collections are time ordered, you can get them pagewise. `batchGetObjectsByPage` and `batchGetObjectsByTime` both work much the way getObject and scan do, but return limited numbers of objects within specified ranges.
 
 ```javascript
@@ -388,7 +388,7 @@ Anytime you see 'permission' throughout jsondb, it refers to an object like this
 permisson = {read: 6, write: 2}
 ```
 
-### DBObjects have objectPermissions, their individual paths have sensitivity levels
+### DBObjects have `objectPermissions`, their individual paths have `sensitivity` levels
 DBObjects take an `objectPermission` upon creation, which specifies read and write levels necessary to perform relevant methods on the object. 
 
 `sensitivity` is a property of individual object nodes, and works a bit differently: it is specified with a single integer, and reads done below that threshold simply filter the sensitive attribute out of the returned object. This is useful for, for instance, storing private information on an otherwise public user profile.
@@ -439,7 +439,7 @@ let membersArrayIsAlsoOnTheObjectItself = await myDocument.get({path: 'members'}
 
 ```
 
-### "user" or "permission" can be specified to gain access to an object
+### `user` or `permission` can be specified to gain access to an object
 If an object uses `objectPermission` or `sensitivity`, then read operations on it will return nothing and write operations, in the former case, will fail unless credentials are specified. These can be specified as in two ways:
 - `user`: the id of a potential member/creator. If this object contains such a member, the operation will be carried out with that member's permissions
 - `permission`: a permission object can be passed directly. This will override a user and conduct the operation at the specified permission level.
