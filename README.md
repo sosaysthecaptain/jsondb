@@ -1,9 +1,7 @@
 # jsondb
 *CURRENT STATUS: ALMOST STABLE*
 
-**jsondb** is a database access layer that sits atop DynamoDB abd lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory.
-
-It is built around two classes: **DBObject** and **DBObjectHandler**
+jsondb is a database access layer that sits atop DynamoDB abd lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory. It is built around two classes, DBObject and DBObjectHandler:
 - **DBObjects** represent virtual objects in the database. They can store arbitrary amounts of data  as well as files, specific references to other DBObjects, and collections of other DBObjects.
 - **DBObjectHandler** provides an interface for creating, retrieving, querying, and performing batch operations on DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
 
