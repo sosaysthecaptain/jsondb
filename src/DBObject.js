@@ -365,7 +365,9 @@ class DBObject {
     via special purpose getters and setters
 
     */
-   async setReference({path, id, sensitivity}) {
+
+    // TODO: implement user and permission
+   async setReference({path, id, sensitivity, user, permission}) {
        await this.ensureIndexLoaded()
        path = u.packKeys(path)
        let attributes = {}

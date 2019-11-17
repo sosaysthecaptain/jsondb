@@ -131,15 +131,15 @@ await thing.create({
 
 ```
 `DBObject.create` parameters:
-- data: the object going into the database
-- allowOverwrite
-- objectPermission - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
-- sensitivity - the individual sensitivity level of each of the paths to write, an integer from 0-9. A path with a sensitivity of 5 will require a permission of 5 to read, and will be omitted from the returned results without adequate specified permission. More on this later
-- members
-- creator - a unique ID that will be set as a member with max permissions
+- `data`: the object going into the database
+- `allowOverwrite`
+- `objectPermission` - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
+- `sensitivity` - the individual sensitivity level of each of the paths to write, an integer from 0-9. A path with a sensitivity of 5 will require a permission of 5 to read, and will be omitted from the returned results without adequate specified permission. More on this later
+- `members` - an object of `{id:permissionObj}` representing users who should have access
+- `creator` - a unique ID that will be set as a member with max permissions
 
 
-### get and set handle basic assignment
+### `get` and `set` handle basic assignment
 ```javascript
 
 
@@ -164,16 +164,55 @@ let partialObject = await user.get({paths: ['firstName', 'lastName']})
 let entireObject = await user.get()
 ```
 `set` parameters:
-- attributes: key-value pairs to set. Nested paths can be `'represented.like.this'`
-- sensitivity: a numerical permission level, 0-9, required to access these attributes. Get operations will omit attributes for which the user is not permissioned
-- user: ID of member whose permission level should be used
-- permission: manually passed permission object({read: x, write: y}), overrides user permission
+- `attributes`: key-value pairs to set. Nested paths can be `'represented.like.this'`
+- `sensitivity`: a numerical permission level, 0-9, required to access these attributes. Get `operations` will omit attributes for which the user is not permissioned
+- `user`: ID of member whose permission level should be used
+- `permission`: manually passed permission object(`{read: x, write: y}`), overrides user permission
+
+`get` parameters:
+- `path`: path, as a string, representing `'path.to.desired.attribute'`. If `path` is specified, only the requested value is returned.
+- `paths`: an array of multiple such paths, used in place of `path`. In this case, the method will return an object of key-value pairs
+- `noCache`: forces jsondb to hit the database again even if the cached value is present
+- `user`, `permission`: exactly the same as in `set`
 
 ### setReference is used to set a DBObject field to reference another DBObject
+`setReference` is used to create a reference to another DBObject at a specified path. `getReference` will then return this DBObject, while an ordinary `get` operation will only return the id.
+```javascript
+await user.setReference({
+    path: 'mother',
+    id: 'id_of_DBObject_representing_users_mother'
+})
+let usersMother = await user.getReference({path: 'mother'})
+let motherID = await user.get({path: 'mother'})
 
+```
+`setReference' parameters:
+- `path`: the path at which to set the reference
+- `id` of the DBObject to set
+- `sensitivity`, `user`, `permission`: as in ordinary `set`
+`getReference` parameters
+- `path` to get
+- `permission`, `user` as in ordinary `get`
 
 
 ### setFile is used to store a file in s3 and access it as if it were another object field
+`setFile` is used to upload a file to s3 and store it on the object as if it were any other property. `getFile` will return the file as it went in, while an ordinary `get` operation will return an s3 link. See the section on instantiating a DBObjectHandler for information on how s3 credentials and bucket name are specified.
+```javascript
+await user.setFile({
+    path: 'homework.essayDueTuesday',
+    data: essayDueTuesdayAsBuffer,
+})
+let essayDueTuesdayAsBuffer = await user.getReference({path: 'homework.essayDueTuesday'})
+let s3Link = await user.get({path: 'homework.essayDueTuesday'})
+
+```
+`setFile' parameters:
+- `path`: the path at which to 'store' the file
+- `data`: buffer (or string, for that matter) to store
+- `sensitivity`, `user`, `permission`: as in ordinary `set`
+`getFile` parameters
+- `path` to get
+- `permission`, `user` as in ordinary `get`
 
 ## DBObjectHandlers are used to create, get, and find objects
 
