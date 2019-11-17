@@ -46,7 +46,7 @@ class DBObjectHandler {
         return false
     }
 
-    async createObject({id, data, creator, members, allowOverwrite, sensitivity}) {
+    async createObject({id, data, creator, members, allowOverwrite, sensitivity, objectPermission}) {
         if (!this.permissionCheck(true)) {return undefined}
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
@@ -57,12 +57,16 @@ class DBObjectHandler {
             tableName: this.tableName,
             isTimeOrdered: this.isTimeOrdered
         })
-        await dbobject.create({data, creator, members, allowOverwrite, sensitivity})
+        await dbobject.create({
+            data, 
+            creator, 
+            members, 
+            allowOverwrite, 
+            sensitivity, 
+            objectPermission
+        })
         return dbobject
     }
-
-    // TODO: like create, except create ID on the basis of SK/path
-    async addObject() {}
 
     async destroyObject({id, user, confirm, permissionOverride}) {
         if (!this.permissionCheck(true)) {return undefined}
