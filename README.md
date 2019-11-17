@@ -305,33 +305,6 @@ The `collection` method takes `path`, as well as `user` and `permission` as else
 
 Note also that, since `collection` is a synchronous method, the DBObject index must be loaded before it can be used.
 
-### batchGetObjectsByPage and batchGetObjectsByTime can be used on collections
-Since collections are time ordered, you can get them pagewise. `batchGetObjectsByPage` and `batchGetObjectsByTime` both work much the way getObject and scan do, but return limited numbers of objects within specified ranges.
-
-```javascript
-await convo.collection({path: 'collection'}).batchGetObjectsByPage({
-    limit: 20,
-    exclusiveFirstTimestamp: 1573962788,
-    returnData: true
-})
-
-await convo.collection({path: 'collection'}).batchGetObjectsByPage({
-    startTime: 1573960724,
-    endTime: 1573962788,
-    attributes: ['firstName', 'lastName', 'email']
-    returnData: true
-})
-
-```
-`batchGetObjectsByPage` parameters: ()
-- `limit`: max number of objects to return
-- `exclusiveFirstTimestamp`: the last timestamp of the last batch, used to get the next page. Timestamps can be gotten by calling `DBObject.timestamp()` on objects from an ordered handler.
-- `ascending`: `false` by default
-- `attributes`, `returnData`, `idOnly`, `includeID` as in other handler methods
-- `user`, `permission` as elsewhere
-
-Parameters for `batchGetObjectsByTime` are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
-
 
 ```javascript
 let convo = convoHandler.instantiate({id: 'myConvo'})
@@ -372,6 +345,33 @@ let messagesAboutStuff = await convo.collection({path: 'messages'}).query({
 `collection` parameters:
 - `path` to collection
 - `user`, `permission`, as elsewhere
+
+### batchGetObjectsByPage and batchGetObjectsByTime can be used on collections
+Since collections are time ordered, you can get them pagewise. `batchGetObjectsByPage` and `batchGetObjectsByTime` both work much the way getObject and scan do, but return limited numbers of objects within specified ranges.
+
+```javascript
+await convo.collection({path: 'collection'}).batchGetObjectsByPage({
+    limit: 20,
+    exclusiveFirstTimestamp: 1573962788,
+    returnData: true
+})
+
+await convo.collection({path: 'collection'}).batchGetObjectsByPage({
+    startTime: 1573960724,
+    endTime: 1573962788,
+    attributes: ['firstName', 'lastName', 'email']
+    returnData: true
+})
+
+```
+`batchGetObjectsByPage` parameters: ()
+- `limit`: max number of objects to return
+- `exclusiveFirstTimestamp`: the last timestamp of the last batch, used to get the next page. Timestamps can be gotten by calling `DBObject.timestamp()` on objects from an ordered handler.
+- `ascending`: `false` by default
+- `attributes`, `returnData`, `idOnly`, `includeID` as in other handler methods
+- `user`, `permission` as elsewhere
+
+Parameters for `batchGetObjectsByTime` are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
 
 
 ## Permissions
