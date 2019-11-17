@@ -118,9 +118,9 @@ await user.create({
 // A contrived example, demonstrating all possible arguments
 await thing.create({
     data: someObject,
-    allowOverwrite: true,                               // false by default
-    objectPermission: {read: 3, write: 5},              // required to access object
-    members: {                                          // ids with permissions that can be used to access
+    allowOverwrite: true,
+    objectPermission: {read: 3, write: 5},
+    members: {
         'irene@gmail.com': {read: 5, write: 5},
         'joe@gmail.com': {read: 5, write: 2},
         'prof_bullfinch@midston.edu': {read: 9, write: 9},
@@ -130,7 +130,7 @@ await thing.create({
 })
 
 ```
-`create` parameters:
+`DBObject.create` parameters:
 - data: the object going into the database
 - allowOverwrite
 - objectPermission - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
@@ -146,15 +146,32 @@ await thing.create({
 // Pass set an attributes object of key-value pairs to set
 await user.set({
     attributes: {
-        'accountBalance': 12345,
         'personalInfo.phone': '(123) 456-7890'
+        another: 'thing to set'
+        someObject: {
+            stuff: 'goes here'
+        }
     }
 })
+
+// Specify path to get a single attribute
 let phoneNumber = await user.get({path: 'personalInfo.phone'})
+
+// Specify paths to get multiple attributes
+let partialObject = await user.get({paths: ['firstName', 'lastName']})
+
+// Specify nothing to get the entire object
 let entireObject = await user.get()
 ```
+`set` parameters:
+- attributes: key-value pairs to set. Nested paths can be `'represented.like.this'`
+- sensitivity: a numerical permission level, 0-9, required to access these attributes. Get operations will omit attributes for which the user is not permissioned
+- user: ID of member whose permission level should be used
+- permission: manually passed permission object({read: x, write: y}), overrides user permission
 
 ### setReference is used to set a DBObject field to reference another DBObject
+
+
 
 ### setFile is used to store a file in s3 and access it as if it were another object field
 

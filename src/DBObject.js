@@ -127,9 +127,13 @@ class DBObject {
         }
     }
 
-    async get({path, permission, user, noCache}={}) {
+    async get({path, paths, permission, user, noCache}={}) {
         await this.ensureIndexLoaded()
         if (user && !permission) {permission = await this.getMemberPermission({id: user})}
+
+        if (paths) {
+            return this.batchGet(paths, permission, user, noCache)
+        }
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
@@ -252,7 +256,8 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set({attributes, sensitivity, creator, members, objectPermission}) {
+    // TODO - add user, permission check
+    async set({attributes, sensitivity, creator, members, objectPermission, user, permission}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         // u.processAttributes(newAttributes)
