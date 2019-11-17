@@ -13,7 +13,7 @@ jsondb consists (principally) of two classes:
 - `DBObject` represents a virtual object in the database. It can store arbitrary amounts of data at arbitrary paths, as well as files, specific references to other DBObjects, and collections of other DBObjects.
 - `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
 
-### Quickstart
+## Quickstart
 ```javascript
 // Create a handler
 let handler = new jsondb.DBObjectHandler({
@@ -57,25 +57,53 @@ await user.setFile({
     data: profilePicBuffer
 
 })
-let imageBuffer = await user.getFile({path: 'profilePicture})
-let imageLink = await user.get({path: 'profilePicture})
+let imageBuffer = await user.getFile({path: 'profilePicture'})
+let imageLink = await user.get({path: 'profilePicture'})
 
 // References
 await user.setReference({
     path: 'sister',
-    id: "id_of_DBObject_representing_user's_sister"
-
+    id: 'id_of_DBObject_representing_users_sister'
 })
 let usersSister = await user.getReference({path: 'sister'})
 
-// Collections
-// TODO
 
+
+// // Collections
+// let path = 'subclassPath'
+// await parentObj.createCollection({
+//     path: 'myCollection, 
+//     subclass: YourSubclass})
+    
+// let subclassDBObject = await parentObj.collection({path: 'myCollection'}).createObject({
+//     data: {
+//         body: "I live in a collection object"
+//     }
+// })
+
+// // Scan
+
+// // 
 
 ```
 
 
-## DBObjectHandler
+
+## DBObjects are things you can put in a database
+
+## DBObjectHandlers are used to create, get, and find objects
+
+## Permissions
+
+### DBObjects and their individual paths have sensitivity levels
+
+### DBObjects have creators and members
+
+### "user" or "permission" can be specified to gain access to an object
+
+
+
+
 
 [Instantiating a DBObjectHandler] (./docs/handlerInstantiate)
 [Creating and destroying objects] (./docs/handlerCreateDestroy)

@@ -129,7 +129,7 @@ class DBObject {
 
     async get({path, permission, user, noCache}={}) {
         await this.ensureIndexLoaded()
-        if (user) {permission = await this.getMemberPermission({id: user})}
+        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
 
         // No path == entire object, gotten by a different methodology
         if (!path) {
@@ -407,7 +407,7 @@ class DBObject {
     async getFile({path, permission, user, returnAsBuffer}) {
         await this.ensureIndexLoaded()
 
-        if (user) {permission = await this.getMemberPermission({id: user})}
+        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
 
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
@@ -582,7 +582,9 @@ class DBObject {
         await this.ensureIndexLoaded()
         let creatorKey = this.index.metaIndex().data[u.CREATOR]
         let creator = {}
-        creator[creatorKey] = u.MAX_PERMISSION
+        if (creatorKey) {
+            creator[creatorKey] = u.MAX_PERMISSION
+        }
         let members = this.index.metaIndex().data[u.MEMBERS]
         let allMembers = _.assign({}, members, creator)
         return allMembers
@@ -662,7 +664,7 @@ class DBObject {
         this.index.parent(this.parent)
         this.index.resetDontDelete()
         let writableIndexObject = this.index.write()
-        if (members) {
+        if (members.length) {
             attributes['XXmembers'] = members
             writableIndexObject['XXmembers'] = {S: 0}
         }
@@ -705,7 +707,7 @@ class DBObject {
     async _getEntireObject({permission, user, noCache, dumpCache}) {
         await this.ensureIndexLoaded()
 
-        if (user) {permission = await this.getMemberPermission({id: user})}
+        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
 
         // QUICK OPTION: cache only
         // TODO: set an isIncomplete flag, if this isn't true then this is all we do
