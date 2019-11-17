@@ -3,9 +3,9 @@
 
 **jsondb** is a database access layer that sits atop DynamoDB abd lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory.
 
-It consists (principally) of two classes:
-- `DBObject` represents a virtual object in the database. It can store arbitrary amounts of data at arbitrary paths, as well as files, specific references to other DBObjects, and collections of other DBObjects.
-- `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
+It is built around two classes: **DBObject** and **DBObjectHandler**
+- **DBObjects** represent virtual objects in the database. They can store arbitrary amounts of data  as well as files, specific references to other DBObjects, and collections of other DBObjects.
+- **DBObjectHandler** provides an interface for creating, retrieving, querying, and performing batch operations on DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
 
 
 ## `DBObjects` are things you can put in a database
@@ -20,7 +20,7 @@ It consists (principally) of two classes:
 
 
 ### `create` puts objects into the database, `destroy` removes them
-`create` will put an object into the database, failing if it already exists.
+`create` will put an object into the database, failing if it already exists. `destroy` does the opposite, deleting all subordinate Dynamo documents, files, and collection members, though not other objects set as references. 
 
 ```javascript
 
