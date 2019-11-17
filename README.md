@@ -8,7 +8,7 @@ It consists (principally) of two classes:
 - `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
 
 
-## `DBObjects` are things you can put in a database
+## DBObjects are things you can put in a database
 `DBObjects` are class instances that represent virtual objects in the database. They can be arbitrary large, and they function more or less as objects in memory, with a few special features. Things you can do with a DBObject:
 - **get and set** properties as you would on an object in memory
 - create and retrieve from time-ordered **collections** 
@@ -19,7 +19,7 @@ It consists (principally) of two classes:
 - assign **creators and members** to objects
 
 
-### `create` puts objects into the database, `destroy` removes them
+### create puts objects into the database, destroy removes them
 `create` will put an object into the database, failing if it already exists.
 
 ```javascript
@@ -66,7 +66,7 @@ await thing.destroy({confirm: true})
 - `user`, `permission`: see below
 
 
-### `get` and `set` handle basic assignment
+### get and set handle basic assignment
 ```javascript
 
 
@@ -102,7 +102,7 @@ let entireObject = await user.get()
 - `noCache`: forces jsondb to hit the database again even if the cached value is present
 - `user`, `permission`: exactly the same as in `set`
 
-### `setReference` is used to set a DBObject field to reference another DBObject
+### setReference is used to set a DBObject field to reference another DBObject
 `setReference` is used to create a reference to another DBObject at a specified path. `getReference` will then return this DBObject, while an ordinary `get` operation will only return the id.
 ```javascript
 await user.setReference({
@@ -122,7 +122,7 @@ let motherID = await user.get({path: 'mother'})
 - `permission`, `user` as in ordinary `get`
 
 
-### `setFile` and `getFile` are used to store files in s3 and access them like other object fields
+### setFile and getFile are used to store files in s3 and access them like other object fields
 `setFile` is used to upload a file to s3 and store it on the object as if it were any other property. `getFile` will return the file as it went in, while an ordinary `get` operation will return an s3 link. See the section on instantiating a DBObjectHandler for information on how s3 credentials and bucket name are specified.
 ```javascript
 await user.setFile({
@@ -148,7 +148,7 @@ Handlers may be timeOrdered or not: those that are have a `seriesKey` used as a 
 
 Handlers, as discussed here, are top-level, but handlers can also be assigned to paths on a DBObject, like any other piece of data, in which case they are called `collections`. Collections are universally timeOrdered, and will be covered in depth later.
 
-### Instantiating a `DBObjectHandler`, and a note on DynamoDB table setup
+### Instantiating a DBObjectHandler, and a note on DynamoDB table setup
 Handlers are instantiated with AWS credentials, and refer to a specific table. **Tables for jsondb must be set with a primaryKey of 'uid', of type string, and a sortKey of 'ts', of type number.**
 
 ```javascript
@@ -176,7 +176,7 @@ let userHandler = new jsondb.DBObjectHandler({
 - `doNotCache`: specify true to disable caching altogether
 - `Subclass`: specify your own subclass of DBObject for the handler to instantiate
 
-### Using a handler to `instantiate` one or more DBObjects
+### Using a handler to instantiate one or more DBObjects
 A DBObjectHandler is a convenient way to instantiate a DBObject, specifying only its id. Instantiating is a synchronous operation, and does not hit the database.
 
 Note that jsondb ids take the form of a string, hyphenated with a timestamp in the case of timeOrdered objects.
@@ -191,7 +191,7 @@ let severalMessages = messageHandler.instantiate({ids: [
 ]})
 ```
 
-### Basic operations: `createObject`, `destroyObject`
+### Basic operations: createObject, destroyObject
 While DBObjects can be instantiated and then created and destroyed with their own class methods, `DBObjectHandler` offers a more convenient interface:
 
 ```javascript
@@ -300,12 +300,12 @@ await parentObj.createCollection({
 - `subclass` as in DBObjectHandler constructor
 - `creator`, `members`, `permission` as elsewhere
 
-### You can think of a collection as a handler accessible with the `collection` method
+### You can think of a collection as a handler accessible with the ollection method
 The `collection` method takes `path`, as well as `user` and `permission` as elsewhere, and returns the collection handler. The collection itself behaves exactly like any other DBObject handler. Note, however, that you should use the `query` method, which namespaces the search to within the primaryKey of the collection and is therefore considerably less expensive, in place of `scan`.
 
 Note also that, since `collection` is a synchronous method, the DBObject index must be loaded before it can be used.
 
-### `batchGetObjectsByPage` and `batchGetObjectsByTime` can be used on collections
+### batchGetObjectsByPage and batchGetObjectsByTime can be used on collections
 Since collections are time ordered, you can get them pagewise. `batchGetObjectsByPage` and `batchGetObjectsByTime` both work much the way getObject and scan do, but return limited numbers of objects within specified ranges.
 
 ```javascript
@@ -328,7 +328,7 @@ await convo.collection({path: 'collection'}).batchGetObjectsByPage({
 - `exclusiveFirstTimestamp`: the last timestamp of the last batch, used to get the next page. Timestamps can be gotten by calling `DBObject.timestamp()` on objects from an ordered handler.
 - `ascending`: `false` by default
 - `attributes`, `returnData`, `idOnly`, `includeID` as in other handler methods
-- user, permission as elsewhere
+- `user`, `permission` as elsewhere
 
 `batchGetObjectsByTime` parameters are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
 - 
@@ -389,7 +389,7 @@ Anytime you see 'permission' throughout jsondb, it refers to an object like this
 permisson = {read: 6, write: 2}
 ```
 
-### DBObjects have `objectPermissions` and their individual paths have `sensitivity` levels
+### DBObjects have objectPermissions, their individual paths have sensitivity levels
 DBObjects take an `objectPermission` upon creation, which specifies read and write levels necessary to perform relevant methods on the object. 
 
 `sensitivity` is a property of individual object nodes, and works a bit differently: it is specified with a single integer, and reads done below that threshold simply filter the sensitive attribute out of the returned object. This is useful for, for instance, storing private information on an otherwise public user profile.
