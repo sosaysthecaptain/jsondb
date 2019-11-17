@@ -90,7 +90,7 @@ let usersSister = await user.getReference({path: 'sister'})
 
 
 ## `DBObjects` are things you can put in a database
-DBObjects are class instances that represent virtual objects in the database. They can be arbitrary large, and they function more or less as objects in memory, with a few special features. Things you can do with a DBObject:
+`DBObjects` are class instances that represent virtual objects in the database. They can be arbitrary large, and they function more or less as objects in memory, with a few special features. Things you can do with a DBObject:
 - **get and set** properties as you would on an object: `obj.set({'some.path': 12345})`, `obj.get('path.to.key')`
 - **work with collections:** `user.getFromCollection('messages', {limit: 20})`
 - **upload and retrieve files from s3** as if they were part of the object: `user.setFile('thumbnail', <buffer>)`
@@ -132,7 +132,7 @@ await thing.create({
 await thing.destroy({confirm: true})
 
 ```
-`DBObject.create` parameters:
+`create` parameters:
 - `data`: the object going into the database
 - `allowOverwrite`
 - `objectPermission` - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
@@ -140,7 +140,7 @@ await thing.destroy({confirm: true})
 - `members` - an object of `{id:permissionObj}` representing users who should have access
 - `creator` - a unique ID that will be set as a member with max permissions
 
-`DBObject.destroy` parameters: 
+`destroy` parameters: 
 - `confirm`: optional, returns true if destruction successful
 - `user`, `permission`: see below
 
@@ -283,19 +283,18 @@ let newObject = await userHander.createObject({
     }
 })
 
-
 await handler.destroyObject({
     id: 'ebullfinch@midston.edu', 
     confirm: true
 })
 ```
-`DBObjectHandler.createObject` parameters:
+`createObject` parameters:
 - id: string, jsondb ID of object to create
 - `data`: initial object to store in the database
 - `allowOverwrite`, 'objectPermission', `creator`, `members` as in `DBObject.create`
 
 
-`DBObjectHandler.destroyObject` parameters:
+`destroyObject` parameters:
 - `id`: jsondb id
 - `confirm`: as in `DBObject.destroy`
 - `permissionOverride`: boolean, set true to override the DBObject's own write permission check, to which this operation is otherwise subject
@@ -456,30 +455,72 @@ let messagesAboutStuff = await convo.collection({path: 'messages'}).query({
 
 
 ## Permissions
+jsondb includes a native permissions mechanism. It extends across all functionality and allows you to:
+- specify an `objectPermission` to a DBObject, used to enforce read and write access
+- further specify a `sensitivity` to individual paths within an object, which is inherited by subordinate paths inherit this sensitivity. Note that sensitivites apply only to read access
+- filter objects by sensitivity, returning only those paths below a specified threshold
 
-### DBObjects and their individual paths have sensitivity levels
+All permissions default to zero, meaning that this system can be ignored completely if your application does not require selective permissioning.
+
+### jsondb uses permission objects specifying read and write values from 0-9
+Anytime you see 'permission' throughout jsondb, it refers to an object like this:
+```js
+permisson = {read: 6, write: 2}
+```
+
+### DBObjects have `objectPermissions` and their individual paths have `sensitivity` levels
+DBObjects take an `objectPermission` upon creation, which specifies read and write levels necessary to perform relevant methods on the object. 
+
+`sensitivity` is a property of individual object nodes, and works a bit differently: it is specified with a single integer, and reads done below that threshold simply filter the sensitive attribute out of the returned object. This is useful for, for instance, storing private information on an otherwise public user profile.
 
 ### DBObjects have creators and members
+Objects and collections have a concept of members, mappings of user ids to permission objects. Members are specified with permission objects, while the creator has full permissions automatically. Both `creator` and `members` arguments can be specified to `DBObject.create` and `DBObject.createCollection`, but afterwards members can be added and removed.
+
+Member data is stored in the index rather than on the object, but for convenience, a `members` array, including ids of all members and the creator, is included within the body of a DBObject.
+
+```js
+let myDocument = await documentHander.createObject({
+    id: 'myDocumentID', 
+    data: {
+        stuff: '...'
+    },
+    objectPermission: {read: 0, write: 3},
+    creator: 'me@gmail.com'
+    members: {
+        'you@gmail.com': {read: 4, write: 2},
+        'him@gmail.com': {read: 2, write: 0},
+        'her@gmail.com': {read: 9, write: 7}
+    }
+})
+
+await myDocument.setMemberPermission({
+    id: 'john@gmail.com',
+    permission: {read: 5, write: 5}
+})
+
+await myDocument.setMemberPermission({
+    id: 'mary@gmail.com',
+    permission: {read: 8, write: 0}
+})
+
+await myDocument.removeMember(id: 'mary@gmail.com')
+
+// NOTE: setMemberPermission and removeMember require a subsequent set operation to write to the db
+// This can be done with empty attributes if necessary
+await myDocument.set({attributes: {}})
+
+let johnPermission = await myDocument.getMemberPermission({id: 'john@gmail.com'})
+
+let creator = await myDocument.getCreator()
+let createdDate = await myDocument.getCreatedDate()
+
+let membersArray = await myDocument.getMembers()
+let membersArrayIsAlsoOnTheObjectItself = await myDocument.get({path: 'members'})
+
+```
 
 ### "user" or "permission" can be specified to gain access to an object
-
-
-
-
-
-[Instantiating a DBObjectHandler] (./docs/handlerInstantiate)
-[Creating and destroying objects] (./docs/handlerCreateDestroy)
-[Instantiating objects] (./docs/handlerInstantiate)
-[Getting data directly from objects] (./docs/handlerDirectGet)
-[Getting objects in a pagewise fashion] (./docs/handlerPagewise)
-[Querying objects] (./docs/handlerQuery)
-
-## DBObject
-[Getting and setting basic values] (./docs/dbobjectGetSet)
-[References: DBObjects as properties of other DBObjects] (./docs/dbobjectReferences)
-[Files: S3 Integration] (./docs/dbobjectFiles)
-[Collections: Time-ordered DBObjectHandlers as properties of DBObjects] (./docs/dbobjectCollections)
-
-## Permissions
-[Permissions: understanding object permissions, collection permissions, and node sensitivities] (./docs/permissions)
+If an object uses `objectPermission` or `sensitivity`, then read operations on it will return nothing and write operations, in the former case, will fail unless credentials are specified. These can be specified as in two ways:
+- `user`: the id of a potential member/creator. If this object contains such a member, the operation will be carried out with that member's permissions
+- `permission`: a permission object can be passed directly. This will override a user and conduct the operation at the specified permission level.
 
