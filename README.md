@@ -300,7 +300,7 @@ await parentObj.createCollection({
 - `subclass` as in DBObjectHandler constructor
 - `creator`, `members`, `permission` as elsewhere
 
-### You can think of a collection as a handler accessible with the ollection method
+### You can think of a collection as a handler accessible with the collection method
 The `collection` method takes `path`, as well as `user` and `permission` as elsewhere, and returns the collection handler. The collection itself behaves exactly like any other DBObject handler. Note, however, that you should use the `query` method, which namespaces the search to within the primaryKey of the collection and is therefore considerably less expensive, in place of `scan`.
 
 Note also that, since `collection` is a synchronous method, the DBObject index must be loaded before it can be used.
@@ -323,15 +323,14 @@ await convo.collection({path: 'collection'}).batchGetObjectsByPage({
 })
 
 ```
-`batchGetObjectsByPage` parameters:
+`batchGetObjectsByPage` parameters: ()
 - `limit`: max number of objects to return
 - `exclusiveFirstTimestamp`: the last timestamp of the last batch, used to get the next page. Timestamps can be gotten by calling `DBObject.timestamp()` on objects from an ordered handler.
 - `ascending`: `false` by default
 - `attributes`, `returnData`, `idOnly`, `includeID` as in other handler methods
 - `user`, `permission` as elsewhere
 
-`batchGetObjectsByTime` parameters are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
-- 
+Parameters for `batchGetObjectsByTime` are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
 
 
 ```javascript
