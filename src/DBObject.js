@@ -157,7 +157,7 @@ class DBObject {
         await this.ensureIndexLoaded()
         let data = {}
 
-        if (user) {permission = await this.getMemberPermission({id: user})}
+        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
 
         // Does this node go further than what we have reference of in the local index?
         if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
