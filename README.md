@@ -393,7 +393,7 @@ DBObjects take an `objectPermission` upon creation, which specifies read and wri
 
 `sensitivity` is a property of individual object nodes, and works a bit differently: it is specified with a single integer, and reads done below that threshold simply filter the sensitive attribute out of the returned object. This is useful for, for instance, storing private information on an otherwise public user profile.
 
-### DBObjects have creators and members
+### DBObjects have a `creator` and `members`
 Objects and collections have a concept of members, mappings of user ids to permission objects. Members are specified with permission objects, while the creator has full permissions automatically. Both `creator` and `members` arguments can be specified to `DBObject.create` and `DBObject.createCollection`, but afterwards members can be added and removed.
 
 Member data is stored in the index rather than on the object, but for convenience, a `members` array, including ids of all members and the creator, is included within the body of a DBObject.
