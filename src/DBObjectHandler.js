@@ -79,7 +79,11 @@ class DBObjectHandler {
         return await dbobject.destroy({user, permissionOverride, confirm})
     }
 
-    async getObject({id, returnData, attributes, user, permission}) {
+    async getObject({id, ids, returnData, attributes, user, permission, includeID}) {
+        if (ids) {
+            return this.batchGet({ids, user, permission, attributes, returnData, includeID})
+        }
+
         if (!this.permissionCheck()) {return undefined}
         let dbobject = new this.Subclass({
             id: id,

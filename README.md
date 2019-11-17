@@ -301,9 +301,159 @@ await handler.destroyObject({
 - `permissionOverride`: boolean, set true to override the DBObject's own write permission check, to which this operation is otherwise subject
 
 
+### getObject can get data directly from objects without first instantiating them
+Similar to createObject and destroyObject, getObject skips over instantiating a DBObject and lets you access data directly. This is particularly useful if you are getting multiple objects at once, as this way you can perform a batchGet in one operation.
+
+```javascript
+let danny = await userHandler.getObject({
+    id: 'danny@gmail.com,
+    returnData: true
+})
+
+let multipleUsers = await userHandler.getObject({
+    ids: ['danny@gmail.com', 'joe@gmail.com', 'irene@gmail.com'],
+    attributes: ['firstName', 'lastName', 'personalInfo.phone'],
+    permission: {read: 5, write: 2}
+})
+```
+`getObject` parameters:
+- id: single jsondb id to get
+- ids: array of jsondb ids to get in batch operation, use instead of id. In this case, the method will return an array of objects
+- attributes: array of specific paths to get
+- returnData: boolean, specify `true` to get the entire object
+- `includeID`: boolean, specify `true` to include the object id in the return
+- `user`, `permission`: as elsewhere
+
+
 ### scan is used to search for DBObjects
+`scan` allows you to perform basic search operations on the handler's table. `scan` can return:
+- DBObjects
+- some attributes only: pass an array of `attributes`
+- the entire object: specify `returnData: true`
+- only the id of the objects: specify `idOnly`
+
+Queries are constructed with the params object, as shown below. They consist of an array of array statements, of the following form: `['attribute.in.question', 'COMPARISON_OPERATOR', 'targetValue', 'AND/OR']`. Currently supported comparison operators:
+- `=`: direct equality
+- `CONTAINS: used with an array or string and a value to find within it
+- 'INTERSECTS': used with arrays. Returns the object if the specified attribute and supplied value have a member in common.
+
+Note that there exists a `query` method, identical to the scan method except that it operates within the scope of a single primaryKey, for use on collections.
+
+```javascript
+let read9 = await userHandler.scan({
+    params: [
+        ['firstName', '=', 'joe', 'AND'],
+        ['friends', 'CONTAINS', 'danny']
+    ],
+    attributes: ['firstName', 'lastName', 'phone']    // TODO: change to "paths"
+})
+
+```
+`scan` parameters:
+- `params`: the query, as described above
+- `attributes`: `['array', 'of', 'specific.attributes']` to return. If supplied, the method will return an array of objects containing these attributes, as well as an array of members and the object's ID
+- `returnData`: boolean, returns the entire object if true
+- `idOnly`: return nothing but an array of ids of found objects
+- `user`, `permission` as elsewhere
 
 ## Collections are like handlers that are object properties
+Suppose you have a conversation object on which you want to store a potentially huge number of messages, which you'd like to be able to get one page at a time, sorted by when they were sent. In this case you'd use a `collection`, which is essentially a timeOrdered DBObjectHandler that exists as an attribute on a DBObject. Unlike freestanding handlers, collections can have permissions, creators, and members.
+
+**TODO: rename 'permission' to 'sensitivity', capitalize 'subclass'**
+
+Collections are created with the `DBObject.createCollection` method:
+
+```javascript
+await parentObj.createCollection({
+    path,
+    subclass: MySubclass,
+    creator: 'me@gmail.com',
+    members: {
+        'you@gmail.com': {read: 5, write: 5},
+        'theOtherGuy@gmail.com': {read: 5, write: 0}
+    },
+    permission: {read: 5, write: 7}
+})
+```
+`createCollection` parameters:
+- `path`: `'path.to.this.collection'` as in any other set operation
+- `subclass` as in DBObjectHandler constructor
+- `creator`, `members`, `permission` as elsewhere
+
+### You can think of a collection as a handler accessible with the `collection` method
+The `collection` method takes `path`, as well as `user` and `permission` as elsewhere, and returns the collection handler. The collection itself behaves exactly like any other DBObject handler. Note, however, that you should use the `query` method, which namespaces the search to within the primaryKey of the collection and is therefore considerably less expensive, in place of `scan`.
+
+Note also that, since `collection` is a synchronous method, the DBObject index must be loaded before it can be used.
+
+### `batchGetObjectsByPage` and `batchGetObjectsByTime` can be used on collections
+Since collections are time ordered, you can get them pagewise. `batchGetObjectsByPage` and `batchGetObjectsByTime` both work much the way getObject and scan do, but return limited numbers of objects within specified ranges.
+
+```javascript
+await convo.collection({path: 'collection'}).batchGetObjectsByPage({
+    limit: 20,
+    exclusiveFirstTimestamp: 1573962788,
+    returnData: true
+})
+
+await convo.collection({path: 'collection'}).batchGetObjectsByPage({
+    startTime: 1573960724,
+    endTime: 1573962788,
+    attributes: ['firstName', 'lastName', 'email']
+    returnData: true
+})
+
+```
+`batchGetObjectsByPage` parameters:
+- `limit`: max number of objects to return
+- `exclusiveFirstTimestamp`: the last timestamp of the last batch, used to get the next page. Timestamps can be gotten by calling `DBObject.timestamp()` on objects from an ordered handler.
+- `ascending`: `false` by default
+- `attributes`, `returnData`, `idOnly`, `includeID` as in other handler methods
+- user, permission as elsewhere
+
+`batchGetObjectsByTime` parameters are the same as above, except include `startTime` and `endTime`, and omit `limit` and `exclusiveFirstTimestamp`
+- 
+
+
+```javascript
+let convo = convoHandler.instantiate({id: 'myConvo'})
+await convo.ensureIndexLoaded()
+await convo.collection({path: 'messages'}).createObject({
+    data: {
+        recipient: 'ajgrimes@elsewhere.edu',
+        subject: 'stuff',
+        body: 'this is a message'
+    }
+})
+await convo.collection({path: 'messages'}).createObject({
+    data: {
+        recipient: 'ajgrimes@elsewhere.edu',
+        subject: 'stuff',
+        body: 'this is another message'
+    }
+})
+await convo.collection({path: 'messages'}).createObject({
+    data: {
+        recipient: 'mrsmiller@gmail.com',
+        subject: 'something else',
+        body: 'more messages!'
+    }
+})
+await convo.collection({path: 'messages'}).createObject({
+    data: {firstName: 'joe', friends: ['johnny']}
+})
+
+let messagesAboutStuff = await convo.collection({path: 'messages'}).query({
+    params: [
+        ['recipient', '=', 'ajgrimes@gmail.com', 'AND'],
+        ['stuff', '=', 'stuff']
+    ],
+    returnData: true
+})
+```
+`collection` parameters:
+- `path` to collection
+- `user`, `permission`, as elsewhere
+
 
 ## Permissions
 
