@@ -1,105 +1,26 @@
 # jsondb
-*NEW DOCUMENTATION IN PROGRESS*
+*CURRENT STATUS: ALMOST STABLE*
 
-**jsondb** is a DynamoDB abstraction layer that lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory. What you can do with it:
-- **get and set** properties as you would on an object: `obj.set({'some.path': 12345})`, `obj.get('path.to.key')`
-- **work with collections:** `user.getFromCollection('messages', {limit: 20})`
-- **upload and retrieve files from s3** as if they were part of the object: `user.setFile('thumbnail', <buffer>)`
-- associate specific **sensitivity levels** with specific keys, and fetch in a manner that automatically filters out objects above the specified sensitivity level: `user.get(settings, {sensitivity: 3})`
-- **nest DBObjects** inside other DBObjects: `user1.setReference('friends.user2', user2.id)`
+**jsondb** is a database access layer that sits atop DynamoDB abd lets you work easily and efficiently with giant virtual objects, reading and writing them as if they were in memory.
 
-
-jsondb consists (principally) of two classes:
+It consists (principally) of two classes:
 - `DBObject` represents a virtual object in the database. It can store arbitrary amounts of data at arbitrary paths, as well as files, specific references to other DBObjects, and collections of other DBObjects.
 - `DBObjectHandler` provides an interface for creating and retrieving DBObjects. A DBObjectHandler is instantiated with AWS credentials and the name of a specific table.
-
-## Quickstart
-```javascript
-// Create a handler
-let handler = new jsondb.DBObjectHandler({
-    awsAccessKeyId: 'your_key_id',
-    awsSecretAccessKey: 'your_secret_key',
-    awsRegion: 'us-east-2',
-    tableName: 'name_of_table_containing_instances_of_this_object',
-    bucketName: 'your-s3-bucket-for-files'
-    isTimeOrdered: false,                   // optional, false by default
-    defaultCacheSize: 50 * 1024 * 1024,     // optional, 50 mb by default
-    doNotCache: false                       // optional, true by default
-})
-
-// Use it to create, instantiate, and destroy objects
-let newObject = await handler.createObject({
-    id: 'my_object_id', 
-    data: {
-        initial: 'data goes here'
-    }
-})
-
-let user = handler.instantiate({id: 'user_1_id'})
-let users = handler.instantiate({ids: ['user_1_id, user_2_id']})
-
-await handler.destroyObject({
-    id: 'that_thing',
-    confirm: true
-})
-
-// Get and set basic parameters on an object
-await user.set({
-    attributes: {
-        personalInfo.phone: '(123) 456-7890' 
-    }
-})
-let phone_number = await user.get({path: 'personalInfo.phone'})
-
-// Files
-await user.setFile({
-    path: 'profilePicture',
-    data: profilePicBuffer
-
-})
-let imageBuffer = await user.getFile({path: 'profilePicture'})
-let imageLink = await user.get({path: 'profilePicture'})
-
-// References
-await user.setReference({
-    path: 'sister',
-    id: 'id_of_DBObject_representing_users_sister'
-})
-let usersSister = await user.getReference({path: 'sister'})
-
-
-
-// // Collections
-// let path = 'subclassPath'
-// await parentObj.createCollection({
-//     path: 'myCollection, 
-//     subclass: YourSubclass})
-    
-// let subclassDBObject = await parentObj.collection({path: 'myCollection'}).createObject({
-//     data: {
-//         body: "I live in a collection object"
-//     }
-// })
-
-// // Scan
-
-// // 
-
-```
-
 
 
 ## `DBObjects` are things you can put in a database
 `DBObjects` are class instances that represent virtual objects in the database. They can be arbitrary large, and they function more or less as objects in memory, with a few special features. Things you can do with a DBObject:
-- **get and set** properties as you would on an object: `obj.set({'some.path': 12345})`, `obj.get('path.to.key')`
-- **work with collections:** `user.getFromCollection('messages', {limit: 20})`
+- **get and set** properties as you would on an object in memory
+- create and retrieve from time-ordered **collections** 
 - **upload and retrieve files from s3** as if they were part of the object: `user.setFile('thumbnail', <buffer>)`
-- associate specific **sensitivity levels** with specific keys, and fetch in a manner that automatically filters out objects above the specified sensitivity level: `user.get(settings, {sensitivity: 3})`
 - **nest DBObjects** inside other DBObjects: `user1.setReference('friends.user2', user2.id)`
+- **scan and query** objects
+- give objects **objectPermissions** and individual nodes with them **sensitivity levels**, fetching in a manner that automatically filters out objects for which the current user is not permissioned
+- assign **creators and members** to objects
 
 
 ### `create` puts objects into the database, `destroy` removes them
-`create` will put an object into the database, failing if it already exists. (For the moment let's assume the object is already instantiated/)
+`create` will put an object into the database, failing if it already exists.
 
 ```javascript
 
@@ -289,15 +210,15 @@ await handler.destroyObject({
 })
 ```
 `createObject` parameters:
-- id: string, jsondb ID of object to create
+- `id`: string, jsondb ID of object to create
 - `data`: initial object to store in the database
 - `allowOverwrite`, 'objectPermission', `creator`, `members` as in `DBObject.create`
 
 
 `destroyObject` parameters:
-- `id`: jsondb id
+- `id`
 - `confirm`: as in `DBObject.destroy`
-- `permissionOverride`: boolean, set true to override the DBObject's own write permission check, to which this operation is otherwise subject
+- `permissionOverride`: boolean, set `true` to override the DBObject's own write permission check, to which this operation is otherwise subject
 
 
 ### getObject can get data directly from objects without first instantiating them
@@ -316,10 +237,10 @@ let multipleUsers = await userHandler.getObject({
 })
 ```
 `getObject` parameters:
-- id: single jsondb id to get
-- ids: array of jsondb ids to get in batch operation, use instead of id. In this case, the method will return an array of objects
-- attributes: array of specific paths to get
-- returnData: boolean, specify `true` to get the entire object
+- `id`: single jsondb id to get
+- `ids`: array of jsondb ids to get in batch operation, use instead of id. In this case, the method will return an array of objects
+- `attributes`: array of specific paths to get
+- `returnData`: boolean, specify `true` to get the entire object
 - `includeID`: boolean, specify `true` to include the object id in the return
 - `user`, `permission`: as elsewhere
 
