@@ -101,11 +101,17 @@ class NodeIndex {
         // Add the new index, with its updated size, to the data to be written
         let objectSize = this.getSizeOfNodeAtPath('')
         let indexSize = u.getSize(this.i)
+        
+        let oldIndex = this.i[u.INDEX_KEY]
+        let oldIndexSize = 0
+        if (oldIndex) {
+            oldIndexSize = u.getSize(oldIndex)
+        }
 
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)
         this.i[u.INDEX_KEY].type(u.NT_META)
-        this.i[u.INDEX_KEY].size(objectSize + indexSize)
+        this.i[u.INDEX_KEY].size(objectSize + indexSize - oldIndexSize)
         this.i[u.INDEX_KEY].id = this.id
     }
 
