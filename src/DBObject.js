@@ -625,7 +625,7 @@ class DBObject {
     async setObjectPermission({objectPermission}) {
         if (objectPermission) {
             await this.ensureIndexLoaded()
-            this.index.metaIndex().data.permission = permission
+            this.index.metaIndex().data.permission = objectPermission
         }
     }
     
