@@ -213,10 +213,26 @@ class DynamoClient {
     // See ScanQuery.js for details on params API
     async scan(scanQueryInstance) {
         let params = scanQueryInstance.write()
-        const data = await this.dynamo.scan(params).promise().catch((err) => {
+        let data = await this.dynamo.scan(params).promise().catch((err) => {
             throw(err)
         })
-        return data.Items
+
+        let items = data.Items
+
+        // If we have a LastEvaluatedKey, repeat the scan until we've covered everything
+        let LastEvaluatedKey = data.LastEvaluatedKey
+        debugger
+        while (LastEvaluatedKey) {
+            params.ExclusiveStartKey = LastEvaluatedKey
+            let additionalData = await this.dynamo.scan(params).promise().catch((err) => {throw(err)})
+            LastEvaluatedKey = additionalData.LastEvaluatedKey 
+            additionalData.Items.forEach(item=>{
+                items.push(item)
+            })
+
+        }
+        // }
+        return items
     }
     
     async query(scanQueryInstance, seriesKey) {
