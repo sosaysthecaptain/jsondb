@@ -221,15 +221,19 @@ class DynamoClient {
 
         // If we have a LastEvaluatedKey, repeat the scan until we've covered everything
         let LastEvaluatedKey = data.LastEvaluatedKey
+        let scannedCount = data.ScannedCount
+        let passes = 1
         while (LastEvaluatedKey) {
             params.ExclusiveStartKey = LastEvaluatedKey
             let additionalData = await this.dynamo.scan(params).promise().catch((err) => {throw(err)})
+            scannedCount += additionalData.ScannedCount
+            passes += 1
             LastEvaluatedKey = additionalData.LastEvaluatedKey 
             additionalData.Items.forEach(item=>{
                 items.push(item)
             })
-
         }
+        console.log(`DynamoClient.scan returning ${items.length} results, scanned ${scannedCount} records in ${passes} passes`)
         return items
     }
     
