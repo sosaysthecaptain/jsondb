@@ -221,7 +221,6 @@ class DynamoClient {
 
         // If we have a LastEvaluatedKey, repeat the scan until we've covered everything
         let LastEvaluatedKey = data.LastEvaluatedKey
-        debugger
         while (LastEvaluatedKey) {
             params.ExclusiveStartKey = LastEvaluatedKey
             let additionalData = await this.dynamo.scan(params).promise().catch((err) => {throw(err)})
@@ -231,7 +230,6 @@ class DynamoClient {
             })
 
         }
-        // }
         return items
     }
     
