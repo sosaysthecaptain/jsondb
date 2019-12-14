@@ -100,13 +100,17 @@ class NodeIndex {
 
         // Add the new index, with its updated size, to the data to be written
         let objectSize = this.getSizeOfNodeAtPath('')
-        let indexSize = u.getSize(this.i)
+        let indexSize = u.getSize(this.i)                
+        // let indexSize = JSON.stringify(this.i).length
         
         let oldIndex = this.i[u.INDEX_KEY]
         let oldIndexSize = 0
         if (oldIndex) {
+            // oldIndexSize = JSON.stringify(oldIndex).length
             oldIndexSize = u.getSize(oldIndex)
         }
+
+        // NOTE: u.getSize is returning erroneous bullshit in this case
 
         // Update or create the top level index entry
         this.i[u.INDEX_KEY] = this.i[u.INDEX_KEY] || new IndexEntry(u.INDEX_KEY)

@@ -361,15 +361,17 @@ u.getSize = (obj) => {
         }
 
         // Objects -> stringified length of each
-        let size = 0
-        Object.keys(obj).forEach((key) => {
-            let value = obj[key]
-            if (value.length) {
-                size += value.length
-            } else {
-                size += JSON.stringify(obj).length
-            }
-        })
+        let size = JSON.stringify(obj).length
+        
+        // let size = 0
+        // Object.keys(obj).forEach((key) => {
+        //     let value = obj[key]
+        //     if (value.length) {
+        //         size += value.length
+        //     } else {
+        //         size += JSON.stringify(obj).length
+        //     }
+        // })
         return size
     } catch(err) {
         return 0
