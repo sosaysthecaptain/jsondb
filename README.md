@@ -126,6 +126,8 @@ let motherID = await user.get({path: 'mother'})
 await user.setFile({
     path: 'homework.essayDueTuesday',
     data: essayDueTuesdayAsBuffer,
+    contentType: 'image/jpeg',
+    encoding: 'base64'
 })
 let essayDueTuesdayAsBuffer = await user.getReference({path: 'homework.essayDueTuesday'})
 let s3Link = await user.get({path: 'homework.essayDueTuesday'})
@@ -134,6 +136,8 @@ let s3Link = await user.get({path: 'homework.essayDueTuesday'})
 `setFile` parameters:
 - `path`: the path at which to 'store' the file
 - `data`: buffer (or string, for that matter) to store
+- `contentType`: the content type for the file you are uploading (e.g. image/jpeg)
+- `encoding`: the encoding for your data (e.g. base64)
 - `sensitivity`, `user`, `permission`: as in ordinary `set`
 `getFile` parameters
 - `path` to get

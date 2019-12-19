@@ -16,8 +16,8 @@ class S3Client {
             Bucket: this.bucketName, 
             Key: key, 
             Body: body,
-            contentType, 
-            encoding,
+            ContentType: contentType, 
+            Encoding: encoding,
             ACL: "bucket-owner-full-control"
         }
         let data = await this.s3.upload(params).promise().catch(err => {
