@@ -514,7 +514,7 @@ class IndexEntry {
         return vps
     }
 
-    isDefault() {return (this.data[TYPE_KEY] === u.NT_DEFAULT) || (this.data[TYPE_KEY] === undefined)}
+    isDefault() {return (this.data[TYPE_KEY] === u.NT_DEFAULT) || (this.data[TYPE_KEY] === u.NT_S3REF) || (this.data[TYPE_KEY] === undefined)}
     isMeta() {return this.data[TYPE_KEY] === u.NT_META}
     
 }
