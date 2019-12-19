@@ -42,7 +42,6 @@ it('DBObject_file  - reading & writing S3 files', async function() {
     
     // Write with client
     let fileUrl = await s3Client.write({key: fileName, body: testBody, contentType, encoding})
-    // let passed0 = read0.startsWith(`https://${s3Client.bucketName}.s3`)
     let passed0 = isS3Link(fileUrl)
     assert.equal(passed0, true)
     
