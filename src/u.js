@@ -58,6 +58,11 @@ u.DYNAMO_RESERVED_WORDS = ["ABORT","ABSOLUTE","ACTION","ADD","AFTER","AGENT","AG
 
 /* NODE & INDEXING UTILITIES */
 
+// Use for reporting permission issues
+u.report = (msg) => {
+    console.log(msg)
+}
+
 u.flatten = (obj) => {
     return flatten(obj, {safe: true})
 }

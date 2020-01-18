@@ -315,6 +315,7 @@ class NodeIndex {
         let node = this.getNodeAtPath(path)
         node.data[SENSITIVITY_KEY] = sensitivity
     }
+    
     getNodeSensitivity(path) {
         if (!path) {
             return u.DEFAULT_SENSITIVITY
@@ -328,6 +329,25 @@ class NodeIndex {
             let parentPath = u.getParentPath(path)
             return (this.getNodeSensitivity(parentPath))
         }
+    }
+
+    // Returns the highest sensitivity of an attributes object
+    getMaxSensitivity({attributes, path}) {
+        
+        // If neither attributes nor path, look at the highest sensitivity in the object
+        if (!attributes && !path) {
+            // MARC TODO
+        }
+
+        if (path) {return this.getNodeSensitivity(path)}
+        let maxSensitivity = 0
+        Object.keys(attributes).forEach(path=>{
+            let sensitivity = this.getNodeSensitivity(path)
+            if (sensitivity > maxSensitivity) {
+                maxSensitivity = sensitivity
+            }
+        })
+        return maxSensitivity
     }
 
     getMetaNodes() {

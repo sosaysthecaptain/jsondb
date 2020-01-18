@@ -66,14 +66,17 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, owner, members, sensitivity, objectPermission})
+        return await this.set({
+            attributes: data, owner, members, sensitivity, objectPermission, 
+            calledFromCreate: true
+        })
     }
 
     async destroy({user, confirm, permissionOverride}={}) {
         await this.ensureIndexLoaded()
         
         if (!permissionOverride) {
-            if (!this.checkPermission({user, write: true})) {return undefined}
+            await this.ensureWritePermission({user, permission})
         }
 
         // Lateral and collection nodes require special destruction steps
@@ -256,11 +259,15 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    // TODO - add user, permission check
-    async set({attributes, sensitivity, owner, members, objectPermission, user, permission}) {
+    async set({attributes, sensitivity, owner, members, objectPermission, user, permission, calledFromCreate}) {
+        
+        // If the object already exists and has an objectPermission, we do a permission check
+        if (!calledFromCreate) {
+            await this.ensureWritePermission({user, permission, attributes})
+        }
+        
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
-        // u.processAttributes(newAttributes)
         newAttributes = u.flatten(newAttributes)
         u.packKeys(newAttributes)
         await this.getChildNodes()
@@ -278,7 +285,6 @@ class DBObject {
         this._cacheSet(newAttributes)
 
         // Set top level owner/member data
-    
         if (owner) {await this.setOwner({id: owner})}
         if (objectPermission) {await this.setObjectPermission({objectPermission})}        
         if (members) {
@@ -368,13 +374,15 @@ class DBObject {
 
     // TODO: implement user and permission
    async setReference({path, id, sensitivity, user, permission}) {
-       await this.ensureIndexLoaded()
-       path = u.packKeys(path)
-       let attributes = {}
-       attributes[path] = id
-       this.index.setNodeProperty(path, 'reference', id)
-       this.index.setDontDelete(path, true)
-       await this.set({attributes, sensitivity})
+        await this.ensureIndexLoaded()
+        await this.ensureWritePermission({user, permission, path})
+       
+        path = u.packKeys(path)
+        let attributes = {}
+        attributes[path] = id
+        this.index.setNodeProperty(path, 'reference', id)
+        this.index.setDontDelete(path, true)
+        await this.set({attributes, sensitivity})
     }
     
     async getReference({path, permission, user}) {
@@ -394,7 +402,10 @@ class DBObject {
     // Set type to s3, write to s3, put link as string content of node
     async setFile({path, data, contentType, encoding, sensitivity, user, permission}) {
         await this.ensureIndexLoaded()
-        await this.checkPermission({user, permission, write: true})
+        if (!await this.checkPermission({user, permission, write: true})) {
+            throw new Error('setFile: failed permission check')
+            u.report('setFile: failed permission check')
+        }
         path = u.packKeys(path)
 
         // Generate fileID, store it on the index, set nodetype
@@ -604,13 +615,26 @@ class DBObject {
         delete this.index.metaIndex().data[u.MEMBERS][id]
     }
 
+    // Throws is write should be prohibited on the grounds of either objectPermission or sensitivity
+    async ensureWritePermission({user, permission, attributes, path}) {
+        await this.ensureIndexLoaded()
+        
+        let passedObjectPermissionCheck = await this.checkPermission({user, permission, write: true})
+        if (!passedObjectPermissionCheck) {
+            throw new Error('failed write permission check on the basis of objectPermission')
+        }
+        
+        // Sensitivities - enforce write permission by sensitivity
+        let maxSensitivity = this.index.getMaxSensitivity({attributes, path})
+        let userPermission = permission || await this.getMemberPermission({id: user})
+        if (userPermission.write < maxSensitivity) {
+            throw new Error('failed write permission check on the basis of sensitivity')
+        }
+    }
+
     // Checks the user's permission, unless an override permission is passed
     async checkPermission({user, write, permission}) {
         let userPermission = permission || await this.getMemberPermission({id: user})
-        // if (!userPermission) {
-
-        //     userPermission = await this.getMemberPermission({id: user})
-        // }
         let objectPermission = await this.getObjectPermission()
 
         if (write) {
