@@ -55,7 +55,7 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create({data, sensitivity, objectPermission, parent, allowOverwrite, owner, members}) {
+    async create({data, objectPermission, parent, allowOverwrite, owner, members}) {
         if (!allowOverwrite) {
             if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
         }
@@ -66,10 +66,7 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({
-            attributes: data, owner, members, sensitivity, objectPermission, 
-            calledFromCreate: true
-        })
+        return await this.set({attributes: data, owner, members, objectPermission, calledFromCreate: true})
     }
 
     async destroy({user, confirm, permissionOverride}={}) {
