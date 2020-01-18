@@ -45,7 +45,6 @@ await thing.create({
         'ebullfinch@midston.edu': {read: 9, write: 9},
     },
     owner: 'danny@gmail.com'
-    sensitivity: 0
 })
 
 await thing.destroy({confirm: true})
@@ -55,7 +54,6 @@ await thing.destroy({confirm: true})
 - `data`: the object going into the database
 - `allowOverwrite`
 - `objectPermission` - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
-- `sensitivity` - the individual sensitivity level of each of the paths to write, an integer from 0-9. A path with a sensitivity of 5 will require a permission of 5 to read, and will be omitted from the returned results without adequate specified permission. More on this later
 - `members` - an object of `{id:permissionObj}` representing users who should have access
 - `owner` - a unique ID that will be set as a member with max permissions
 
@@ -93,6 +91,7 @@ let entireObject = await user.get()
 - `sensitivity`: a numerical permission level, 0-9, required to access these attributes. Get `operations` will omit attributes for which the user is not permissioned
 - `user`: ID of member whose permission level should be used
 - `permission`: manually passed permission object(`{read: x, write: y}`), overrides user permission
+- `returnData`: if true, the 'set' returns the entire object, as if it were a `get`. Note that this is meant as a convenience, and does not work in cases where an object is split between multiple DynamoDB nodes.
 
 `get` parameters:
 - `path`: path, as a string, representing `'path.to.desired.attribute'`. If `path` is specified, only the requested value is returned.
@@ -281,8 +280,6 @@ let read9 = await userHandler.scan({
 ## Collections are like handlers that are properties of objects
 Suppose you have a conversation object on which you want to store a potentially huge number of messages, which you'd like to be able to get one page at a time, sorted by when they were sent. In this case you'd use a `collection`, which is essentially a timeOrdered DBObjectHandler that exists as an attribute on a DBObject. Unlike freestanding handlers, collections can have permissions, owners, and members.
 
-**TODO: rename 'permission' to 'sensitivity', capitalize 'subclass'**
-
 Collections are created with the `DBObject.createCollection` method:
 
 ```javascript
@@ -389,6 +386,11 @@ Anytime you see 'permission' throughout jsondb, it refers to an object like this
 ```js
 permisson = {read: 6, write: 2}
 ```
+
+Both read and write should be a number between 0 and 9.
+
+If a single number is passed, it will count as both the read and write permission, for instance `z` -> `{read: z, write: z}`. 
+
 
 ### DBObjects have `objectPermissions`, their individual paths have `sensitivity` levels
 DBObjects take an `objectPermission` upon creation, which specifies read and write levels necessary to perform relevant methods on the object. 
