@@ -72,8 +72,8 @@ class DBObject {
     async destroy({user, confirm, skipPermissionCheck}={}) {
         await this.ensureIndexLoaded()
         
-        if (!skipPermissionCheck) {
-            await this.ensureWritePermission({user, permission})
+        if (!skipPermissionCheck) { // marc
+            await this.ensureWritePermission({user})
         }
 
         // Lateral and collection nodes require special destruction steps
@@ -117,13 +117,14 @@ class DBObject {
         }
     }
 
-    async ensureDestroyed({user, skipPermissionCheck}={}) {
+    // Unlike destroy, skips permission check
+    async ensureDestroyed() {
         let exists = await this.checkExists()
         if (!exists) {
             return true
         } else {
-            await this.destroy({user, skipPermissionCheck})
-            return await this.ensureDestroyed({user, skipPermissionCheck})
+            await this.destroy({skipPermissionCheck: true})
+            return await this.ensureDestroyed()
         }
     }
 
@@ -623,7 +624,7 @@ class DBObject {
     }
 
     // Throws is write should be prohibited on the grounds of either objectPermission or sensitivity
-    async ensureWritePermission({user, permission, attributes, path}) {
+    async ensureWritePermission({user, permission, attributes, path}={}) {
         await this.ensureIndexLoaded()
         
         let passedObjectPermissionCheck = await this.checkPermission({user, permission, write: true})
@@ -641,6 +642,9 @@ class DBObject {
 
     // Checks the user's permission, unless an override permission is passed
     async checkPermission({user, write, permission}) {
+        if (typeof permission === 'number') {
+            permission = {read: permission, write: permission}
+        }
         let userPermission = permission || await this.getMemberPermission({id: user})
         let objectPermission = await this.getObjectPermission()
 
@@ -656,15 +660,17 @@ class DBObject {
     async setObjectPermission({objectPermission}) {
         if (objectPermission) {
             await this.ensureIndexLoaded()
-            this.index.metaIndex().data.permission = objectPermission
+            this.index.setObjectPermission(objectPermission)
+            // this.index.metaIndex().data.permission = objectPermission
         }
     }
     
     async getObjectPermission() {
         await this.ensureIndexLoaded()
-        let objectPermission = this.index.metaIndex().data.permission
-        objectPermission = objectPermission || u.DEFAULT_PERMISSION
-        return objectPermission
+        return this.index.getObjectPermission()
+        // let objectPermission = this.index.metaIndex().data.permission
+        // objectPermission = objectPermission || u.DEFAULT_PERMISSION
+        // return objectPermission
 
     }
 
@@ -672,9 +678,17 @@ class DBObject {
     // Takes object of attributes to get, filters down those user has read permission for
     // Can take permission object {read: x, write: y} or simply integer read permission
     async _permissionFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
+        
+        // Interpret simple number as read permission
         let readPermission = permission
         if (permission.read !== undefined) {readPermission = permission.read}
-
+        
+        // If object permission is not sufficient, don't bother with sensitivity
+        let objectPermission = await this.getObjectPermission()
+        if (objectPermission.read > readPermission) {
+            return {}
+        }
+        
         let filtered = {}
         Object.keys(attributes).forEach((path) => {
             let nodeSensitivity = this.index.getNodeSensitivity(path)

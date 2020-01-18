@@ -308,6 +308,19 @@ class NodeIndex {
     }
     getDontDelete(path) {return this.getNodeProperty(path, 'dontDelete')}
     resetDontDelete() {Object.keys(this.i).forEach((path) => {this.setDontDelete(path, false)})}
+
+    setObjectPermission(objectPermission) {
+        if (typeof objectPermission === 'number') {
+            objectPermission = {read: objectPermission, write: objectPermission}
+        }
+        this.metaIndex().data.permission = objectPermission
+    }
+    
+    getObjectPermission() {
+        let objectPermission = this.metaIndex().data.permission
+        objectPermission = objectPermission || u.DEFAULT_PERMISSION
+        return objectPermission
+    }
     
     
     setNodeSensitivity(path, sensitivity) {
@@ -316,32 +329,46 @@ class NodeIndex {
         node.data[SENSITIVITY_KEY] = sensitivity
     }
     
+    // Recursive: if no sensitivity, looks up the tree, then at objectPermission.read
     getNodeSensitivity(path) {
+
+        // objectPermission.read defines the lowest possible sensitivity
+        let objectPermission = this.getObjectPermission()
+        let minSensitivity = objectPermission.read
+        minSensitivity = minSensitivity || u.DEFAULT_SENSITIVITY
+
         if (!path) {
-            return u.DEFAULT_SENSITIVITY
+            return minSensitivity
         }   
         path = u.packKeys(path)
         let node = this.getNodeAtPath(path)
         if (!node) {return null}
         let nodeSensitivity = node.data[SENSITIVITY_KEY]
-        if (nodeSensitivity) {return nodeSensitivity}
+        if (nodeSensitivity) {
+            return Math.max(nodeSensitivity, minSensitivity)
+        }
         else {
             let parentPath = u.getParentPath(path)
-            return (this.getNodeSensitivity(parentPath))
+            return this.getNodeSensitivity(parentPath)
         }
     }
 
     // Returns the highest sensitivity of an attributes object
-    getMaxSensitivity({attributes, path}) {
+    getMaxSensitivity({attributes, path}={}) {
+        let paths = []
         
-        // If neither attributes nor path, look at the highest sensitivity in the object
+        // Create a single array of all paths to look at
         if (!attributes && !path) {
-            // MARC TODO
+            paths = Object.keys(this.i)
+        } else if (attributes) {
+            paths = Object.keys(attributes)
+        } else if (path) {
+            paths.push(path)
         }
-
-        if (path) {return this.getNodeSensitivity(path)}
+        
+        // Return the max sensitivity of the specified paths
         let maxSensitivity = 0
-        Object.keys(attributes).forEach(path=>{
+        paths.forEach(path=>{
             let sensitivity = this.getNodeSensitivity(path)
             if (sensitivity > maxSensitivity) {
                 maxSensitivity = sensitivity
