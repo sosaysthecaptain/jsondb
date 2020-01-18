@@ -93,7 +93,7 @@ it('DBObject_vertical (2) modification on secondary nodes', async function() {
     assert.equal(passed0, true)
     
     // Modify a node 
-    await dbobject.set({attributes: {'k1.k1s2': 'this was changed'}})
+    await dbobject.set({attributes: {'k1.k1s2': 'this was changed'}, returnData: true})
     let read1 = await dbobject.get({path: 'k1.k1s2'})
     let passed1 = _.isEqual('this was changed', read1)
 

@@ -352,6 +352,12 @@ u.unpackKeys = (obj) => {
     return obj
 }
 
+u.cleanup = (data) => {
+    delete data[u.PK]
+    delete data[u.SK]
+    delete data[u.INDEX_KEY]
+}
+
 // This is a mess but better than most of the alternatives
 u.getSize = (obj) => {
     try {

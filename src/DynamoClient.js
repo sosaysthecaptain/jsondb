@@ -141,7 +141,7 @@ class DynamoClient {
             }
         }
     */
-    async update({tableName, key, attributes, doNotOverwrite, read}) {
+    async update({tableName, key, attributes, doNotOverwrite, returnData}) {
 
         if (doNotOverwrite) {
             if (await this.checkExists({tableName, key})) {
@@ -161,7 +161,7 @@ class DynamoClient {
         UpdateExpression = UpdateExpression.slice(0, -2)  // trailing comma
         
         let returnValues = 'NONE'
-        if (read) {returnValues = 'ALL_NEW'}
+        if (returnData) {returnValues = 'ALL_NEW'}
         let params = {
             TableName: tableName,
             Key: key,

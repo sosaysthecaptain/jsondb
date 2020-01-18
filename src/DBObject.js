@@ -247,9 +247,7 @@ class DBObject {
         // No paths: just dump from dynamo and clean up
         else {
             data = await this._read()
-            delete data[u.PK]
-            delete data[u.SK]
-            delete data[u.INDEX_KEY]
+            u.cleanup(data)
         }
             
         // Cache and return
@@ -299,9 +297,17 @@ class DBObject {
         
         // If oversize, split, otherwise write
         if (this.index.isOversize() || this.index.hasOversizeKeys()) {
-            return await this._handleSplit(newAttributes)
+            await this._handleSplit(newAttributes)
+            
         } else {
-            return await this._write(newAttributes)
+            let data = await this._write(newAttributes, returnData)
+            
+            // Handle returnData scenario
+            if (data) {
+                u.cleanup(data)
+                let flat = u.unpackKeys(data)
+                return u.unflatten(flat)
+            }
         }
     }
 
@@ -621,6 +627,12 @@ class DBObject {
         await this.ensureIndexLoaded()
         this.index.metaIndex().data[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
         delete this.index.metaIndex().data[u.MEMBERS][id]
+
+        // If the member in question is the owner, remove owner
+        let ownerKey = this.index.metaIndex().data[u.OWNER]
+        if (ownerKey === id) {
+            await this.setOwner({id: null})
+        }
     }
 
     // Throws is write should be prohibited on the grounds of either objectPermission or sensitivity
@@ -704,7 +716,7 @@ class DBObject {
     /*  INTERNAL METHODS */
 
     // Writes given attributes to this specific node, assumes index is prepared
-    async _write(attributes) {
+    async _write(attributes, returnData) {
 
         u.startTime('write')
 
@@ -729,7 +741,8 @@ class DBObject {
         let data = await this.dynamoClient.update({
             tableName: this.tableName,
             key: this.key,
-            attributes: attributes
+            attributes: attributes,
+            returnData
         }).catch((err) => {
             console.log('failure in DBObject._write')
             throw(err)
@@ -783,7 +796,7 @@ class DBObject {
             })
         }
 
-        // Filter by sensitivity -- TODO: MAKE THIS BETTER, MOVE ONTO NEW INDEX?
+        // Filter by sensitivity
         this._permissionFilterAttributes(data, permission)
         return u.unpackKeys(data)
     }

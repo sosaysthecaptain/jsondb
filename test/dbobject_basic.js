@@ -131,7 +131,17 @@ it('DBObject_basic (3) sensitivity levels', async function() {
     
     // Starting fresh, read one key
     let newString = 'change and should now be readable'
-    await dbobject.set({attributes: {'sensitiveKey': newString}, sensitivity: 1, permission: 5})
+    let read3_5 = await dbobject.set({
+        attributes: {'sensitiveKey': newString}, 
+        sensitivity: 1, 
+        permission: 5, 
+        returnData: true
+    })
+
+    // Diversion: returnData
+    let passed3_5 = (read3_5.sensitiveKey === newString)
+    assert.equal(passed3_5, true)
+
     
     // Read entire object
     let read3 = await dbobject.get({path: 'sensitiveKey', permission: 5})
@@ -183,8 +193,6 @@ it('DBObject_basic (4) modify', async function() {
     
     // Clean up
     await dbobject.destroy()
-    // let dbObjectExists = await dbobject.destroy()
-    // assert.equal(dbObjectExists, false)
 })
 
 
