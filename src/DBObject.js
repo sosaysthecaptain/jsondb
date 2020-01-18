@@ -66,13 +66,13 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, owner, members, objectPermission, calledFromCreate: true})
+        return await this.set({attributes: data, owner, members, objectPermission, skipPermissionCheck: true})
     }
 
-    async destroy({user, confirm, permissionOverride}={}) {
+    async destroy({user, confirm, skipPermissionCheck}={}) {
         await this.ensureIndexLoaded()
         
-        if (!permissionOverride) {
+        if (!skipPermissionCheck) {
             await this.ensureWritePermission({user, permission})
         }
 
@@ -117,18 +117,19 @@ class DBObject {
         }
     }
 
-    async ensureDestroyed({user, permissionOverride}={}) {
+    async ensureDestroyed({user, skipPermissionCheck}={}) {
         let exists = await this.checkExists()
         if (!exists) {
             return true
         } else {
-            await this.destroy({user, permissionOverride})
-            return await this.ensureDestroyed({user, permissionOverride})
+            await this.destroy({user, skipPermissionCheck})
+            return await this.ensureDestroyed({user, skipPermissionCheck})
         }
     }
 
-    async get({path, paths, permission, user, noCache}={}) {
+    async get({path, paths, permission, skipPermissionCheck, user, noCache}={}) {
         await this.ensureIndexLoaded()
+        if (skipPermissionCheck) {permission = u.MAX_PERMISSION}
         if (user && !permission) {permission = await this.getMemberPermission({id: user})}
 
         if (paths) {
@@ -157,11 +158,11 @@ class DBObject {
         return data
     }
     
-    async batchGet({paths, permission, user, noCache}) {
+    async batchGet({paths, permission, user, skipPermissionCheck, noCache}) {
         await this.ensureIndexLoaded()
-        let data = {}
-
+        if (skipPermissionCheck) {permission = u.MAX_PERMISSION}
         if (user && !permission) {permission = await this.getMemberPermission({id: user})}
+        let data = {}
 
         // Does this node go further than what we have reference of in the local index?
         if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
@@ -256,10 +257,10 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set({attributes, sensitivity, owner, members, objectPermission, user, permission, calledFromCreate}) {
+    async set({attributes, sensitivity, owner, members, objectPermission, user, permission, skipPermissionCheck, returnData}) {
         
         // If the object already exists and has an objectPermission, we do a permission check
-        if (!calledFromCreate) {
+        if (!skipPermissionCheck) {
             await this.ensureWritePermission({user, permission, attributes})
         }
         
@@ -303,9 +304,9 @@ class DBObject {
         }
     }
 
-    async modify({path, fn, permission, user}) {
+    async modify({path, fn, permission, user, skipPermissionCheck}) {
         u.startTime('modify ' + path)
-        let obj = await this.get({path, permission, user})
+        let obj = await this.get({path, permission, user, skipPermissionCheck})
         fn(obj)
 
         let attributes = {}
@@ -370,9 +371,11 @@ class DBObject {
     */
 
     // TODO: implement user and permission
-   async setReference({path, id, sensitivity, user, permission}) {
+   async setReference({path, id, sensitivity, user, permission, skipPermissionCheck}) {
         await this.ensureIndexLoaded()
-        await this.ensureWritePermission({user, permission, path})
+        if (!skipPermissionCheck) {
+            await this.ensureWritePermission({user, permission, path})
+        }
        
         path = u.packKeys(path)
         let attributes = {}
@@ -382,10 +385,10 @@ class DBObject {
         await this.set({attributes, sensitivity})
     }
     
-    async getReference({path, permission, user}) {
+    async getReference({path, permission, user, skipPermissionCheck}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
-        let id = await this.get({path, permission, user})
+        let id = await this.get({path, permission, user, skipPermissionCheck})
         let dbobject = new DBObject({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -397,12 +400,12 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile({path, data, contentType, encoding, sensitivity, user, permission}) {
+    async setFile({path, data, contentType, encoding, sensitivity, user, permission, skipPermissionCheck}) {
         await this.ensureIndexLoaded()
-        if (!await this.checkPermission({user, permission, write: true})) {
-            throw new Error('setFile: failed permission check')
-            u.report('setFile: failed permission check')
+        if (!skipPermissionCheck) {
+            this.ensureWritePermission({user, permission, path})
         }
+
         path = u.packKeys(path)
 
         // Generate fileID, store it on the index, set nodetype
@@ -419,10 +422,13 @@ class DBObject {
         return ref
     }
     
-    async getFile({path, permission, user, returnAsBuffer}) {
+    async getFile({path, permission, user, skipPermissionCheck, returnAsBuffer}) {
         await this.ensureIndexLoaded()
-
-        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
+        if (!skipPermissionCheck) {
+            permission = permission || await this.getMemberPermission({id: user})
+        } else {
+            permission = u.MAX_PERMISSION
+        }
 
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
@@ -445,7 +451,11 @@ class DBObject {
         }
     }
 
-    async deleteFile({path}) {
+    async deleteFile({path, user, permission, skipPermissionCheck}) {
+        if (!skipPermissionCheck) {
+            this.ensureWritePermission({user, permission, path})
+        }
+
         await this.s3Client.delete(path)
     }
     
@@ -480,7 +490,7 @@ class DBObject {
             if (!dbobjects.length) {break}
             for (let i = 0; i < dbobjects.length; i++) {
                 let dbobject = dbobjects[i]
-                await this.collection({path, user}).destroyObject({id: dbobject.id, permissionOverride: true})
+                await this.collection({path, user}).destroyObject({id: dbobject.id, skipPermissionCheck: true})
             }
         }
     }

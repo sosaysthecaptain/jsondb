@@ -220,7 +220,7 @@ await handler.destroyObject({
 `destroyObject` parameters:
 - `id`
 - `confirm`: as in `DBObject.destroy`
-- `permissionOverride`: boolean, set `true` to override the DBObject's own write permission check, to which this operation is otherwise subject
+- `skipPermissionCheck`: boolean, set `true` to override the DBObject's own write permission check, to which this operation is otherwise subject
 
 
 ### `getObject` can get data directly from objects without first instantiating them

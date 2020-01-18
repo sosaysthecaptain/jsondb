@@ -68,23 +68,24 @@ class DBObjectHandler {
         return dbobject
     }
 
-    async destroyObject({id, user, confirm, permissionOverride}) {
+    async destroyObject({id, user, confirm, skipPermissionCheck}) {
         if (!this.permissionCheck(true)) {return undefined}
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        if (permissionOverride) {user = undefined}
-        return await dbobject.destroy({user, permissionOverride, confirm})
+        if (skipPermissionCheck) {user = undefined}
+        return await dbobject.destroy({user, skipPermissionCheck, confirm})
     }
 
-    async getObject({id, ids, returnData, attributes, user, permission, includeID}) {
+    async getObject({id, ids, returnData, attributes, user, permission, skipPermissionCheck, includeID}) {
         if (ids) {
-            return this.batchGet({ids, user, permission, attributes, returnData, includeID})
+            return this.batchGet({ids, user, permission, skipPermissionCheck, attributes, returnData, includeID})
         }
 
-        if (!this.permissionCheck()) {return undefined}
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
+
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
@@ -93,9 +94,9 @@ class DBObjectHandler {
 
         // Return some data, all data, or just the dbobject
         if (attributes) {
-            return await dbobject.batchGet({paths: attributes, user, permission})
+            return await dbobject.batchGet({paths: attributes, user, permission, skipPermissionCheck})
         } else if (returnData && !attributes) {
-            return await dbobject.get({user, permission})
+            return await dbobject.get({user, permission, skipPermissionCheck})
         } else  {
             return dbobject
         }
@@ -103,8 +104,8 @@ class DBObjectHandler {
 
     // Gets specified data from a number of SIMPLE dbobjects at once
     // Bypasses the index
-    async batchGet({ids, user, permission, attributes, returnData, includeID}) {
-        if (!this.permissionCheck()) {return undefined}
+    async batchGet({ids, user, permission, skipPermissionCheck, attributes, returnData, includeID}) {
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
 
         // ids -> dynamo keys
         let keys = []
@@ -164,8 +165,8 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, permission, user, includeID}={}) {
-        if (!this.permissionCheck()) {return undefined}
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, permission, user, skipPermissionCheck, includeID}={}) {
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
         ascending = ascending || false
         limit = limit || 10000
 
@@ -196,8 +197,8 @@ class DBObjectHandler {
         return raw
     }
     
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission, includeID}) {
-        if (!this.permissionCheck()) {return undefined}
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
         if (returnData && !attributes) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
@@ -214,8 +215,8 @@ class DBObjectHandler {
 
     resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, user, permission, includeID}) {
-        if (!this.permissionCheck()) {return undefined}
+    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, user, permission, skipPermissionCheck, includeID}) {
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
@@ -239,8 +240,8 @@ class DBObjectHandler {
         ]
     */
    // EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
-    async scan({params, param, value, attributes, query, returnData, idOnly, user, permission, includeID}) {
-        if (!this.permissionCheck()) {return undefined}
+    async scan({params, param, value, attributes, query, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
+        if (!skipPermissionCheck && !this.permissionCheck()) {return undefined}
         
         // (2)
         if (!query && !params) {
@@ -319,7 +320,7 @@ class DBObjectHandler {
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
     // Note that for the sake of permission we go through DBObjects in all cases
-    async _objectsOrDataFromRaw({raw, attributes, returnData, idOnly, user, permission, includeID}) {
+    async _objectsOrDataFromRaw({raw, attributes, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
         
         // Make DBObjects
         let dbobjects = []
@@ -346,18 +347,18 @@ class DBObjectHandler {
             return ids
         }
         if (returnData) {attributes = true}
-        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, permission, includeID)}
+        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, permission, skipPermissionCheck, includeID)}
         return dbobjects
     }
 
     // Extracts specified attributes. Pass "true" for all
-    async getAttributesFromObjects(attributes, dbobjects, user, permission, includeID) {
+    async getAttributesFromObjects(attributes, dbobjects, user, permission, skipPermissionCheck, includeID) {
         let data = []
         for (let i = 0; i < dbobjects.length; i++) {
             let dbobject = dbobjects[i]   
             let obj = {}
             if (attributes === true) {
-                obj = await dbobject.get({user, permission})
+                obj = await dbobject.get({user, permission, skipPermissionCheck})
                 let timestamp = dbobject.timestamp()
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
@@ -366,7 +367,7 @@ class DBObjectHandler {
                     let attribute = attributes[j]
                     attribute = u.unpackKeys(attribute)
                     if ((attribute !== u.PK) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
-                        obj[attribute] = await dbobject.get({path: attribute, user, permission})
+                        obj[attribute] = await dbobject.get({path: attribute, user, permission, skipPermissionCheck})
                     }
                 }
                 obj.id = dbobject.id
