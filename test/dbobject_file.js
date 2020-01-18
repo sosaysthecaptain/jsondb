@@ -8,7 +8,7 @@ let s3Client = new jsondb.S3Client({
     awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
     awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
     awsRegion: config.AWS_REGION, 
-    bucketName: 'jsondb-test-bucket'
+    bucketName: config.bucketName
 })
 
 
@@ -17,6 +17,8 @@ it('DBObject_file  - reading & writing S3 files', async function() {
 
     let fileName = 'test_file'
     let testBody = 'this is standing in for a giant file'
+    let contentType = 'image/jpeg'
+    let encoding = 'base64'
 
     let testID = 's3_file_test_1'
     let testObj = {
@@ -37,10 +39,9 @@ it('DBObject_file  - reading & writing S3 files', async function() {
         subclass: null,
         timeOrdered: false
     })
-
+    
     // Write with client
-    let fileUrl = await s3Client.write(fileName, testBody)
-    // let passed0 = read0.startsWith(`https://${s3Client.bucketName}.s3`)
+    let fileUrl = await s3Client.write({key: fileName, body: testBody, contentType, encoding})
     let passed0 = isS3Link(fileUrl)
     assert.equal(passed0, true)
     

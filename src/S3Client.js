@@ -11,11 +11,13 @@ class S3Client {
         this.bucketName = bucketName
     }
 
-    async write(key, body) {
+    async write({key, body, contentType, encoding}) {
         let params = {
             Bucket: this.bucketName, 
             Key: key, 
             Body: body,
+            ContentType: contentType, 
+            Encoding: encoding,
             ACL: "bucket-owner-full-control"
         }
         let data = await this.s3.upload(params).promise().catch(err => {

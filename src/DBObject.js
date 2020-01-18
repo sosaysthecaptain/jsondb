@@ -392,7 +392,7 @@ class DBObject {
     }
     
     // Set type to s3, write to s3, put link as string content of node
-    async setFile({path, data, sensitivity, user, permission}) {
+    async setFile({path, data, contentType, encoding, sensitivity, user, permission}) {
         await this.ensureIndexLoaded()
         await this.checkPermission({user, permission, write: true})
         path = u.packKeys(path)
@@ -404,7 +404,7 @@ class DBObject {
         this.index.setDontDelete(path, true)
         
         // Write the file to s3, write the url to the node
-        let ref = await this.s3Client.write(fileID, data)
+        let ref = await this.s3Client.write({key: fileID, body: data, contentType, encoding})
         let attributes = {}
         attributes[path] = ref
         await this.set({attributes, sensitivity})
