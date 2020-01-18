@@ -27,10 +27,7 @@ it('DBObject_permission (1) keys only', async function() {
     
     // SETUP: create an object with three users and three paths of different permission levels
     await dbobject.create({
-        data: {
-            regular: 'medium permission'
-        }, 
-        sensitivity: 5,
+        data: {}, 
         owner: 'user0@gmail.com',
         members: {
             'highPermission@gmail.com': 8,
@@ -38,18 +35,27 @@ it('DBObject_permission (1) keys only', async function() {
             'lowPermission@gmail.com': 2
         }
     })
+
+    await dbobject.set({
+        attributes: {
+            regular: 'medium permission'
+        }, 
+        sensitivity: 5
+    })
     
     await dbobject.set({
         attributes: {
             pub: 'default_permission'
         },
-        sensitivity: 0
+        sensitivity: 0,
+        skipPermissionCheck: true
     })
     await dbobject.set({
         attributes: {
             password: 'permission 8'
         },
-        sensitivity: 8
+        sensitivity: 8,
+        permission: 10
     })
     
     // ZERO: with no user specified, should get only public
@@ -107,7 +113,7 @@ it('DBObject_permission (1) keys only', async function() {
     assert.equal(passed6, true)
     
     // Clean up
-    await dbobject.destroy()
+    await dbobject.destroy({skipPermissionCheck: true})
 })
 
 // #2: entire object via handler

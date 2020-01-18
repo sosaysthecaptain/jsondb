@@ -120,7 +120,11 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Delete one message
-    let deleted = await parentObj.collection({path, user}).destroyObject({id: message_1.id, confirm: true})
+    let deleted = await parentObj.collection({path, user}).destroyObject({
+        id: message_1.id, 
+        confirm: true,
+        skipPermissionCheck: true
+    })
     assert.equal(deleted, true)
     
     // Scan, round 2
@@ -195,7 +199,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Destroy parent object and see that collection is destroyed as well
-    await parentObj.destroy({user})
+    await parentObj.destroy({user, skipPermissionCheck: true})
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
 })
@@ -261,5 +265,5 @@ it('DBObject_collection (2) - subclasses', async function() {
     
     assert.equal(resultOfTest, 'this is the thing')
     
-    await parentObj.destroy({user: 'testUser@gmail.com'})
+    await parentObj.destroy({user: 'testUser@gmail.com', skipPermissionCheck: true})
 })
