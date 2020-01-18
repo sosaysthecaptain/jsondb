@@ -31,7 +31,7 @@ it('DBObject_permission (1) keys only', async function() {
             regular: 'medium permission'
         }, 
         sensitivity: 5,
-        creator: 'user0@gmail.com',
+        owner: 'user0@gmail.com',
         members: {
             'highPermission@gmail.com': 8,
             'mediumPermission@gmail.com': 5,

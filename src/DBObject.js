@@ -55,7 +55,7 @@ class DBObject {
     }
 
     // Creates a new object in the database
-    async create({data, sensitivity, objectPermission, parent, allowOverwrite, creator, members}) {
+    async create({data, sensitivity, objectPermission, parent, allowOverwrite, owner, members}) {
         if (!allowOverwrite) {
             if (await this.checkExists()) {throw new Error('DBObject already exists with id ' + this.id)}
         }
@@ -66,7 +66,7 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, creator, members, sensitivity, objectPermission})
+        return await this.set({attributes: data, owner, members, sensitivity, objectPermission})
     }
 
     async destroy({user, confirm, permissionOverride}={}) {
@@ -257,7 +257,7 @@ class DBObject {
     }
 
     // TODO - add user, permission check
-    async set({attributes, sensitivity, creator, members, objectPermission, user, permission}) {
+    async set({attributes, sensitivity, owner, members, objectPermission, user, permission}) {
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         // u.processAttributes(newAttributes)
@@ -277,9 +277,9 @@ class DBObject {
         this.index.updateSensitivities(sensitivity, newAttributes)
         this._cacheSet(newAttributes)
 
-        // Set top level creator/member data
+        // Set top level owner/member data
     
-        if (creator) {await this.setCreator({id: creator})}
+        if (owner) {await this.setOwner({id: owner})}
         if (objectPermission) {await this.setObjectPermission({objectPermission})}        
         if (members) {
             let memberIDs = Object.keys(members)
@@ -441,7 +441,7 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, permission, creator, members, subclass}) {
+    async createCollection({path, permission, owner, members, subclass}) {
         await this.ensureIndexLoaded()
         path = u.packKeys(path)
         members = members || {}
@@ -449,7 +449,7 @@ class DBObject {
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
-        this.index.setNodeProperty(path, 'creator', creator)
+        this.index.setNodeProperty(path, 'owner', owner)
         this.index.setNodeProperty(path, 'members', members)
         // this.index.setNodeSensitivity(path, sensitivity)
         this.index.setNodeProperty(path, 'permission', permission)
@@ -497,11 +497,11 @@ class DBObject {
         return this._getCollectionSeriesKey(path)
     }
 
-    // Zero permission unless member set, or unless collection was created by object creator
+    // Zero permission unless member set, or unless collection was created by object owner
     _getCollectionUserPermission({path, user}) {
         if (user) {
-            let creator = this.index.getNodeProperty(path, 'creator')
-            if (creator === user) {return {read: 9, write: 9}}
+            let owner = this.index.getNodeProperty(path, 'owner')
+            if (owner === user) {return {read: 9, write: 9}}
             let members = this.index.getNodeProperty(path, 'members')
             if (members && members[user]) {
                 return members[user]
@@ -551,14 +551,14 @@ class DBObject {
         }
     }
 
-    async setCreator({id}) {
+    async setOwner({id}) {
         await this.ensureIndexLoaded()
-        this.index.metaIndex().data[u.CREATOR] = id
+        this.index.metaIndex().data[u.OWNER] = id
         this.index.metaIndex().data[u.CREATED_DATE] = Date.now()
     }
-    async getCreator() {
+    async getOwner() {
         await this.ensureIndexLoaded()
-        return this.index.metaIndex().data[u.CREATOR]
+        return this.index.metaIndex().data[u.OWNER]
     }
     
     async getCreatedDate() {
@@ -574,7 +574,7 @@ class DBObject {
     
     async getMemberPermission({id}) {
         await this.ensureIndexLoaded()
-        if (id && (this.index.metaIndex().data[u.CREATOR] === id)) {return u.MAX_PERMISSION}
+        if (id && (this.index.metaIndex().data[u.OWNER] === id)) {return u.MAX_PERMISSION}
         
         if (id) {
             let members = this.index.metaIndex().data[u.MEMBERS]
@@ -587,13 +587,13 @@ class DBObject {
 
     async getMembers() {
         await this.ensureIndexLoaded()
-        let creatorKey = this.index.metaIndex().data[u.CREATOR]
-        let creator = {}
-        if (creatorKey) {
-            creator[creatorKey] = u.MAX_PERMISSION
+        let ownerKey = this.index.metaIndex().data[u.OWNER]
+        let owner = {}
+        if (ownerKey) {
+            owner[ownerKey] = u.MAX_PERMISSION
         }
         let members = this.index.metaIndex().data[u.MEMBERS]
-        let allMembers = _.assign({}, members, creator)
+        let allMembers = _.assign({}, members, owner)
         return allMembers
 
     }

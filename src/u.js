@@ -39,7 +39,7 @@ u.NT_S3REF = 'S3'                           // s3 file
 u.NT_REF = 'REF'                            // reference to another DBObject
 
 u.MEMBERS = 'MEMBERS'
-u.CREATOR = 'CREATOR'
+u.OWNER = 'OWNER'
 u.CREATED_DATE = 'C_TS'
 u.MAX_PERMISSION = {read: 9, write: 9}
 // u.DEFAULT_PERMISSION = 5

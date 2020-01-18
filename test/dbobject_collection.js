@@ -48,7 +48,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let user = 'testUser@gmail.com'
     await parentObj.createCollection({
         path,
-        creator: user,
+        owner: user,
         members: {
             'member@gmail.com': {read: 5, write: 5}
         },
