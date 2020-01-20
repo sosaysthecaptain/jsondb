@@ -28,7 +28,7 @@ it('DBObject_permission (1) keys only', async function() {
     // SETUP: create an object with three users and three paths of different permission levels
     await dbobject.create({
         data: {}, 
-        owner: 'user0@gmail.com',
+        creator: 'user0@gmail.com',
         members: {
             'highPermission@gmail.com': 8,
             'mediumPermission@gmail.com': 5,

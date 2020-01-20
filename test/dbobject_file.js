@@ -30,6 +30,7 @@ it('DBObject_file  - reading & writing S3 files', async function() {
         }
     }
     
+    debugger
     let handler = new jsondb.DBObjectHandler({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,

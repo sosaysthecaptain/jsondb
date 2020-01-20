@@ -14,7 +14,7 @@ jsondb is a database access layer that sits atop DynamoDB abd lets you work easi
 - **nest DBObjects** inside other DBObjects: `user1.setReference('friends.user2', user2.id)`
 - **scan and query** objects
 - give objects **objectPermissions** and individual nodes with them **sensitivity levels**, fetching in a manner that automatically filters out objects for which the current user is not permissioned
-- assign **owners and members** to objects
+- assign **creators and members** to objects
 
 
 ### `create` puts objects into the database, `destroy` removes them
@@ -44,7 +44,7 @@ await thing.create({
         'joe@gmail.com': {read: 5, write: 2},
         'ebullfinch@midston.edu': {read: 9, write: 9},
     },
-    owner: 'danny@gmail.com'
+    creator: 'danny@gmail.com'
 })
 
 await thing.destroy({confirm: true})
@@ -55,7 +55,7 @@ await thing.destroy({confirm: true})
 - `allowOverwrite`
 - `objectPermission` - read/write permission level required for object access, more on this later. Format is `{read: 4, write: 2}`, where permission levels are integers between 0 and 9. Defaults to unrestricted access.
 - `members` - an object of `{id:permissionObj}` representing users who should have access
-- `owner` - a unique ID that will be set as a member with max permissions
+- `creator` - a unique ID that will be set as a member with max permissions
 
 `destroy` parameters: 
 - `confirm`: optional, returns true if destruction successful
@@ -213,7 +213,7 @@ await handler.destroyObject({
 `createObject` parameters:
 - `id`: string, jsondb ID of object to create
 - `data`: initial object to store in the database
-- `allowOverwrite`, 'objectPermission', `owner`, `members` as in `DBObject.create`
+- `allowOverwrite`, 'objectPermission', `creator`, `members` as in `DBObject.create`
 
 
 `destroyObject` parameters:
@@ -278,7 +278,7 @@ let read9 = await userHandler.scan({
 - `user`, `permission` as elsewhere
 
 ## Collections are like handlers that are properties of objects
-Suppose you have a conversation object on which you want to store a potentially huge number of messages, which you'd like to be able to get one page at a time, sorted by when they were sent. In this case you'd use a `collection`, which is essentially a timeOrdered DBObjectHandler that exists as an attribute on a DBObject. Unlike freestanding handlers, collections can have permissions, owners, and members.
+Suppose you have a conversation object on which you want to store a potentially huge number of messages, which you'd like to be able to get one page at a time, sorted by when they were sent. In this case you'd use a `collection`, which is essentially a timeOrdered DBObjectHandler that exists as an attribute on a DBObject. Unlike freestanding handlers, collections can have permissions, creators, and members.
 
 Collections are created with the `DBObject.createCollection` method:
 
@@ -286,7 +286,7 @@ Collections are created with the `DBObject.createCollection` method:
 await parentObj.createCollection({
     path,
     subclass: MySubclass,
-    owner: 'me@gmail.com',
+    creator: 'me@gmail.com',
     members: {
         'you@gmail.com': {read: 5, write: 5},
         'theOtherGuy@gmail.com': {read: 5, write: 0}
@@ -297,7 +297,7 @@ await parentObj.createCollection({
 `createCollection` parameters:
 - `path`: `'path.to.this.collection'` as in any other set operation
 - `subclass` as in DBObjectHandler constructor
-- `owner`, `members`, `permission` as elsewhere
+- `creator`, `members`, `permission` as elsewhere
 
 ### You can think of a collection as a handler accessible with the `collection` method
 The `collection` method takes `path`, as well as `user` and `permission` as elsewhere, and returns the collection handler. The collection itself behaves exactly like any other DBObject handler. Note, however, that you should use the `query` method, which namespaces the search to within the primaryKey of the collection and is therefore considerably less expensive, in place of `scan`.
@@ -397,10 +397,10 @@ DBObjects take an `objectPermission` upon creation, which specifies read and wri
 
 `sensitivity` is a property of individual object nodes, and works a bit differently: it is specified with a single integer, and reads done below that threshold simply filter the sensitive attribute out of the returned object. This is useful for, for instance, storing private information on an otherwise public user profile.
 
-### DBObjects have a `owner` and `members`
-Objects and collections have a concept of members, mappings of user ids to permission objects. Members are specified with permission objects, while the owner has full permissions automatically. Both `owner` and `members` arguments can be specified to `DBObject.create` and `DBObject.createCollection`, but afterwards members can be added and removed.
+### DBObjects have a `creator` and `members`
+Objects and collections have a concept of members, mappings of user ids to permission objects. Members are specified with permission objects, while the creator has full permissions automatically. Both `creator` and `members` arguments can be specified to `DBObject.create` and `DBObject.createCollection`, but afterwards members can be added and removed.
 
-Member data is stored in the index rather than on the object, but for convenience, a `members` array, including ids of all members and the owner, is included within the body of a DBObject.
+Member data is stored in the index rather than on the object, but for convenience, a `members` array, including ids of all members and the creator, is included within the body of a DBObject.
 
 ```js
 let myDocument = await documentHander.createObject({
@@ -409,7 +409,7 @@ let myDocument = await documentHander.createObject({
         stuff: '...'
     },
     objectPermission: {read: 0, write: 3},
-    owner: 'me@gmail.com'
+    creator: 'me@gmail.com'
     members: {
         'you@gmail.com': {read: 4, write: 2},
         'him@gmail.com': {read: 2, write: 0},
@@ -435,7 +435,7 @@ await myDocument.set({attributes: {}})
 
 let johnPermission = await myDocument.getMemberPermission({id: 'john@gmail.com'})
 
-let owner = await myDocument.getOwner()
+let creator = await myDocument.getOwner()
 let createdDate = await myDocument.getCreatedDate()
 
 let membersArray = await myDocument.getMembers()
@@ -445,6 +445,6 @@ let membersArrayIsAlsoOnTheObjectItself = await myDocument.get({path: 'members'}
 
 ### `user` or `permission` can be specified to gain access to an object
 If an object uses `objectPermission` or `sensitivity`, then read operations on it will return nothing and write operations, in the former case, will fail unless credentials are specified. These can be specified as in two ways:
-- `user`: the id of a potential member/owner. If this object contains such a member, the operation will be carried out with that member's permissions
+- `user`: the id of a potential member/creator. If this object contains such a member, the operation will be carried out with that member's permissions
 - `permission`: a permission object can be passed directly. This will override a user and conduct the operation at the specified permission level.
 

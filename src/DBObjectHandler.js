@@ -46,7 +46,7 @@ class DBObjectHandler {
         return false
     }
 
-    async createObject({id, data, owner, members, allowOverwrite, sensitivity, objectPermission}) {
+    async createObject({id, data, creator, members, allowOverwrite, sensitivity, objectPermission}) {
         if (!this.permissionCheck(true)) {return undefined}
         allowOverwrite = allowOverwrite || false
         id = id || this.seriesKey
@@ -59,7 +59,7 @@ class DBObjectHandler {
         })
         await dbobject.create({
             data, 
-            owner, 
+            creator, 
             members, 
             allowOverwrite, 
             sensitivity, 
