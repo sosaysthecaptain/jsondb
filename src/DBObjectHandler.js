@@ -16,7 +16,7 @@ class DBObjectHandler {
         this.seriesKey = seriesKey
         this.defaultCacheSize = defaultCacheSize || u.DEFAULT_CACHE_SIZE
         this.doNotCache = doNotCache || true
-        this.credentials = credentials
+        this.credentials = credentials || {permission: u.DEFAULT_PERMISSION}
         if (humanReadable) {u.HUMAN_READABLE = true}
 
         this.lastTimestampsByPath = {}
@@ -37,7 +37,9 @@ class DBObjectHandler {
     }
 
     async createObject({id, data, creator, members, allowOverwrite, sensitivity, objectPermission}) {
+        credentials = credentials || this.credentials   
         allowOverwrite = allowOverwrite || false
+        
         id = id || this.seriesKey
         let dbobject = new this.Subclass({
             id: id,
@@ -57,19 +59,23 @@ class DBObjectHandler {
         return dbobject
     }
 
-    async destroyObject({id, user, confirm, skipPermissionCheck}) {
+    async destroyObject({id, confirm, credentials}) {
+        credentials = credentials || this.credentials
+
         let dbobject = new this.Subclass({
             id: id,
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
         if (skipPermissionCheck) {user = undefined}
-        return await dbobject.destroy({user, skipPermissionCheck, confirm})
+        return await dbobject.destroy({user, confirm, credentials})
     }
 
-    async getObject({id, ids, returnData, attributes, user, permission, skipPermissionCheck, includeID}) {
+    async getObject({id, ids, returnData, attributes, includeID, credentials}) {
+        credentials = credentials || this.credentials
+
         if (ids) {
-            return this.batchGet({ids, user, permission, skipPermissionCheck, attributes, returnData, includeID})
+            return this.batchGet({ids, attributes, returnData, includeID, credentials})
         }
 
         let dbobject = new this.Subclass({
@@ -80,9 +86,9 @@ class DBObjectHandler {
 
         // Return some data, all data, or just the dbobject
         if (attributes) {
-            return await dbobject.batchGet({paths: attributes, user, permission, skipPermissionCheck})
+            return await dbobject.batchGet({paths: attributes, credentials})
         } else if (returnData && !attributes) {
-            return await dbobject.get({user, permission, skipPermissionCheck})
+            return await dbobject.get({credentials})
         } else  {
             return dbobject
         }
@@ -90,7 +96,8 @@ class DBObjectHandler {
 
     // Gets specified data from a number of SIMPLE dbobjects at once
     // Bypasses the index
-    async batchGet({ids, user, permission, skipPermissionCheck, attributes, returnData, includeID}) {
+    async batchGet({ids, attributes, returnData, includeID, credentials}) {
+        credentials = credentials || this.credentials   
 
         // ids -> dynamo keys
         let keys = []
@@ -107,7 +114,8 @@ class DBObjectHandler {
 
         let data = await this.dynamoClient.batchGet({
             attributes, keys,
-            tableName: this.tableName
+            tableName: this.tableName,
+            credentials
         })
 
         if (returnData) {attributes = true}
@@ -115,23 +123,22 @@ class DBObjectHandler {
             raw: data, 
             attributes, 
             returnData, 
-            user, 
-            permission, 
+            credentials,
             includeID
         }).catch(err=> {debugger})
         return ret
     }
 
     // Instantiates without hitting db
-    instantiate({id, ids}) {
-    
+    instantiate({id, ids, credentials}) {
         // Single case
         if (id) {
             let dbobject = new this.Subclass({
                 id: id,
                 dynamoClient: this.dynamoClient,
                 s3Client: this.s3Client,
-                tableName: this.tableName
+                tableName: this.tableName,
+                credentials: credentials || this.credentials   
             })
             return dbobject
         }
@@ -149,7 +156,8 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, permission, user, skipPermissionCheck, includeID}={}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID}={}) {
+        credentials = credentials || this.credentials
         ascending = ascending || false
         limit = limit || 10000
 
@@ -174,13 +182,15 @@ class DBObjectHandler {
         if (returnData) {attributes = undefined}
         for (let i = 0; i < data.length; i++) {
             let dbobject = data[i]
-            let ret = await dbobject.get({attributes, user, permission})
+            let ret = await dbobject.get({attributes, credentials})
             raw.push(ret)
         }
         return raw
     }
     
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
+    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, includeID, credentials}) {
+        credentials = credentials || this.credentials   
+
         if (returnData && !attributes) {attributes = true}
         if (exclusiveFirstTimestamp) {exclusiveFirstTimestamp = Number(exclusiveFirstTimestamp)}
 
@@ -190,14 +200,17 @@ class DBObjectHandler {
             uid: seriesKey || this.seriesKey,
             limit,
             ascending,
-            exclusiveFirstSk: exclusiveFirstTimestamp
+            exclusiveFirstSk: exclusiveFirstTimestamp,
+            credentials
         })
-        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, idOnly, user, permission, includeID})
+        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, idOnly, includeID, credentials})
     }
 
     resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, user, permission, skipPermissionCheck, includeID}) {
+    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, includeID, credentials}) {
+        credentials = credentials || this.credentials   
+        
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
@@ -207,7 +220,7 @@ class DBObjectHandler {
             ascending
         })
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, user, permission, includeID})
+        return await this._objectsOrDataFromRaw({raw: allObjectData, attributes, returnData, includeID, credentials})
     }
 
     // Pass a single path and value, or else a completed ScanQuery object
@@ -221,7 +234,8 @@ class DBObjectHandler {
         ]
     */
    // EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
-    async scan({params, param, value, attributes, query, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
+    async scan({params, param, value, attributes, query, returnData, idOnly, includeID, credentials}) {
+        credentials = credentials || this.credentials   
         
         // (2)
         if (!query && !params) {
@@ -295,12 +309,13 @@ class DBObjectHandler {
 
         
         if (returnData && !attributes) {attributes = true}
-        return await this._objectsOrDataFromRaw({raw: data, attributes, returnData, idOnly, user, permission, includeID})
+        return await this._objectsOrDataFromRaw({raw: data, attributes, returnData, idOnly, includeID, credentials})
     }
 
     // Processes raw data returned from dynamo into multiple objects, optionally extracting some or all data
     // Note that for the sake of permission we go through DBObjects in all cases
-    async _objectsOrDataFromRaw({raw, attributes, returnData, idOnly, user, permission, skipPermissionCheck, includeID}) {
+    async _objectsOrDataFromRaw({raw, attributes, returnData, idOnly, includeID, credentials}) {
+        credentials = credentials || this.credentials   
         
         // Make DBObjects
         let dbobjects = []
@@ -318,7 +333,8 @@ class DBObjectHandler {
                 dynamoClient: this.dynamoClient,
                 isTimeOrdered: true,
                 encodedIndex,
-                data
+                data,
+                credentials
             }))
         })
         if (idOnly) {
@@ -327,18 +343,20 @@ class DBObjectHandler {
             return ids
         }
         if (returnData) {attributes = true}
-        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, permission, skipPermissionCheck, includeID)}
+        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, includeID, credentials)}
         return dbobjects
     }
 
     // Extracts specified attributes. Pass "true" for all
-    async getAttributesFromObjects(attributes, dbobjects, user, permission, skipPermissionCheck, includeID) {
+    async getAttributesFromObjects(attributes, dbobjects, includeID, credentials) {
+        credentials = credentials || this.credentials   
+
         let data = []
         for (let i = 0; i < dbobjects.length; i++) {
             let dbobject = dbobjects[i]   
             let obj = {}
             if (attributes === true) {
-                obj = await dbobject.get({user, permission, skipPermissionCheck})
+                obj = await dbobject.get({credentials})
                 let timestamp = dbobject.timestamp()
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
@@ -347,7 +365,7 @@ class DBObjectHandler {
                     let attribute = attributes[j]
                     attribute = u.unpackKeys(attribute)
                     if ((attribute !== u.PK) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
-                        obj[attribute] = await dbobject.get({path: attribute, user, permission, skipPermissionCheck})
+                        obj[attribute] = await dbobject.get({path: attribute, credentuals})
                     }
                 }
                 obj.id = dbobject.id
