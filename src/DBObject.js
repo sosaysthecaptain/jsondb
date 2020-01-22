@@ -502,51 +502,47 @@ class DBObject {
         }
     }
 
-    async setCollectionMember({path, member, permission, deleteMember}) {
-        debugger
-        this.index.setDontDelete(path, true)
-        let members = this.index.getNodeProperty(path, 'members')
+    // async setCollectionMember({path, member, permission, deleteMember}) {
+    //     debugger
+    //     this.index.setDontDelete(path, true)
+    //     let members = this.index.getNodeProperty(path, 'members')
 
-        if (!deleteMember) {
-            delete members[member]
-        } else {
-            members[member] = permission
-        }
+    //     if (!deleteMember) {
+    //         delete members[member]
+    //     } else {
+    //         members[member] = permission
+    //     }
 
-        this.index.setNodeProperty(path, 'members', members)
+    //     this.index.setNodeProperty(path, 'members', members)
         
-        // To set we have to do an empty write
-        let attributes = {}
-        attributes[path] = '<COLLECTION>'
-        await this.set({attributes})
-        return this._getCollectionSeriesKey(path)
-    }
+    //     // To set we have to do an empty write
+    //     let attributes = {}
+    //     attributes[path] = '<COLLECTION>'
+    //     await this.set({attributes})
+    //     return this._getCollectionSeriesKey(path)
+    // }
 
-    // Zero permission unless member set, or unless collection was created by object creator
-    _getCollectionUserPermission({path, user}) {
-        if (user) {
-            let creator = this.index.getNodeProperty(path, 'creator')
-            if (creator === user) {return {read: 9, write: 9}}
-            let members = this.index.getNodeProperty(path, 'members')
-            if (members && members[user]) {
-                return members[user]
-            }
-        }
-        return {read: 0, write: 0}
-    }
+    // // Zero permission unless member set, or unless collection was created by object creator
+    // _getCollectionUserPermission({path, user}) {
+    //     if (user) {
+    //         let creator = this.index.getNodeProperty(path, 'creator')
+    //         if (creator === user) {return {read: 9, write: 9}}
+    //         let members = this.index.getNodeProperty(path, 'members')
+    //         if (members && members[user]) {
+    //             return members[user]
+    //         }
+    //     }
+    //     return {read: 0, write: 0}
+    // }
 
-    collection({path, user}) {
+    // Note: permissions passed here are handed to all downstream methods, in addition
+    // to operations on the collection itself
+    collection({path, user, permission, skipPermissionCheck}) {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
 
-        // userPermission: assumes default only if no user passed
-        let userPermission
-        userPermission = this._getCollectionUserPermission({path, user})
-        if (!userPermission) {
-            userPermission = {read: 0, write: 0}
-        }
-        
-        let permission = this.index.getNodeProperty(path, 'permission')
+        // Do a get for the sake of checking permissions
+        await this.get({path, user, permission, skipPermissionCheck})
 
         let seriesKey = this._getCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
@@ -561,9 +557,7 @@ class DBObject {
             subclass: subclass,
             isTimeOrdered: true, 
             doNotCache: true,
-            
-            permission: permission,
-            userPermission: userPermission, 
+            credentials: {user, permission, skipPermissionCheck}
         })
     }
     
