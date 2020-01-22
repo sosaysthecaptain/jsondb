@@ -73,7 +73,7 @@ class DBObject {
     async destroy({confirm, credentials}={}) {
         credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
-        await this.ensureWritePermission({credentials})
+        this.ensurePermission({credentials, write: true})
 
         // Lateral and collection nodes require special destruction steps
         let allNodes = this.index.getChildren()
@@ -183,7 +183,7 @@ class DBObject {
             })
 
             // Filter requests by permission
-            pathObj = await this._permissionFilterAttributes(pathObj, credentials)
+            pathObj = this.permissionFilterPaths({attributes: pathObj, credentials})
             
             // Get what we can from the cache
             if (!noCache) {
@@ -254,13 +254,10 @@ class DBObject {
         return u.unpackKeys(data)
     }
 
-    async set({attributes, sensitivity, creator, members, objectPermission, returnData}) {
+    async set({attributes, sensitivity, creator, members, objectPermission, returnData, credentials}) {
         credentials = credentials || this.credentials
-        
-        // If the object already exists and has an objectPermission, we do a permission check
-        if (!skipPermissionCheck) {
-            await this.ensureWritePermission({attributes, credentials})
-        }
+        this.ensureIndexLoaded()
+        this.ensurePermission({attributes, credentials, write: true})
         
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
@@ -379,16 +376,14 @@ class DBObject {
     */
 
    async setReference({path, id, sensitivity, credentials}) {
-       credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
-        await this.ensureWritePermission({credentials})
        
         path = u.packKeys(path)
         let attributes = {}
         attributes[path] = id
         this.index.setNodeProperty(path, 'reference', id)
         this.index.setDontDelete(path, true)
-        await this.set({attributes, sensitivity})
+        await this.set({attributes, sensitivity, credentials})
     }
     
     async getReference({path, credentials}) {
@@ -430,7 +425,7 @@ class DBObject {
     async getFile({path, returnAsBuffer, credentials}) {
         credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
-        this.ensurePathPermission({path, credentials, write: false})
+        this.ensurePermission({path, credentials, write: false})
 
         if (!skipPermissionCheck) {
             permission = permission || await this.getMemberPermission({id: user})
@@ -506,10 +501,7 @@ class DBObject {
     collection({path, credentials}) {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
-
-        // Do a get for the sake of checking permissions
-        // await this.get({path, credentials})
-        // marc
+        this.ensurePermission({path, write: false, credentials})
 
         let seriesKey = this._getCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
@@ -537,13 +529,11 @@ class DBObject {
         }
     }
 
-    async setOwner({id}) {
-        await this.ensureIndexLoaded()
+    setOwner({id}) {
         this.index.metaIndex().data[u.CREATOR] = id
         this.index.metaIndex().data[u.CREATED_DATE] = Date.now()
     }
-    async getOwner() {
-        await this.ensureIndexLoaded()
+    getOwner() {
         return this.index.metaIndex().data[u.CREATOR]
     }
     
@@ -552,14 +542,12 @@ class DBObject {
         return this.index.metaIndex().data[u.CREATED_DATE]
     }
 
-    async setMemberPermission({id, permission}) {
-        await this.ensureIndexLoaded()
+    setMemberPermission({id, permission}) {
         this.index.metaIndex().data[u.MEMBERS] = this.index.metaIndex().data[u.MEMBERS] || {}
         this.index.metaIndex().data[u.MEMBERS][id] = permission
     }
     
-    async getMemberPermission({id}) {
-        await this.ensureIndexLoaded()
+    getMemberPermission({id}) {
         if (id && (this.index.metaIndex().data[u.CREATOR] === id)) {return u.MAX_PERMISSION}
         
         if (id) {
@@ -571,8 +559,7 @@ class DBObject {
         return u.DEFAULT_PERMISSION
     }
 
-    async getMembers() {
-        await this.ensureIndexLoaded()
+    getMembers() {
         let creatorKey = this.index.metaIndex().data[u.CREATOR]
         let creator = {}
         if (creatorKey) {
@@ -584,45 +571,53 @@ class DBObject {
 
     }
     
-    async removeMember({id}) {
-        await this.ensureIndexLoaded()
+    removeMember({id}) {
         this.index.metaIndex().data[u.MEMBERS] == this.index.metaIndex()[u.MEMBERS] || {}
         delete this.index.metaIndex().data[u.MEMBERS][id]
 
         // If the member in question is the creator, remove creator
         let creatorKey = this.index.metaIndex().data[u.CREATOR]
         if (creatorKey === id) {
-            await this.setOwner({id: null})
+            this.setOwner({id: null})
         }
     }
 
     // marc todo: change to ensurePermission
     // Throws is write should be prohibited on the grounds of either objectPermission or sensitivity
-    async ensureWritePermission({attributes, path, credentials}={}) {
-        await this.ensureIndexLoaded()
-        credentials = credentials || this.credentials
+    // async ensureWritePermission({attributes, path, credentials}={}) {
+    //     await this.ensureIndexLoaded()
+    //     credentials = credentials || this.credentials
         
-        let passedObjectPermissionCheck = await this.checkPermission({write: true, credentials})
-        if (!passedObjectPermissionCheck) {
-            throw new Error('failed write permission check on the basis of objectPermission')
-        }
+    //     let passedObjectPermissionCheck = await this.checkPermission({write: true, credentials})
+    //     if (!passedObjectPermissionCheck) {
+    //         throw new Error('failed write permission check on the basis of objectPermission')
+    //     }
         
-        // Sensitivities - enforce write permission by sensitivity
-        let maxSensitivity = this.index.getMaxSensitivity({attributes, path})
-        let userPermission = permission || await this.getMemberPermission({id: user})
-        if (userPermission.write < maxSensitivity) {
-            throw new Error('failed write permission check on the basis of sensitivity')
-        }
-    }
+    //     // Sensitivities - enforce write permission by sensitivity
+    //     let maxSensitivity = this.index.getMaxSensitivity({attributes, path})
+    //     let userPermission = permission || await this.getMemberPermission({id: user})
+    //     if (userPermission.write < maxSensitivity) {
+    //         throw new Error('failed write permission check on the basis of sensitivity')
+    //     }
+    // }
 
+    /*
+    Credentials object format is {user, permission, skipPermissionCheck}
+    Email address, permission object ({read: x, write: 9}), and boolean respectively
+    skipPermissionCheck trumps permission, permission trumps user, user gets looked up on
+    the object and defaults to zero
+    */
     getUserPermission(credentials) {
         credentials = credentials || this.credentials
+        if (credentials.skipPermissionCheck) {return u.MAX_PERMISSION}
+        else if (credentials.permission) {return credentials.permission}
+        return this.getMemberPermission({user: credentials.user})
     }
 
     // Synchronous, assumes index is loaded
-    ensurePathPermission({path, paths, attributes, write, credentials}) {
+    ensurePermission({path, paths, attributes, write, credentials}) {
         credentials = credentials || this.credentials
-        paths = u.consolidatePaths({path, paths, attributes})
+        paths = this.consolidatePaths({path, paths, attributes})
         let userPermission = this.getUserPermission(credentials)
         
         let maxReadNeeded = 0
@@ -652,27 +647,58 @@ class DBObject {
             write: Math.max(objectPermission.write, nodeSensitivity)
         }
     }
-
-    // Checks the user's permission, unless an override permission is passed
-    async checkPermission({write, credentials}) {
+    
+    // Assumes read
+    permissionFilterPaths({path, paths, attributes, credentials}) {
         credentials = credentials || this.credentials
-        if (credentials.skipPermissionCheck) {return true}
+        paths = this.consolidatePaths({path, paths, attributes})
+        let userPermission = this.getUserPermission(credentials)
         
-        let permission = credentials.permission
-        if (typeof permission === 'number') {
-            permission = {read: permission, write: permission}
-        }
-        let userPermission = permission || await this.getMemberPermission({id: credentials.user})
-        let objectPermission = await this.getObjectPermission()
-
-        if (write) {
-            if (!userPermission) {
-                return object
+        let outputPaths = []
+        paths.forEach(path=>{
+            let necessaryRead = this.getPathPermission(path).read
+            let actualRead = userPermission.read
+            if (necessaryRead >= actualRead) {
+                outputPaths.push(path)
             }
-            return (userPermission.write >= objectPermission.write)
-        }
-        return (userPermission.read >= objectPermission.read)
+        })
+        return outputPaths
     }
+
+    consolidatePaths = ({path, paths, attributes}) => {
+        if (!path && !paths && attributes) {
+            paths = this.index.getAllPaths()
+        }
+        
+        paths = paths || []
+        if (path) {paths.push(path)}
+        if (attributes) {
+            Object.keys(attributes).forEach(path=>{paths.push(path)})
+        }
+        return paths
+    }
+
+
+    // // Checks the user's permission, unless an override permission is passed
+    // async checkPermission({write, credentials}) {
+    //     credentials = credentials || this.credentials
+    //     if (credentials.skipPermissionCheck) {return true}
+        
+    //     let permission = credentials.permission
+    //     if (typeof permission === 'number') {
+    //         permission = {read: permission, write: permission}
+    //     }
+    //     let userPermission = permission || await this.getMemberPermission({id: credentials.user})
+    //     let objectPermission = await this.getObjectPermission()
+
+    //     if (write) {
+    //         if (!userPermission) {
+    //             return object
+    //         }
+    //         return (userPermission.write >= objectPermission.write)
+    //     }
+    //     return (userPermission.read >= objectPermission.read)
+    // }
 
     setObjectPermission({objectPermission}) {
         if (objectPermission) {
@@ -687,28 +713,28 @@ class DBObject {
 
     // Takes object of attributes to get, filters down those user has read permission for
     // Can take permission object {read: x, write: y} or simply integer read permission
-    async _permissionFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
+    // async _permissionFilterAttributes(attributes, permission=u.DEFAULT_PERMISSION) {
         
-        // Interpret simple number as read permission
-        let readPermission = permission
-        if (permission.read !== undefined) {readPermission = permission.read}
+    //     // Interpret simple number as read permission
+    //     let readPermission = permission
+    //     if (permission.read !== undefined) {readPermission = permission.read}
         
-        // If object permission is not sufficient, don't bother with sensitivity
-        let objectPermission = await this.getObjectPermission()
-        if (objectPermission.read > readPermission) {
-            return {}
-        }
+    //     // If object permission is not sufficient, don't bother with sensitivity
+    //     let objectPermission = await this.getObjectPermission()
+    //     if (objectPermission.read > readPermission) {
+    //         return {}
+    //     }
         
-        let filtered = {}
-        Object.keys(attributes).forEach((path) => {
-            let nodeSensitivity = this.index.getNodeSensitivity(path)
-            nodeSensitivity = nodeSensitivity || u.DEFAULT_SENSITIVITY
-            if (nodeSensitivity <= readPermission) {
-                filtered[path] = attributes[path]
-            }
-        })
-        return filtered
-    }
+    //     let filtered = {}
+    //     Object.keys(attributes).forEach((path) => {
+    //         let nodeSensitivity = this.index.getNodeSensitivity(path)
+    //         nodeSensitivity = nodeSensitivity || u.DEFAULT_SENSITIVITY
+    //         if (nodeSensitivity <= readPermission) {
+    //             filtered[path] = attributes[path]
+    //         }
+    //     })
+    //     return filtered
+    // }
 
 
     /*  INTERNAL METHODS */
@@ -767,7 +793,7 @@ class DBObject {
     }
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
-    async _getEntireObject({permission, user, noCache, dumpCache}) {
+    async _getEntireObject({noCache, dumpCache, credentials}) {
         await this.ensureIndexLoaded()
 
         if (user && !permission) {permission = await this.getMemberPermission({id: user})}
@@ -776,13 +802,13 @@ class DBObject {
         // TODO: set an isIncomplete flag, if this isn't true then this is all we do
         if (dumpCache && this._isAllPresent()) {
             let data = u.copy(this.cache)
-            this._permissionFilterAttributes(data, permission)
+            this.permissionFilterPaths({attributes: data, credentials})
             return u.unpackKeys(data)
         }
-
+        
         // Get everything locally available
         let data = await this.batchGet({permission, noCache})
-
+        
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
         let childKeys = Object.keys(children)
@@ -793,9 +819,9 @@ class DBObject {
                 data[key] = dataFromChild[key]
             })
         }
-
+        
         // Filter by sensitivity
-        this._permissionFilterAttributes(data, permission)
+        this.permissionFilterPaths({attributes: data, credentials})
         return u.unpackKeys(data)
     }
 

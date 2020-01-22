@@ -377,6 +377,14 @@ class NodeIndex {
         return maxSensitivity
     }
 
+    getAllPaths() {
+        let paths = []
+        Object.keys(this.i).forEach((path) => {
+            paths.push(this.i[path])
+        })
+        return paths
+    }
+    
     getMetaNodes() {
         let metaNodes = []
         Object.keys(this.i).forEach((path) => {
