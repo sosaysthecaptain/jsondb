@@ -173,6 +173,15 @@ u.decode = (base64) => {
     return JSON.parse(stringified)
 }
 
+u.consolidatePaths = ({path, paths, attributes}) => {
+    paths = paths || []
+    if (path) {paths.push(path)}
+    if (attributes) {
+        Object.keys(attributes).forEach(path=>{paths.push(path)})
+    }
+    return paths
+}
+
 u.keyFromID = (id) => {
     let key = {}
     key[u.PK] = id.split('-')[0]
