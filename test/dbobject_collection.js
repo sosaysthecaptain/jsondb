@@ -37,48 +37,67 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         timeOrdered: false
     })
     
-    let parentObj = await myHandler.createObject({id: parentID, data: parentData})
-    let read0 = await parentObj.get()
+    let user = 'testUser@gmail.com'
+    let parentObj = await myHandler.createObject({
+        id: parentID,
+        data: parentData,
+        members: {'member@gmail.com': {read: 5, write: 1}},
+        creator: user,
+        allowOverwrite: true,
+        objectPermission: {read: 2, write: 2},
+    })
+    let read0 = await parentObj.get({credentials: high})
+    delete read0.members
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
-
+    
     
     // Create collection, add something to it
     let path = 'parentKey1.messages'
-    let user = 'testUser@gmail.com'
-    await parentObj.createCollection({
-        path,
-        creator: user,
-        members: {
-            'member@gmail.com': {read: 5, write: 5}
-        },
-        permission: {read: 5, write: 7}
-    })
-    let writeShouldFail0 = await parentObj.collection({path}).createObject({
-        data: {body: "won't get written cuz no user"}
-    })
-    assert.equal(writeShouldFail0, undefined)
+    await parentObj.createCollection({path, credentials: high})
+    let write0Failed = false
+    try {
+        let writeShouldFail0 = await parentObj.collection({path}).createObject({
+            data: {body: "won't get written cuz no user"}
+        })
+        
+    } catch(err) {write0Failed = true}
     
-    let writeShouldFail1 = await parentObj.collection({path, user: 'imposter@gmail.com'}).createObject({
-        data: {body: "won't get written cuz bad user"}
-    })
-    assert.equal(writeShouldFail1, undefined)
+    let write1Failed = false
+    try {
+        let writeShouldFail1 = await parentObj.collection({path, credentials: {user: 'imposter@gmail.com'}}).createObject({
+            data: {body: "won't get written cuz bad user"}
+        })
+    } catch(err) {write1Failed = true}
+    assert.equal(write1Failed, true)
     
-    let writeShouldFail2 = await parentObj.collection({path, user: 'member@gmail.com'}).createObject({
-        data: {body: "won't get written cuz user has low write permission"}
-    })
-    assert.equal(writeShouldFail2, undefined)
+    // let write2Failed = false
+    // try {
+    //     debugger
+    //     let writeShouldFail2 = await parentObj.collection({path, credentials: {user: 'member@gmail.com'}}).createObject({
+    //         data: {body: "won't get written cuz user has low write permission"}
+    //     })
+        
+    // } catch(err) {write2Failed = true}
+    // assert.equal(write2Failed, true)
     
     
     
-    let message_0 = await parentObj.collection({path, user}).createObject({
+    
+    let message_0 = await parentObj.collection({path, credentials: {user}}).createObject({
         data: {
             body: 'this is a message',
         }
     })
-    let message_1 = await parentObj.collection({path, user}).createObject({data: {body: 'second message'}})
-    let message_2 = await parentObj.collection({path, user}).createObject({data: {body: 'third message'}})
-    let message_3 = await parentObj.collection({path, user}).createObject({data: {body: 'fourth message'}})
+    let message_1 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {body: 'second message'
+    }})
+    let message_2 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {body: 'third message'
+    }})
+    let message_3 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {body: 'fourth message'
+    }})
     let passed1 = message_0.id.split('-').length === 2
     
     assert.equal(passed1, true)
@@ -86,7 +105,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     // sensitivity
     
     // Get a single message
-    let message0_data = await parentObj.collection({path, user}).getObject({
+    let message0_data = await parentObj.collection({path, credentials: {user}}).getObject({
         id: message_0.id, 
         returnData: true
     })
@@ -94,14 +113,16 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed2, true)
     
     // Retrieve a DBObject and modify it, see that it is changed
-    let message0_dbobject = await parentObj.collection({path, user}).getObject({id: message_0.id})
+    let message0_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
+        id: message_0.id
+    })
     await message0_dbobject.set({attributes: {body: 'modified first message'}})
     let read3 = await message0_dbobject.get({path: 'body', user})
     let passed3 = read3 === 'modified first message'
     assert.equal(passed3, true)
     
     // Pagewise
-    let read4 = await parentObj.collection({path, user}).getObjects({
+    let read4 = await parentObj.collection({path, credentials: {user}}).getObjects({
         limit: 4,
         attributes: ['body']
     })
@@ -109,7 +130,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     assert.equal(passed4, true)
     
     // Scan
-    let read5 = await parentObj.collection({path, user}).scan({
+    let read5 = await parentObj.collection({path, credentials: {user}}).scan({
         params: [
             ['body', '=', 'third message']
         ],
@@ -120,10 +141,10 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Delete one message
-    let deleted = await parentObj.collection({path, user}).destroyObject({
+    let deleted = await parentObj.collection({path, credentials: skip}).destroyObject({
         id: message_1.id, 
         confirm: true,
-        skipPermissionCheck: true
+        credentials: skip
     })
     assert.equal(deleted, true)
     
@@ -199,7 +220,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     
     // Destroy parent object and see that collection is destroyed as well
-    await parentObj.destroy({user, skipPermissionCheck: true})
+    await parentObj.destroy({credentials: skip})
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
 })
@@ -242,8 +263,9 @@ it('DBObject_collection (2) - subclasses', async function() {
         subclass: TestSubclass
     })
     
-    let parentObj = await myHandler.createObject({id: parentID, data: parentData})
+    let parentObj = await myHandler.createObject({id: parentID, data: parentData, allowOverwrite: true})
     let read0 = await parentObj.get()
+    delete read0.members
     let passed0 = _.isEqual(parentData, read0)
     assert.equal(passed0, true)
     
@@ -265,5 +287,11 @@ it('DBObject_collection (2) - subclasses', async function() {
     
     assert.equal(resultOfTest, 'this is the thing')
     
-    await parentObj.destroy({user: 'testUser@gmail.com', skipPermissionCheck: true})
+    await parentObj.destroy({user: 'testUser@gmail.com', credentials: skip})
 })
+
+
+let low = {permission: {read: 0, write: 0}}
+let medium = {permission: {read: 5, write: 5}}
+let high = {permission: {read: 9, write: 9}}
+let skip = {skipPermissionCheck: true}

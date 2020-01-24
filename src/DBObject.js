@@ -462,21 +462,21 @@ class DBObject {
         await this.s3Client.delete(path)
     }
     
-    async createCollection({path, creator, members, subclass, credentials}) {
+    async createCollection({path, subclass, sensitivity, credentials}) {
         credentials = credentials || this.credentials
         this.ensureIndexLoaded()
         this.ensurePermission({path, credentials, write: true})
 
         path = u.packKeys(path)
-        members = members || {}
+        // members = members || {}
 
         this.index.setNodeType(path, u.NT_COLLECTION)
         this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
-        this.index.setNodeProperty(path, 'creator', creator)
-        this.index.setNodeProperty(path, 'members', members)
-        // this.index.setNodeSensitivity(path, sensitivity)
-        this.index.setNodeProperty(path, 'permission', permission)
+        // this.index.setNodeProperty(path, 'creator', creator)
+        // this.index.setNodeProperty(path, 'members', members)
+        this.index.setNodeSensitivity(path, sensitivity)
+        // this.index.setNodeProperty(path, 'permission', permission)
         this.index.setNodeProperty(path, 'creationDate', Date.now())
         this.index.setDontDelete(path, true)
         let attributes = {}

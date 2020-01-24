@@ -69,8 +69,7 @@ class DBObjectHandler {
             dynamoClient: this.dynamoClient,
             tableName: this.tableName
         })
-        if (skipPermissionCheck) {user = undefined}
-        return await dbobject.destroy({user, confirm, credentials})
+        return await dbobject.destroy({confirm, credentials})
     }
 
     async getObject({id, ids, returnData, attributes, includeID, credentials}) {
@@ -158,7 +157,7 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID}={}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID, credentials}={}) {
         credentials = credentials || this.credentials
         ascending = ascending || false
         limit = limit || 10000
@@ -345,7 +344,7 @@ class DBObjectHandler {
             return ids
         }
         if (returnData) {attributes = true}
-        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, user, includeID, credentials)}
+        if (attributes) {return await this.getAttributesFromObjects(attributes, dbobjects, includeID, credentials)}
         return dbobjects
     }
 
