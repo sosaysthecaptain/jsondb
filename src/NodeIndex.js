@@ -380,7 +380,9 @@ class NodeIndex {
     getAllPaths() {
         let paths = []
         Object.keys(this.i).forEach((path) => {
-            paths.push(this.i[path])
+            if (path !== u.INDEX_KEY){
+                paths.push(path)
+            }
         })
         return paths
     }

@@ -50,7 +50,7 @@ class DBObject {
         if (data) {
             this._cacheSet(data)
         }
-        this.credentials = credentials || {read: 0, write: 0}
+        this.credentials = credentials || {permission: {read: 0, write: 0}}
 
         return this.id
     }
@@ -67,7 +67,11 @@ class DBObject {
             delete initialData[u.INDEX_KEY]
         }
         u.validateKeys(data)
-        return await this.set({attributes: data, creator, members, objectPermission, skipPermissionCheck: true})
+        return await this.set({
+            attributes: data, 
+            creator, members, objectPermission, 
+            credentials: {skipPermissionCheck: true}
+        })
     }
 
     async destroy({confirm, credentials}={}) {
@@ -163,15 +167,16 @@ class DBObject {
 
         let data = {}
 
+        
         // Does this node go further than what we have reference of in the local index?
         if (!paths && this.index.isTheBottom()) {paths = this.index.getChildren()}
-
+        
         if (paths) {
             if (typeof paths === 'string') {
                 paths = [paths]
             }
             paths = u.packKeys(paths)
-
+            
             // Add this path and all its children to an object
             let pathObj = {}
             paths.forEach((path) => {
@@ -181,9 +186,9 @@ class DBObject {
                     pathObj[childPath] = null
                 })
             })
-
+            
             // Filter requests by permission
-            pathObj = this.permissionFilterPaths({attributes: pathObj, credentials})
+            pathObj = this._permissionFilterAttributes({attributes: pathObj, credentials})
             
             // Get what we can from the cache
             if (!noCache) {
@@ -192,12 +197,12 @@ class DBObject {
                     if (fromCache) {data[path] = fromCache}
                 })
             }
-
+            
             // Location of key—-here, on direct child, gettable from direct child
             let pathsByChild = {}
             let specialCases = []
             Object.keys(pathObj).forEach((path) => {
-
+                
                 let childID = this.index.getIDForPath(path)
                 if (childID) {
                     if (!pathsByChild[childID]) {pathsByChild[childID] = []}
@@ -257,12 +262,14 @@ class DBObject {
     async set({attributes, sensitivity, creator, members, objectPermission, returnData, credentials}) {
         credentials = credentials || this.credentials
         this.ensureIndexLoaded()
-        this.ensurePermission({attributes, credentials, write: true})
         
+        // Format keys
         let newAttributes = u.copy(attributes)
         u.validateKeys(newAttributes)
         newAttributes = u.flatten(newAttributes)
         u.packKeys(newAttributes)
+
+        this.ensurePermission({attributes: newAttributes, credentials, write: true})
         await this.getChildNodes()
 
         // Identify nodes that need to be deleted, delete them
@@ -617,6 +624,8 @@ class DBObject {
     // Synchronous, assumes index is loaded
     ensurePermission({path, paths, attributes, write, credentials}) {
         credentials = credentials || this.credentials
+        if (credentials.skipPermissionCheck) {return}
+
         paths = this.consolidatePaths({path, paths, attributes})
         let userPermission = this.getUserPermission(credentials)
         
@@ -649,24 +658,24 @@ class DBObject {
     }
     
     // Assumes read
-    permissionFilterPaths({path, paths, attributes, credentials}) {
+    _permissionFilterAttributes({attributes, credentials}) {
         credentials = credentials || this.credentials
-        paths = this.consolidatePaths({path, paths, attributes})
+        
         let userPermission = this.getUserPermission(credentials)
         
-        let outputPaths = []
-        paths.forEach(path=>{
+        let filtered = {}
+        Object.keys(attributes).forEach(path=>{
             let necessaryRead = this.getPathPermission(path).read
             let actualRead = userPermission.read
             if (necessaryRead >= actualRead) {
-                outputPaths.push(path)
+                filtered[path] = attributes[path]
             }
         })
-        return outputPaths
+        return filtered
     }
 
-    consolidatePaths = ({path, paths, attributes}) => {
-        if (!path && !paths && attributes) {
+    consolidatePaths({path, paths, attributes})  {
+        if (!path && !paths && !attributes) {
             paths = this.index.getAllPaths()
         }
         
@@ -794,20 +803,20 @@ class DBObject {
 
     // Returns all keys, flat. It is the responsibility of the caller to unflatten
     async _getEntireObject({noCache, dumpCache, credentials}) {
+        credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
 
-        if (user && !permission) {permission = await this.getMemberPermission({id: user})}
-
+        
         // QUICK OPTION: cache only
         // TODO: set an isIncomplete flag, if this isn't true then this is all we do
         if (dumpCache && this._isAllPresent()) {
             let data = u.copy(this.cache)
-            this.permissionFilterPaths({attributes: data, credentials})
+            data = this._permissionFilterAttributes({attributes: data, credentials})
             return u.unpackKeys(data)
         }
         
         // Get everything locally available
-        let data = await this.batchGet({permission, noCache})
+        let data = await this.batchGet({credentials, noCache})
         
         // Get all children. Get data from each and add it
         let children = await this.getChildNodes()
@@ -821,7 +830,7 @@ class DBObject {
         }
         
         // Filter by sensitivity
-        this.permissionFilterPaths({attributes: data, credentials})
+        data = this._permissionFilterAttributes({attributes: data, credentials})
         return u.unpackKeys(data)
     }
 

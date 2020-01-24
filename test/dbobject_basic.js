@@ -17,6 +17,7 @@ it('DBObject_basic (1) should create and get a single node object, with and with
 
     this.timeout(u.TEST_TIMEOUT)
 
+    
     // Create fresh object
     let testObjID = 'dbobject_test_1'
     let dbobject = new jsondb.DBObject({
@@ -26,7 +27,7 @@ it('DBObject_basic (1) should create and get a single node object, with and with
     })
     await dbobject.ensureDestroyed()
     await dbobject.create({data: basicObj})
-    
+        
     // Read one key (from cache)
     let read0 = await dbobject.get({path: 'key1'})
     let passed0 = _.isEqual(basicObj.key1, read0)
@@ -72,12 +73,15 @@ it('DBObject_basic (2) objectPermission', async function() {
     await dbobject.create({data: basicObj, objectPermission: {read: 5, write: 5}})
 
     // Make sure we can't read it with low permission
-    let read0 = await dbobject.get({path: 'key1', permission: {read: 0, write: 0}})
+
+    debugger
+    let read0 = await dbobject.get({path: 'key1', credentials: medium})
+    debugger
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
-    let read1 = await dbobject.get({permission: {read: 10, write: 10}})
+    let read1 = await dbobject.get({credentials: high})
     let passed1 = _.isEqual(basicObj, read1)
     assert.equal(passed1, true)
     
@@ -90,13 +94,12 @@ it('DBObject_basic (2) objectPermission', async function() {
     })
     
     // Starting fresh, read the object
-    let read3 = await dbobject.get({permission: {read: 5, write: 5}})
+    let read3 = await dbobject.get({credentials: high})
     let passed3 = _.isEqual(basicObj, read3)
     assert.equal(passed3, true)
     
     // Clean up
-    await dbobject.destroy({skipPermissionCheck: true})
-    // assert.equal(dbObjectExists, false)
+    await dbobject.destroy({credentials: skip})
 })
 
 it('DBObject_basic (3) sensitivity levels', async function() {
@@ -112,12 +115,12 @@ it('DBObject_basic (3) sensitivity levels', async function() {
     await dbobject.create({data: basicObj})
     await dbobject.set({attributes: {sensitiveKey: 'secret'}, sensitivity: 5})
 
-    let read0 = await dbobject.get({path: 'sensitiveKey', permission: 0})
+    let read0 = await dbobject.get({path: 'sensitiveKey', credentials: low})
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
     // Read entire object (from cache)
-    let read1 = await dbobject.get({path: 'sensitiveKey', permission: 10})
+    let read1 = await dbobject.get({path: 'sensitiveKey', credentials: high})
     let passed1 = _.isEqual('secret', read1)
     assert.equal(passed1, true)
     
@@ -134,7 +137,7 @@ it('DBObject_basic (3) sensitivity levels', async function() {
     let read3_5 = await dbobject.set({
         attributes: {'sensitiveKey': newString}, 
         sensitivity: 1, 
-        permission: 5, 
+        credentials: medium,
         returnData: true
     })
 
@@ -144,12 +147,12 @@ it('DBObject_basic (3) sensitivity levels', async function() {
 
     
     // Read entire object
-    let read3 = await dbobject.get({path: 'sensitiveKey', permission: 5})
+    let read3 = await dbobject.get({path: 'sensitiveKey', credentials: medium})
     let passed3 = _.isEqual(newString, read3)
     assert.equal(passed3, true)
     
     // Clean up
-    await dbobject.destroy({skipPermissionCheck: true})
+    await dbobject.destroy({credentials: skip})
     // assert.equal(dbObjectExists, false)
 })
 
@@ -201,6 +204,10 @@ it('DBObject_basic (4) modify', async function() {
 
 /* TEST DATA */
 
+let low = {permission: {read: 0, write: 0}}
+let medium = {permission: {read: 5, write: 5}}
+let high = {permission: {read: 9, write: 9}}
+let skip = {skipPermissionCheck: true}
 
 let basicObj = {
     key1: {
