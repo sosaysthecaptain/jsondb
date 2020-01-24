@@ -261,7 +261,7 @@ class DBObject {
 
     async set({attributes, sensitivity, creator, members, objectPermission, returnData, credentials}) {
         credentials = credentials || this.credentials
-        this.ensureIndexLoaded()
+        await this.ensureIndexLoaded()
         
         // Format keys
         let newAttributes = u.copy(attributes)
@@ -667,7 +667,7 @@ class DBObject {
         Object.keys(attributes).forEach(path=>{
             let necessaryRead = this.getPathPermission(path).read
             let actualRead = userPermission.read
-            if (necessaryRead >= actualRead) {
+            if (actualRead >= necessaryRead) {
                 filtered[path] = attributes[path]
             }
         })

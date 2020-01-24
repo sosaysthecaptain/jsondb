@@ -74,9 +74,7 @@ it('DBObject_basic (2) objectPermission', async function() {
 
     // Make sure we can't read it with low permission
 
-    debugger
-    let read0 = await dbobject.get({path: 'key1', credentials: medium})
-    debugger
+    let read0 = await dbobject.get({path: 'key1', credentials: low})
     let passed0 = _.isEqual(undefined, read0)
     assert.equal(passed0, true)
     
