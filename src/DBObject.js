@@ -126,7 +126,7 @@ class DBObject {
         if (!exists) {
             return true
         } else {
-            await this.destroy({skipPermissionCheck: true})
+            await this.destroy({credentials: {skipPermissionCheck: true}})
             return await this.ensureDestroyed()
         }
     }
@@ -556,14 +556,14 @@ class DBObject {
     
     getMemberPermission({id}) {
         if (id && (this.index.metaIndex().data[u.CREATOR] === id)) {return u.MAX_PERMISSION}
-        
         if (id) {
             let members = this.index.metaIndex().data[u.MEMBERS]
             if (members) {
-                return this.index.metaIndex().data[u.MEMBERS][id]   
+                let member_permission = this.index.metaIndex().data[u.MEMBERS][id]
+                return member_permission || u.DEFAULT_PERMISSION
             }
+            return u.DEFAULT_PERMISSION
         }
-        return u.DEFAULT_PERMISSION
     }
 
     getMembers() {
@@ -614,11 +614,11 @@ class DBObject {
     skipPermissionCheck trumps permission, permission trumps user, user gets looked up on
     the object and defaults to zero
     */
-    getUserPermission(credentials) {
+    getPermissionForCredentials(credentials) {
         credentials = credentials || this.credentials
         if (credentials.skipPermissionCheck) {return u.MAX_PERMISSION}
         else if (credentials.permission) {return credentials.permission}
-        return this.getMemberPermission({user: credentials.user})
+        return this.getMemberPermission({id: credentials.user})
     }
 
     // Synchronous, assumes index is loaded
@@ -627,7 +627,7 @@ class DBObject {
         if (credentials.skipPermissionCheck) {return}
 
         paths = this.consolidatePaths({path, paths, attributes})
-        let userPermission = this.getUserPermission(credentials)
+        let userPermission = this.getPermissionForCredentials(credentials)
         
         let maxReadNeeded = 0
         let maxWriteNeeded = 0
@@ -637,11 +637,11 @@ class DBObject {
             maxWriteNeeded = Math.max(pathPermission.write, maxWriteNeeded)
         })
         if (write) {
-            if (maxWriteNeeded < userPermission.write) {
+            if (maxWriteNeeded > userPermission.write) {
                 throw new Error('Insufficient write permission')
             }
         } else {
-            if (maxReadNeeded < userPermission.read) {
+            if (maxReadNeeded > userPermission.read) {
                 throw new Error('Insufficient read permission')
             }
         }
@@ -661,7 +661,7 @@ class DBObject {
     _permissionFilterAttributes({attributes, credentials}) {
         credentials = credentials || this.credentials
         
-        let userPermission = this.getUserPermission(credentials)
+        let userPermission = this.getPermissionForCredentials(credentials)
         
         let filtered = {}
         Object.keys(attributes).forEach(path=>{
@@ -823,7 +823,7 @@ class DBObject {
         let childKeys = Object.keys(children)
         for (let i = 0; i < childKeys.length; i++) {
             let childID = childKeys[i]
-            let dataFromChild = await children[childID]._getEntireObject({permission, noCache})
+            let dataFromChild = await children[childID]._getEntireObject({credentials, noCache})
             Object.keys(dataFromChild).forEach((key) => {
                 data[key] = dataFromChild[key]
             })
