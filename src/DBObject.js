@@ -291,7 +291,7 @@ class DBObject {
             let memberIDs = Object.keys(members)
             for (let i = 0; i < memberIDs.length; i++) {
                 let memberID = memberIDs[i]
-                await this.setMemberPermission({
+                this.setMemberPermission({
                     id: memberID, 
                     permission: members[memberID]
                 })
@@ -312,6 +312,11 @@ class DBObject {
                 return u.unflatten(flat)
             }
         }
+    }
+
+    // Empty set for the purpose of saving meta changes
+    async commit({credentials}) {
+        await this.set({attributes: {}, credentials})
     }
 
     async modify({path, fn, credentials}) {
