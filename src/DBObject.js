@@ -315,7 +315,7 @@ class DBObject {
     }
 
     // Empty set for the purpose of saving meta changes
-    async commit({credentials}) {
+    async commit({credentials}={}) {
         await this.set({attributes: {}, credentials})
     }
 
