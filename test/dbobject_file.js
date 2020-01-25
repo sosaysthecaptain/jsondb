@@ -30,7 +30,6 @@ it('DBObject_file  - reading & writing S3 files', async function() {
         }
     }
     
-    debugger
     let handler = new jsondb.DBObjectHandler({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
@@ -56,7 +55,7 @@ it('DBObject_file  - reading & writing S3 files', async function() {
     await s3Client.delete(fileName)
 
     // Create dbobject
-    let obj = await handler.createObject({id: testID, data: testObj})
+    let obj = await handler.createObject({id: testID, data: testObj, allowOverwrite: true})
     let read2 = await obj.get({path: 'inS3'})
     assert.equal(read2, 'right here')
     

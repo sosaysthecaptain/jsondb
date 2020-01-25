@@ -411,7 +411,7 @@ class DBObject {
     async setFile({path, data, contentType, encoding, sensitivity, credentials}) {
         credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
-        this.ensureWritePermission({credentials})
+        this.ensurePermission({path, credentials, write: true})
 
         path = u.packKeys(path)
 
@@ -433,12 +433,6 @@ class DBObject {
         credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
         this.ensurePermission({path, credentials, write: false})
-
-        if (!skipPermissionCheck) {
-            permission = permission || await this.getMemberPermission({id: user})
-        } else {
-            permission = u.MAX_PERMISSION
-        }
 
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {

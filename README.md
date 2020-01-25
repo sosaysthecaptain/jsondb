@@ -59,7 +59,7 @@ await thing.destroy({confirm: true})
 
 `destroy` parameters: 
 - `confirm`: optional, returns true if destruction successful
-- `user`, `permission`: see below
+- `credentials`: see below
 
 
 ### `get` and `set` handle basic assignment
@@ -89,6 +89,9 @@ let entireObject = await user.get()
 `set` parameters:
 - `attributes`: key-value pairs to set. Nested paths can be `'represented.like.this'`
 - `sensitivity`: a numerical permission level, 0-9, required to access these attributes. Get `operations` will omit attributes for which the user is not permissioned
+
+- `credentials`
+
 - `user`: ID of member whose permission level should be used
 - `permission`: manually passed permission object(`{read: x, write: y}`), overrides user permission
 - `returnData`: if true, the 'set' returns the entire object, as if it were a `get`. Note that this is meant as a convenience, and does not work in cases where an object is split between multiple DynamoDB nodes.
