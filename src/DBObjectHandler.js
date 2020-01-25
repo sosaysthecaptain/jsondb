@@ -366,7 +366,7 @@ class DBObjectHandler {
                     let attribute = attributes[j]
                     attribute = u.unpackKeys(attribute)
                     if ((attribute !== u.PK) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
-                        obj[attribute] = await dbobject.get({path: attribute, credentuals})
+                        obj[attribute] = await dbobject.get({path: attribute, credentials})
                     }
                 }
                 obj.id = dbobject.id

@@ -150,6 +150,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     
     // Scan, round 2
     let friendsPath = 'friends'
+    parentObj.credentials = skip
     await parentObj.createCollection({path: friendsPath})
     await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'joe', friends: ['danny', 'irene']}})
     await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'danny', friends: ['joe', 'irene']}})
