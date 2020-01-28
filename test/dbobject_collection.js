@@ -152,10 +152,26 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     let friendsPath = 'friends'
     parentObj.credentials = skip
     await parentObj.createCollection({path: friendsPath})
-    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'joe', friends: ['danny', 'irene']}})
-    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'danny', friends: ['joe', 'irene']}})
-    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'irene', friends: ['joe', 'danny']}})
-    await parentObj.collection({path: friendsPath}).createObject({data: {firstName: 'joe', friends: ['johnny']}})
+    await parentObj.collection({path: friendsPath}).createObject({data: {
+        firstName: 'joe', 
+        friends: ['danny', 'irene'],
+        letters: ['a', 'b', 'c']
+    }})
+    await parentObj.collection({path: friendsPath}).createObject({data: {
+        firstName: 'danny', 
+        friends: ['joe', 'irene'],
+        letters: ['a', 'd']
+    }})
+    await parentObj.collection({path: friendsPath}).createObject({data: {
+        firstName: 'irene', 
+        friends: ['joe', 'danny'],
+        letters: ['f', 'd']
+    }})
+    await parentObj.collection({path: friendsPath}).createObject({data: {
+        firstName: 'joe', 
+        friends: ['johnny'],
+        letters: ['d', 'e']
+    }})
     
     let read8 = await parentObj.collection({path: friendsPath}).scan({
         params: [
@@ -186,6 +202,21 @@ it('DBObject_collection (1) - all basic functionality', async function() {
     })
     let passed10 = read10.length === 2
     assert.equal(passed10, true)
+
+    debugger
+    
+    
+    let read10_5 = await parentObj.collection({path: friendsPath}).scan({
+        params: [
+            ['friends', 'INTERSECTS', ['irene', 'someone else'], 'AND'],
+            ['letters', 'INTERSECTS', ['d', 'q']],
+            
+        ],
+        returnData: true
+    })
+    debugger
+    let passed10_5 = read10[0].firstName === 'danny'
+    assert.equal(passed10_5, true)
     
     // Only some properties
     let firstNameOnly = await parentObj.collection({path: friendsPath}).scan({

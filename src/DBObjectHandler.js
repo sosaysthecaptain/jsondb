@@ -257,12 +257,14 @@ class DBObjectHandler {
                 param[0] = u.packKeys(param[0])
             })
             query = new ScanQuery(this.tableName)
-            let addParamToQuery = (item) => {
+            let addParamToQuery = (item, index, ofTotal) => {
                 query.addParam({
                     param: item[0],
                     message: item[1],
                     value: item[2],
-                    operator: lastOperator
+                    operator: lastOperator,
+                    openParen: index === 0,
+                    closeParen: index === ofTotal - 1
                 })                
                 lastOperator = item[3]
             }
@@ -282,7 +284,7 @@ class DBObjectHandler {
                         } else {
                             subItem.push(item[3])
                         }
-                        addParamToQuery(subItem)
+                        addParamToQuery(subItem, i, value.length)
                     }
                 }
                 

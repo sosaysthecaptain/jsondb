@@ -43,14 +43,16 @@ class ScanQuery {
         message: 'contains'             // '=' for strings, 'contains' for arrays
         operator: 'AND'
     */
-    addParam({param, value, message, operator}) {
+    addParam({param, value, message, operator, openParen, closeParen}) {
         this.paramsObject.ExpressionAttributeValues[`:key_${this.index}`] = value
         
         let filterExpressionComponent
         if (message === '=') {
             filterExpressionComponent = `(${param} = :key_${this.index})`
         } else {
-            filterExpressionComponent = `(${message} (${param}, :key_${this.index}))`
+            filterExpressionComponent = `${message} (${param}, :key_${this.index})`
+            if (openParen) {filterExpressionComponent = '(' + filterExpressionComponent}
+            if (closeParen) {filterExpressionComponent = filterExpressionComponent + ')'}
         }
         if (this.index !== 0) {
             filterExpressionComponent = ` ${operator} ${filterExpressionComponent}`
