@@ -123,7 +123,8 @@ let motherID = await user.get({path: 'mother'})
 
 
 ### `setFile` and `getFile` are used to store files in s3 and access them like other object fields
-`setFile` is used to upload a file to s3 and store it on the object as if it were any other property. `getFile` will return the file as it went in, while an ordinary `get` operation will return an s3 link. See the section on instantiating a DBObjectHandler for information on how s3 credentials and bucket name are specified.
+`setFile` is used to upload a file to s3 and store it on the object as if it were any other property. `getFile`, by default, will return an s3 link, but can return the actual buffer if called with `returnAsBuffer`. It can also return a temporary public (signed) URL if called with `returnAsPrivateLink`.
+See the section on instantiating a DBObjectHandler for information on how s3 credentials and bucket name are specified.
 ```javascript
 await user.setFile({
     path: 'homework.essayDueTuesday',
@@ -131,7 +132,7 @@ await user.setFile({
     contentType: 'image/jpeg',
     encoding: 'base64'
 })
-let essayDueTuesdayAsBuffer = await user.getReference({path: 'homework.essayDueTuesday'})
+let essayDueTuesdayAsBuffer = await user.getFile({path: 'homework.essayDueTuesday', returnAsBuffer: true})
 let s3Link = await user.get({path: 'homework.essayDueTuesday'})
 
 ```
@@ -144,6 +145,8 @@ let s3Link = await user.get({path: 'homework.essayDueTuesday'})
 `getFile` parameters
 - `path` to get
 - `permission`, `user` as in ordinary `get`
+- `returnAsBuffer`: return actual file data, as opposed to link
+- `returnAsPrivateLink`: gets a temporary public (signed) URL to a file in a public bucket. Link will be available for `privateLinkSeconds`, which defaults to 30
 
 ## DBObjectHandlers are used to create, get, and find objects
 While methods on `DBObject` are used to access fields within a single object, instances of `DBOBjectHandler` are used to create, destroy, get, batchGet, and scan DBobjects within a table. Handlers are instantiated with AWS credentials, DynamoDB table names, and s3 bucket names. 

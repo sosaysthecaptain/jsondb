@@ -434,7 +434,7 @@ class DBObject {
         return ref
     }
     
-    async getFile({path, returnAsBuffer, credentials}) {
+    async getFile({path, returnAsBuffer, credentials, returnAsPrivateLink, privateLinkSeconds}) {
         credentials = credentials || this.credentials
         await this.ensureIndexLoaded()
         this.ensurePermission({path, credentials, write: false})
@@ -442,6 +442,14 @@ class DBObject {
         path = u.packKeys(path)
         if (this.index.getNodeType(path, u.NT_S3REF) !== u.NT_S3REF) {
             throw new Error('Node is not a file')
+        }
+
+        // Temporary private URL
+        if (returnAsPrivateLink) {
+            let seconds = privateLinkSeconds || u.DEFAULT_SIGNED_LINK_SECONDS
+            let key = await this.get({path})
+            let signedUrl = await this.s3Client.getSignedLink(key, seconds)
+            return signedUrl
         }
 
         // Return either s3 url from object or else read the buffer from fileID on index
