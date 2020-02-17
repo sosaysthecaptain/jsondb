@@ -447,7 +447,8 @@ class DBObject {
         // Temporary private URL
         if (returnAsPrivateLink) {
             let seconds = privateLinkSeconds || u.DEFAULT_SIGNED_LINK_SECONDS
-            let key = await this.get({path})
+            let url = await this.get({path})
+            let key = url.split('/').pop()
             let signedUrl = await this.s3Client.getSignedLink(key, seconds)
             return signedUrl
         }
