@@ -148,7 +148,7 @@ class DBObjectHandler {
             returnData, 
             credentials,
             includeID
-        }).catch(err=> {debugger})
+        }).catch(err=> {})
         return ret
     }
 

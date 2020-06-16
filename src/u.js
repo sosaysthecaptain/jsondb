@@ -124,7 +124,7 @@ u.log = (message, data) => {
     }
 }
 
-u.dbg = () => {if (u.flag) {debugger}}
+u.dbg = () => {if (u.flag) {}}
 
 u.error = (msg, err) => {
     console.log(msg)
