@@ -16,7 +16,6 @@ let dynamoClient = new DynamoClient({
 it('DBObject_basic (1) should create and get a single node object, with and without cache and index', async function() {
 
     this.timeout(u.TEST_TIMEOUT)
-
     
     // Create fresh object
     let testObjID = 'dbobject_test_1'

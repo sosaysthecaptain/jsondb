@@ -36,8 +36,8 @@ class DBObjectHandler {
         if (humanReadable) {u.HUMAN_READABLE = true}
 
         this.indexName = indexName
-        this.partitionKey = partitionKey || u.partitionKey
-        this.sortKey = sortKey || u.sortKey
+        this.partitionKey = partitionKey || u.PK
+        this.sortKey = sortKey || u.SK
 
         this.lastTimestampsByPath = {}
         

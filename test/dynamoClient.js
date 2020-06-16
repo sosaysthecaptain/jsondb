@@ -13,7 +13,7 @@ let dynamoClient = new DynamoClient({
 
 it('DynamoClient 1: update, get, update, delete', async function() {
     this.timeout(60000)
-    let key = getTestKey(1)
+    let key = getTestKey(1) 
 
     // Write
     await dynamoClient.update({

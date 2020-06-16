@@ -33,7 +33,7 @@ class DynamoClient {
         if (attributes) {
             params.AttributesToGet = attributes
         }
-
+      
         let data = await this.dynamo.getItem(params).promise().catch((err) => {
             console.log('failure in DynamoClient.get')
             throw(err)

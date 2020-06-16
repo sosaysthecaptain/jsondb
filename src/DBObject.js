@@ -30,8 +30,10 @@ class DBObject {
         
         // Handle both instantiation of new object by PK only and whole id
         if (isTimeOrdered) {
-            if (id.split('-').length === 1)
-            let ts = Date.now()
+            let ts
+            if (id.split('-').length === 1) {
+                ts = Date.now()
+            }
             if (overrideTimestamp) {
                 ts = overrideTimestamp
             }
@@ -60,8 +62,8 @@ class DBObject {
         this.cachedDirectChildren = {}
 
         // pertitionKey and sortKey are defaults unless this is a GSI situation
-        this.partitionKey = partitionKey || u.partitionKey
-        this.sortKey = sortKey || sortKey
+        this.partitionKey = partitionKey || u.PK
+        this.sortKey = sortKey || u.SK
         
         // Jumpstarting options
         if (encodedIndex) {
