@@ -12,7 +12,21 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor({id, tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data, overrideTimestamp, credentials}) {
+    constructor({
+        id, 
+        tableName, 
+        dynamoClient, 
+        s3Client, 
+        isNew, 
+        isTimeOrdered, 
+        doNotCache, 
+        encodedIndex, 
+        data, 
+        partitionKey,       // optional, for use with GSI
+        sortKey,            // optional, for use with GSI
+        overrideTimestamp, 
+        credentials
+    }) {
         
         // Handle both instantiation of new object by PK only and whole id
         if (isTimeOrdered) {
@@ -44,6 +58,10 @@ class DBObject {
         this.cacheIndex = {}
         this.cacheSize = 0
         this.cachedDirectChildren = {}
+
+        // pertitionKey and sortKey are defaults unless this is a GSI situation
+        this.partitionKey = partitionKey || u.partitionKey
+        this.sortKey = sortKey || sortKey
         
         // Jumpstarting options
         if (encodedIndex) {
@@ -254,7 +272,7 @@ class DBObject {
         // No paths: just dump from dynamo and clean up
         else {
             data = await this._read()
-            u.cleanup(data)
+            u.cleanup(data, this.partitionKey, this.sortKey)
         }
             
         // Cache and return
@@ -311,7 +329,7 @@ class DBObject {
             
             // Handle returnData scenario
             if (data) {
-                u.cleanup(data)
+                u.cleanup(data, this.partitionKey, this.sortKey)
                 let flat = u.unpackKeys(data)
                 return u.unflatten(flat)
             }
@@ -376,7 +394,7 @@ class DBObject {
         let gotten = await this.dynamoClient.get({
             tableName: this.tableName,
             key: this.key,
-            attributes: [u.PK]
+            attributes: [this.partitionKey]
         })
         if (gotten) {return true}
         return false
