@@ -256,6 +256,8 @@ class DynamoClient {
         params.ExpressionAttributeNames['#pk'] = partitionKey       // 'uid' or GSI value
         params.ExpressionAttributeValues[':pk_string'] = seriesKey
 
+        // DO WE NEED TO USE INDEXNAME?
+
         const data = await this.dynamo.query(params).promise().catch((err) => {
             throw(err)
         })
