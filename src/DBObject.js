@@ -28,16 +28,22 @@ class DBObject {
         credentials
     }) {
         
-        // Handle both instantiation of new object by PK only and whole id
+        // Handle both instantiation of new object by PK only and whole id, and getting existing objects
         if (isTimeOrdered) {
-            let ts
+            // Case 1: We're creating a new object
             if (id.split('-').length === 1) {
-                ts = Date.now()
+                let ts = Date.now()
+                id += '-' + ts
             }
+            // Case 2: We're creating a new object but giving it our own timestamp 
             if (overrideTimestamp) {
-                ts = overrideTimestamp
+                let ts = overrideTimestamp
+                id += '-' + ts
             }
-            id += '-' + ts
+            // Case 3: We're constructing the class for an object that already exists 
+            if (id.split('-').length === 2) {
+                id = id
+            }
         }
         
         // Information we actually have
