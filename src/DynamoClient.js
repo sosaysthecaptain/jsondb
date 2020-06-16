@@ -33,7 +33,7 @@ class DynamoClient {
         if (attributes) {
             params.AttributesToGet = attributes
         }
-
+      
         let data = await this.dynamo.getItem(params).promise().catch((err) => {
             console.log('failure in DynamoClient.get')
             throw(err)
@@ -237,15 +237,26 @@ class DynamoClient {
         return items
     }
     
-    async query(scanQueryInstance, seriesKey) {
+    async query({
+        scanQueryInstance, 
+        seriesKey,
+        indexName,                  // GSI ONLY
+        partitionKey,               // GSI ONLY
+    }) {
         let params = scanQueryInstance.write()
+
+        // For GSI use, we can specify partitionKeyseparately
+        partitionKey = partitionKey || u.PK
+        
         
         // Add seriesKey as KeyConditionExpression
         params.ExpressionAttributeNames = params.ExpressionAttributeNames || {}
         params.ExpressionAttributeValues = params.ExpressionAttributeValues || {}
-        params.KeyConditionExpression = '#pk = :pk_string'
-        params.ExpressionAttributeNames['#pk'] = 'uid'
+        params.KeyConditionExpression = `#pk = :pk_string`
+        params.ExpressionAttributeNames['#pk'] = partitionKey       // 'uid' or GSI value
         params.ExpressionAttributeValues[':pk_string'] = seriesKey
+
+        // DO WE NEED TO USE INDEXNAME?
 
         const data = await this.dynamo.query(params).promise().catch((err) => {
             throw(err)

@@ -12,12 +12,38 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor({id, tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data, credentials}) {
+    constructor({
+        id, 
+        tableName, 
+        dynamoClient, 
+        s3Client, 
+        isNew, 
+        isTimeOrdered, 
+        doNotCache, 
+        encodedIndex, 
+        data, 
+        partitionKey,       // optional, for use with GSI
+        sortKey,            // optional, for use with GSI
+        overrideTimestamp, 
+        credentials
+    }) {
         
-        // Handle both instantiation of new object by PK only and whole id
+        // Handle both instantiation of new object by PK only and whole id, and getting existing objects
         if (isTimeOrdered) {
-            if (id.split('-').length === 1)
-            id += '-' + Date.now()
+            // Case 1: We're creating a new object
+            if (id.split('-').length === 1) {
+                let ts = Date.now()
+                id += '-' + ts
+            }
+            // Case 2: We're creating a new object but giving it our own timestamp 
+            if (overrideTimestamp) {
+                let ts = overrideTimestamp
+                id += '-' + ts
+            }
+            // Case 3: We're constructing the class for an object that already exists 
+            if (id.split('-').length === 2) {
+                id = id
+            }
         }
         
         // Information we actually have
@@ -40,6 +66,10 @@ class DBObject {
         this.cacheIndex = {}
         this.cacheSize = 0
         this.cachedDirectChildren = {}
+
+        // pertitionKey and sortKey are defaults unless this is a GSI situation
+        this.partitionKey = partitionKey || u.PK
+        this.sortKey = sortKey || u.SK
         
         // Jumpstarting options
         if (encodedIndex) {
@@ -250,7 +280,7 @@ class DBObject {
         // No paths: just dump from dynamo and clean up
         else {
             data = await this._read()
-            u.cleanup(data)
+            u.cleanup(data, this.partitionKey, this.sortKey)
         }
             
         // Cache and return
@@ -307,7 +337,7 @@ class DBObject {
             
             // Handle returnData scenario
             if (data) {
-                u.cleanup(data)
+                u.cleanup(data, this.partitionKey, this.sortKey)
                 let flat = u.unpackKeys(data)
                 return u.unflatten(flat)
             }
@@ -372,7 +402,7 @@ class DBObject {
         let gotten = await this.dynamoClient.get({
             tableName: this.tableName,
             key: this.key,
-            attributes: [u.PK]
+            attributes: [this.partitionKey]
         })
         if (gotten) {return true}
         return false

@@ -151,12 +151,12 @@ let s3Link = await user.get({path: 'homework.essayDueTuesday'})
 ## DBObjectHandlers are used to create, get, and find objects
 While methods on `DBObject` are used to access fields within a single object, instances of `DBOBjectHandler` are used to create, destroy, get, batchGet, and scan DBobjects within a table. Handlers are instantiated with AWS credentials, DynamoDB table names, and s3 bucket names. 
 
-Handlers may be timeOrdered or not: those that are have a `seriesKey` used as a common primary key, and are automatically assigned a timestamp as a sortKey upon creation. DBObjects belonging to a timeOrdered handler can fetched pagewise by timestamp.
+Handlers may be timeOrdered or not: those that are have a `seriesKey` used as a common primary key, and are automatically assigned a timestamp as a seriesKey upon creation. DBObjects belonging to a timeOrdered handler can fetched pagewise by timestamp.
 
 Handlers, as discussed here, are top-level, but handlers can also be assigned to paths on a DBObject, like any other piece of data, in which case they are called `collections`. Collections are universally timeOrdered, and will be covered in depth later.
 
 ### Instantiating a DBObjectHandler, and a note on DynamoDB table setup
-Handlers are instantiated with AWS credentials, and refer to a specific table. **Tables for jsondb must be set with a primaryKey of 'uid', of type string, and a sortKey of 'ts', of type number.**
+Handlers are instantiated with AWS credentials, and refer to a specific table. **Tables for jsondb must be set with a primaryKey of 'uid', of type string, and a seriesKey of 'ts', of type number.**
 
 ```javascript
 let userHandler = new jsondb.DBObjectHandler({
@@ -177,7 +177,7 @@ let userHandler = new jsondb.DBObjectHandler({
 - `awsAccessKeyId`, `awsSecretAccessKey`, and `awsRegion` are AWS credentials; refer to DynamoDB docs for more on this
 - `tableName` refers to the DynamoDB table this handler will address. This table must exist and be configured as described above
 - `bucketName` refers to the s3 bucket in which `setFile`'d files will go. It may be permissioned however you like, and is an optional parameter.
-- `isTimeOrdered`: if true, all members will share a primaryKey, have a timestamp sortKey, and will be gettable pagewise. This is generally only used in the context of a collection
+- `isTimeOrdered`: if true, all members will share a primaryKey, have a timestamp seriesKey, and will be gettable pagewise. This is generally only used in the context of a collection
 - `seriesKey`: shared primaryKey for timeOrdered handlers, omit if not timeOrdered
 - `defaultCacheSize`: how large the cache of an individual object instance is allowed to be. Specified in bytes, 50 MB by default.
 - `doNotCache`: specify true to disable caching altogether

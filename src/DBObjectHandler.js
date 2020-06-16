@@ -5,7 +5,23 @@ const S3Client = require('./S3Client')
 const ScanQuery = require('./ScanQuery')
 
 class DBObjectHandler {
-    constructor({awsAccessKeyId, awsSecretAccessKey, awsRegion, tableName, bucketName, subclass, isTimeOrdered, seriesKey, defaultCacheSize, doNotCache, humanReadable, credentials}) {
+    constructor({
+        awsAccessKeyId, 
+        awsSecretAccessKey, 
+        awsRegion, 
+        tableName, 
+        bucketName, 
+        subclass, 
+        isTimeOrdered, 
+        seriesKey,                  // Common UID for collections
+        indexName,                  // optional, GSIs only
+        partitionKey,               // optional, GSIs only
+        sortKey,                    // optional, GSIs only
+        defaultCacheSize, 
+        doNotCache, 
+        humanReadable,
+        credentials
+    }) {
         this.awsAccessKeyId = awsAccessKeyId
         this.awsSecretAccessKey = awsSecretAccessKey
         this.awsRegion = awsRegion || 'us-east-2'
@@ -18,6 +34,10 @@ class DBObjectHandler {
         this.doNotCache = doNotCache || true
         this.credentials = credentials || {permission: u.DEFAULT_PERMISSION}
         if (humanReadable) {u.HUMAN_READABLE = true}
+
+        this.indexName = indexName
+        this.partitionKey = partitionKey || u.PK
+        this.sortKey = sortKey || u.SK
 
         this.lastTimestampsByPath = {}
         
@@ -37,7 +57,7 @@ class DBObjectHandler {
     }
 
     // Note: credentials are only to instantiate object with, they are not necessary for the create operation
-    async createObject({id, data, creator, members, allowOverwrite, sensitivity, objectPermission, credentials}) {
+    async createObject({id, data, creator, members, allowOverwrite, overrideTimestamp, sensitivity, objectPermission, credentials}) {
         credentials = credentials || this.credentials   
         allowOverwrite = allowOverwrite || false
         
@@ -47,7 +67,8 @@ class DBObjectHandler {
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
-            isTimeOrdered: this.isTimeOrdered
+            isTimeOrdered: this.isTimeOrdered,
+            overrideTimestamp: overrideTimestamp
         })
         await dbobject.create({
             data, 
@@ -110,8 +131,8 @@ class DBObjectHandler {
         // paths -> packed paths
         if (attributes) {
             attributes = u.packKeys(attributes)
-            attributes.push(u.PK)
-            attributes.push(u.SK)
+            attributes.push(this.partitionKey)
+            attributes.push(this.sortKey)
         }
 
         let data = await this.dynamoClient.batchGet({
@@ -127,7 +148,7 @@ class DBObjectHandler {
             returnData, 
             credentials,
             includeID
-        }).catch(err=> {debugger})
+        }).catch(err=> {})
         return ret
     }
 
@@ -234,15 +255,31 @@ class DBObjectHandler {
             ['name', '=', 'joe', 'AND'],
             ['friends', 'contains', 'danny']
         ]
+    Available operators: = | CONTAINS | INTERSECTS
+
+    gsi = {
+        indexName: 'tableSecondaryIndex',
+        partitionKey: 'insteadOfUID',
+        sortKey: 'insteadOfTimestamp'
+    }
     */
-   // EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
-    async scan({params, param, value, attributes, query, returnData, idOnly, includeID, credentials}) {
+    async scan({
+        params, 
+        param, 
+        value, 
+        attributes, 
+        query, 
+        returnData, 
+        idOnly, 
+        includeID,
+        credentials
+    }) {
         credentials = credentials || this.credentials   
         
         // (2)
         if (!query && !params) {
             param = u.packKeys(param)
-            query = new ScanQuery(this.tableName)
+            query = new ScanQuery(this.tableName, this.partitionKey, this.sortKey)
             query.addParam({
                 param: param, 
                 value: value, 
@@ -257,7 +294,7 @@ class DBObjectHandler {
             params.forEach(param => {
                 param[0] = u.packKeys(param[0])
             })
-            query = new ScanQuery(this.tableName)
+            query = new ScanQuery(this.tableName, this.partitionKey, this.sortKey)
             let addParamToQuery = (item, index, ofTotal) => {
                 query.addParam({
                     param: item[0],
@@ -306,7 +343,12 @@ class DBObjectHandler {
         // If this is a collection, the scan is actually a query
         let data
         if (this.isTimeOrdered) {
-            data = await this.dynamoClient.query(query, this.seriesKey)
+            data = await this.dynamoClient.query({
+                scanQueryInstance: query, 
+                seriesKey: this.seriesKey,
+                indexName: this.indexName,
+                partitionKey: this.partitionKey
+            })
         } else {
             data = await this.dynamoClient.scan(query)
         }
@@ -324,11 +366,11 @@ class DBObjectHandler {
         // Make DBObjects
         let dbobjects = []
         raw.forEach(data => {
-            let id = data[u.PK] + '-' + data[u.SK]
+            let id = data[this.partitionKey] + '-' + data[this.sortKey]
             let encodedIndex = data[u.INDEX_KEY]
             delete data[u.INDEX_KEY]
-            delete data[u.PK]
-            delete data[u.SK]
+            delete data[this.partitionKey]
+            delete data[this.sortKey]
             
             
             dbobjects.push(new this.Subclass({
@@ -368,7 +410,7 @@ class DBObjectHandler {
                 for (let j = 0; j < attributes.length; j++) {
                     let attribute = attributes[j]
                     attribute = u.unpackKeys(attribute)
-                    if ((attribute !== u.PK) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
+                    if ((attribute !== this.partitionKey) && (attribute !== u.SK) && (attribute !== u.INDEX_KEY)) {
                         obj[attribute] = await dbobject.get({path: attribute, credentials})
                     }
                 }

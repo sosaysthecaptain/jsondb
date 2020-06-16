@@ -124,7 +124,7 @@ u.log = (message, data) => {
     }
 }
 
-u.dbg = () => {if (u.flag) {debugger}}
+u.dbg = () => {if (u.flag) {}}
 
 u.error = (msg, err) => {
     console.log(msg)
@@ -354,9 +354,12 @@ u.unpackKeys = (obj) => {
     return obj
 }
 
-u.cleanup = (data) => {
-    delete data[u.PK]
-    delete data[u.SK]
+u.cleanup = (data, partitionKey, sortKey) => {
+    partitionKey = partitionKey || u.PK
+    sortKey = sortKey || u.SK
+    
+    delete data[partitionKey]
+    delete data[sortKey]
     delete data[u.INDEX_KEY]
 }
 

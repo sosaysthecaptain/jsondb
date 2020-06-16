@@ -200,11 +200,9 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         ],
         returnData: true
     })
-    let passed10 = read10.length === 2
-    assert.equal(passed10, true)
 
-    debugger
-    
+    let passed10 = read10.length === 2
+    assert.equal(passed10, true)    
     
     let read10_5 = await parentObj.collection({path: friendsPath}).scan({
         params: [
@@ -214,8 +212,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         ],
         returnData: true
     })
-    debugger
-    let passed10_5 = read10[0].firstName === 'danny'
+    let passed10_5 = read10_5[0].firstName === 'danny'
     assert.equal(passed10_5, true)
     
     // Only some properties

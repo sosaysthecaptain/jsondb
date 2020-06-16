@@ -18,8 +18,9 @@ An example query:
         FilterExpression: "is_lawyer = :key_0 AND (contains (expertises, :key_1)) AND (contains (states, :key_2))"
     }
 
-TODO: replace 'message' with dynamo concept of comparison operator such as 
-EQ | NE | LE | LT | GE | GT | NOT_NULL | NULL | CONTAINS | NOT_CONTAINS | BEGINS_WITH | IN | BETWEEN
+
+Specify partitionKey and sortKey to override 'uid' and 'ts', for GSI support.
+
 https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Condition.html
 */
 
@@ -27,13 +28,16 @@ const u = require('./u')
 
 
 class ScanQuery {
-    constructor(table_name) {
+    constructor(table_name, {partitionKey, sortKey, indexName}={}) {
         this.paramsObject = {
             TableName: table_name,
             FilterExpression: '',
             ExpressionAttributeValues: {}
         }
         this.index = 0
+        this.indexName = indexName
+        this.partitionKey = partitionKey || u.PK
+        this.sortKey = sortKey || u.SK
     }
 
     /*
@@ -64,8 +68,8 @@ class ScanQuery {
     // Adds specification to get only one attribute. Pass true for all
     addAttributes(attributes) { 
         if (attributes === true) {return}
-        attributes.push(u.PK)
-        attributes.push(u.SK)
+        attributes.push(this.partitionKey)
+        attributes.push(this.sortKey)
         attributes.push(u.INDEX_KEY)
         this.paramsObject.ProjectionExpression = attributes.join(', ')
     }
