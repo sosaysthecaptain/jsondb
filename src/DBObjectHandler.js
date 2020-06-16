@@ -37,7 +37,7 @@ class DBObjectHandler {
     }
 
     // Note: credentials are only to instantiate object with, they are not necessary for the create operation
-    async createObject({id, data, creator, members, allowOverwrite, sensitivity, objectPermission, credentials}) {
+    async createObject({id, data, creator, members, allowOverwrite, overrideTimestamp, sensitivity, objectPermission, credentials}) {
         credentials = credentials || this.credentials   
         allowOverwrite = allowOverwrite || false
         
@@ -47,7 +47,8 @@ class DBObjectHandler {
             dynamoClient: this.dynamoClient,
             s3Client: this.s3Client,
             tableName: this.tableName,
-            isTimeOrdered: this.isTimeOrdered
+            isTimeOrdered: this.isTimeOrdered,
+            overrideTimestamp: overrideTimestamp
         })
         await dbobject.create({
             data, 

@@ -12,12 +12,16 @@ const NodeIndex = require('./NodeIndex')
 const u = require('./u')
 
 class DBObject {
-    constructor({id, tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data, credentials}) {
+    constructor({id, tableName, dynamoClient, s3Client, isNew, isTimeOrdered, doNotCache, encodedIndex, data, overrideTimestamp, credentials}) {
         
         // Handle both instantiation of new object by PK only and whole id
         if (isTimeOrdered) {
             if (id.split('-').length === 1)
-            id += '-' + Date.now()
+            let ts = Date.now()
+            if (overrideTimestamp) {
+                ts = overrideTimestamp
+            }
+            id += '-' + ts
         }
         
         // Information we actually have
