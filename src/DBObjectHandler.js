@@ -179,13 +179,13 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID, credentials}={}) {
+    async getObjects({seriesKey, limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID, credentials}={}) {
         credentials = credentials || this.credentials
         ascending = ascending || false
         limit = limit || 10000
 
         exclusiveFirstTimestamp = exclusiveFirstTimestamp || this.exclusiveStartTimestamp
-        let data = await this.batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp, includeID})
+        let data = await this.batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, includeID})
         // Figure out what the last timestamp was and store it
         if (data.length) {
             this.exclusiveStartTimestamp = data[data.length-1].timestamp()
@@ -270,6 +270,7 @@ class DBObjectHandler {
     }
     */
     async scan({
+        seriesKey,
         params, 
         param, 
         value, 
@@ -351,7 +352,7 @@ class DBObjectHandler {
         if (this.isTimeOrdered) {
             data = await this.dynamoClient.query({
                 scanQueryInstance: query, 
-                seriesKey: this.seriesKey,
+                seriesKey: seriesKey || this.seriesKey,
                 indexName: this.indexName,
                 partitionKey: this.partitionKey
             })

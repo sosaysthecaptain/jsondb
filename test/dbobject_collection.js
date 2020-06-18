@@ -449,7 +449,6 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed5 = (requestedData[0].body === 'modified first message') && (requestedData[3].body === 'fourth message')
     assert.equal(passed5, true)
     
-    myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
     let requestedData1 = await myHandlerForGSI.batchGetObjectsByPage({
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         limit: 4,
@@ -459,7 +458,6 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed6 = (requestedData1[0].body === 'modified first message') && (requestedData1[3].body === 'fourth message')
     assert.equal(passed6, true)
     
-    myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
     let requestedData2 = await myHandlerForGSI.batchGetObjectsByTime({
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         limit: 4,
@@ -471,6 +469,54 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
 
     let passed7 = (requestedData2[0].body === 'modified first message') && (requestedData2[3].body === 'fourth message')
     assert.equal(passed7, true)
+    
+    let requestedData3 = await myHandlerForGSI.batchGetObjectsByTime({
+        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        limit: 4,
+        attributes: ['body'],
+        startTime: requestedData[0].modifiedDate - 10000,
+        endTime: requestedData[0].modifiedDate + 10000,
+        credentials: {skipPermissionCheck: true}
+    })
+
+    let passed8 = (requestedData3[0].body === 'modified first message') && (requestedData3[3].body === 'fourth message')
+    assert.equal(passed8, true)
+
+    let requestedData4 = await myHandlerForGSI.getObjects({
+        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        limit: 4,
+        attributes: ['body'],
+        // for some reason we cant set returnData here and we have to set ascending
+        ascending: true,
+        credentials: {skipPermissionCheck: true}
+    })
+    let passed9 = (requestedData4[0].body === 'modified first message') && (requestedData4[3].body === 'fourth message')
+    assert.equal(passed9, true)
+
+    // // this will fail bc returndata and attributes arent specified
+    // let requestedData5 = await myHandlerForGSI.batchGetObjectsByPage({
+    //     seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+    //     limit: 4,
+    //     credentials: {skipPermissionCheck: true}
+    // })
+    // let passed10 = (requestedData5[0].body === 'modified first message') && (requestedData5[3].body === 'fourth message')
+    // assert.equal(passed10, true)
+
+    debugger
+
+    let requestedData6 = await myHandlerForGSI.scan({
+        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        params: [
+            ['body', '=', 'modified first message', 'OR'],            
+            ['body', '=', 'fourth message', 'OR'],            
+        ],
+        returnData: true
+    })
+
+    debugger
+    
+    let passed11 = (requestedData6[0].body === 'modified first message') && (requestedData6.length === 2)
+    assert.equal(passed11, true)
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})
