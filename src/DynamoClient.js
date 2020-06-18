@@ -264,6 +264,8 @@ class DynamoClient {
 
         // For GSI use, we can specify partitionKeyseparately
         partitionKey = partitionKey || u.PK
+
+        debugger
         
         // Add seriesKey as KeyConditionExpression
         params.ExpressionAttributeNames = params.ExpressionAttributeNames || {}
