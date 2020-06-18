@@ -449,6 +449,29 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed5 = (requestedData[0].body === 'modified first message') && (requestedData[3].body === 'fourth message')
     assert.equal(passed5, true)
     
+    myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
+    let requestedData1 = await myHandlerForGSI.batchGetObjectsByPage({
+        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        limit: 4,
+        attributes: ['body'],
+        credentials: {skipPermissionCheck: true}
+    })
+    let passed6 = (requestedData1[0].body === 'modified first message') && (requestedData1[3].body === 'fourth message')
+    assert.equal(passed6, true)
+    
+    myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
+    let requestedData2 = await myHandlerForGSI.batchGetObjectsByTime({
+        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        limit: 4,
+        returnData: true,
+        startTime: requestedData[0].modifiedDate - 10000,
+        endTime: requestedData[0].modifiedDate + 10000,
+        credentials: {skipPermissionCheck: true}
+    })
+
+    let passed7 = (requestedData2[0].body === 'modified first message') && (requestedData2[3].body === 'fourth message')
+    assert.equal(passed7, true)
+    
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})
     let message0StillExists = await message0_dbobject.checkExists()

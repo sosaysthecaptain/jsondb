@@ -234,7 +234,7 @@ class DBObjectHandler {
 
     resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, includeID, credentials}) {
+    async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes, returnData, includeID, credentials}) {
         credentials = credentials || this.credentials   
         
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
