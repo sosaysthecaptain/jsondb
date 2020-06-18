@@ -831,6 +831,7 @@ class DBObject {
     async _read(attributes) {
         let data = await this.dynamoClient.get({
             tableName: this.tableName,
+            indexName: this.indexName,
             key: this.key,
             attributes: attributes
         }).catch((err) => {u.error('failure in DBObject._read', err)})

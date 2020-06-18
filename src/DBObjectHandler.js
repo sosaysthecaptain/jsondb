@@ -220,6 +220,9 @@ class DBObjectHandler {
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getObjects({
             tableName: this.tableName,
+            indexName: this.indexName,
+            partitionKey: this.partitionKey,
+            sortKey: this.sortKey,
             uid: seriesKey || this.seriesKey,
             limit,
             ascending,
@@ -237,7 +240,10 @@ class DBObjectHandler {
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
         let allObjectData = await this.dynamoClient.getRange({
             tableName: this.tableName,
-            uid: this.seriesKey,
+            indexName: this.indexName,
+            partitionKey: this.partitionKey,
+            sortKey: this.sortKey,
+            uid: seriesKey || this.seriesKey,
             startTime, 
             endTime,
             ascending
@@ -366,7 +372,7 @@ class DBObjectHandler {
         // Make DBObjects
         let dbobjects = []
         raw.forEach(data => {
-            let id = data[this.partitionKey] + '-' + data[this.sortKey]
+            let id = data[u.PK] + '-' + data[u.SK]
             let encodedIndex = data[u.INDEX_KEY]
             delete data[u.INDEX_KEY]
             delete data[this.partitionKey]
