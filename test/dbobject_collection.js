@@ -502,8 +502,6 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     // let passed10 = (requestedData5[0].body === 'modified first message') && (requestedData5[3].body === 'fourth message')
     // assert.equal(passed10, true)
 
-    debugger
-
     let requestedData6 = await myHandlerForGSI.scan({
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         params: [
@@ -512,8 +510,6 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         ],
         returnData: true
     })
-
-    debugger
     
     let passed11 = (requestedData6[0].body === 'modified first message') && (requestedData6.length === 2)
     assert.equal(passed11, true)
