@@ -384,28 +384,28 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let message_0 = await parentObj.collection({path, credentials: {user}}).createObject({
         data: {
             body: 'this is a message',
-            modifiedDate: Date.now(),
+            modifiedDate: Math.floor((Date.now() + 500)),
             test: 'test'
         }
     })
     let message_1 = await parentObj.collection({path, credentials: {user}}).createObject({
         data: {
             body: 'second message',
-            modifiedDate: Date.now() + 100,
+            modifiedDate: Math.floor((Date.now() + 200)),
             test: 'test'
         }
     })
     let message_2 = await parentObj.collection({path, credentials: {user}}).createObject({
         data: {
             body: 'third message',
-            modifiedDate: Date.now() + 200,
+            modifiedDate: Math.floor((Date.now() + 100)),
             test: 'test'
         }
     })
     let message_3 = await parentObj.collection({path, credentials: {user}}).createObject({
         data: {
             body: 'fourth message',
-            modifiedDate: Date.now() + 300,
+            modifiedDate: Math.floor((Date.now())),
             test: 'test'
         }
     })
@@ -441,14 +441,14 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     // await parentObj.ensureIndexLoaded()
     // let seriesKey = await parentObj.get({path})
     
-    // the fourth message which was created last will appear first in vanilla, but from the gsi it should appear last bc it has the last modified date
+    // the fourth message which was created last will appear first in vanilla, but from the gsi it should appear first bc it has the "most recent" modified date
     myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
     let requestedData = await myHandlerForGSI.batchGetObjectsByPage({
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         limit: 4,
         returnData: true,
         includeID: true,
-        credentials: {skipPermissionCheck: true}
+        credentials: {skipPermissionCheck: true},
     })
     let passed5 = (requestedData[0].body === 'modified first message') && (requestedData[3].body === 'fourth message')
     assert.equal(passed5, true)
@@ -490,7 +490,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         limit: 4,
         attributes: ['body'],
-        // for some reason we cant set returnData here and we have to set ascending
+        // for some reason we cant set returnData here and we have to set ascending to true
         ascending: true,
         credentials: {skipPermissionCheck: true}
     })
@@ -512,22 +512,23 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
             ['body', '=', 'modified first message', 'OR'],            
             ['body', '=', 'fourth message', 'OR'],            
         ],
-        returnData: true
+        returnData: true,
+        ascending: true
     })
-    
     let passed11 = (requestedData6[0].body === 'modified first message') && (requestedData6.length === 2)
     assert.equal(passed11, true)
-
+    
     // Retrieve a DBObject and modify it, see that it is changed, and make sure it moves up the list
-    let message3_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
-        id: message_3.id
+    let message2_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
+        id: message_2.id
     })
-    let newModifiedDate = Date.now()
-    await message3_dbobject.set({attributes: {modifiedDate: newModifiedDate}})
-    let modifiedCheck = await message3_dbobject.get({path: 'modifiedDate', user})
+    let newModifiedDate = Math.floor((Date.now() + 1000000))
+    await message2_dbobject.set({attributes: {modifiedDate: newModifiedDate}})
+    let modifiedCheck = await message2_dbobject.get({path: 'modifiedDate', user})
     let passed12 = modifiedCheck === newModifiedDate
     assert.equal(passed12, true)
-
+    
+    // The third message should be first
     let requestedData7 = await myHandlerForGSI.scan({
         seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
         params: [
@@ -535,9 +536,8 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         ],
         returnData: true
     })
-
-    // the fourth message should be first
-    debugger
+    let passed13 = requestedData7[0].body === 'third message'
+    assert.equal(passed13, true)
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})

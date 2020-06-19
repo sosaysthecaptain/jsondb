@@ -259,13 +259,12 @@ class DynamoClient {
         seriesKey,
         indexName,                  // GSI ONLY
         partitionKey,               // GSI ONLY
+        ascending              
     }) {
         let params = scanQueryInstance.write()
 
-        // For GSI use, we can specify partitionKeyseparately
+        // For GSI use, we can specify partitionKey separately
         partitionKey = partitionKey || u.PK
-
-        debugger
         
         // Add seriesKey as KeyConditionExpression
         params.ExpressionAttributeNames = params.ExpressionAttributeNames || {}
@@ -273,15 +272,28 @@ class DynamoClient {
         params.KeyConditionExpression = `#pk = :pk_string`
         params.ExpressionAttributeNames['#pk'] = partitionKey       // 'uid' or GSI value
         params.ExpressionAttributeValues[':pk_string'] = seriesKey
+        params.ScanIndexForward = ascending || false
         
         if (indexName) {
             params.IndexName = indexName
         }
 
-        const data = await this.dynamo.query(params).promise().catch((err) => {
-            throw(err)
-        })
-        return data.Items
+        const data = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
+
+        let items = data.Items
+
+        // // If we have a LastEvaluatedKey, repeat the query until we've covered everything
+        // let LastEvaluatedKey = data.LastEvaluatedKey
+        // while (LastEvaluatedKey) {
+        //     params.ExclusiveStartKey = LastEvaluatedKey
+        //     let additionalData = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
+        //     LastEvaluatedKey = additionalData.LastEvaluatedKey 
+        //     additionalData.Items.forEach(item=>{
+        //         items.push(item)
+        //     })
+        // }
+
+        return items
     }
 
     async checkExists({tableName, key}) {

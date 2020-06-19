@@ -270,7 +270,6 @@ class DBObjectHandler {
     }
     */
     async scan({
-        seriesKey,
         params, 
         param, 
         value, 
@@ -279,7 +278,9 @@ class DBObjectHandler {
         returnData, 
         idOnly, 
         includeID,
-        credentials
+        credentials,
+        seriesKey,      // query only
+        ascending       // query only
     }) {
         credentials = credentials || this.credentials   
         
@@ -354,7 +355,8 @@ class DBObjectHandler {
                 scanQueryInstance: query, 
                 seriesKey: seriesKey || this.seriesKey,
                 indexName: this.indexName,
-                partitionKey: this.partitionKey
+                partitionKey: this.partitionKey,
+                ascending
             })
         } else {
             data = await this.dynamoClient.scan(query)
