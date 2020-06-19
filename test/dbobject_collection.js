@@ -538,6 +538,21 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     })
     let passed13 = requestedData7[0].body === 'third message'
     assert.equal(passed13, true)
+
+    // Create a new db object but override the timestamp with our own
+    let message_4 = await parentObj.collection({path, credentials: skip}).createObject({
+        data: {
+            body: 'fifth message',
+            modifiedDate: Math.floor((Date.now())),
+            test: 'test'
+        },
+        overrideTimestamp: newModifiedDate
+    })
+    let message_4_dbobject = await parentObj.collection({path, credentials: skip}).getObject({
+        id: message_4.id
+    })
+    let passed14 = message_4_dbobject.key.ts === newModifiedDate
+    assert.equal(passed14, true)
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})

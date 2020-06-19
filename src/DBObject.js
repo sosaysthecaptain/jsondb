@@ -32,16 +32,15 @@ class DBObject {
         if (isTimeOrdered) {
             // Case 1: We're creating a new object
             if (id.split('-').length === 1) {
-                let ts = Date.now()
-                id += '-' + ts
-            }
-            // Case 2: We're creating a new object but giving it our own timestamp 
-            if (overrideTimestamp) {
-                let ts = overrideTimestamp
-                id += '-' + ts
-            }
-            // Case 3: We're constructing the class for an object that already exists 
-            if (id.split('-').length === 2) {
+                if (!overrideTimestamp) {
+                    let ts = Date.now()
+                    id += '-' + ts
+                } else {
+                    let ts = overrideTimestamp
+                    id += '-' + ts
+                }
+            // Case 2: We're constructing the class for an object that already exists 
+            } else {
                 id = id
             }
         }
