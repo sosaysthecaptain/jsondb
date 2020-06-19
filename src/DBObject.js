@@ -508,7 +508,7 @@ class DBObject {
         // members = members || {}
 
         this.index.setNodeType(path, u.NT_COLLECTION)
-        this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
+        this.index.setNodeProperty(path, 'seriesKey', this._makeCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
         // this.index.setNodeProperty(path, 'creator', creator)
         // this.index.setNodeProperty(path, 'members', members)
@@ -519,12 +519,10 @@ class DBObject {
         let attributes = {}
         attributes[path] = '<COLLECTION>'
         await this.set({attributes, credentials})
-        return this._getCollectionSeriesKey(path)
+        return this._makeCollectionSeriesKey(path)
     }
 
-    // retitle as '_makeCollectionSeriesKey' 
-    // make a new function 'getPackedCollectionSeriesKey' needs end usage -> send the path through u.packKey -> return this.id + '_' u.pakcKey(path)
-    _getCollectionSeriesKey(path) {return this.id + '_' + path}
+    _makeCollectionSeriesKey(path) {return this.id + '_' + path}
 
     getPackedCollectionSeriesKey({path}) {
         return this.id + '_' + u.packKey(path)
@@ -553,7 +551,7 @@ class DBObject {
         this._ensureIsCollection(path)
         this.ensurePermission({path, write: false, credentials})
 
-        let seriesKey = this._getCollectionSeriesKey(path)
+        let seriesKey = this._makeCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
         let DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
@@ -569,10 +567,6 @@ class DBObject {
             credentials: credentials
         })
     }
-    
-    // delete if not used
-    getCollectionSeriesKey(path) {return (this.id + '_' + path)}
-
     
     _ensureIsCollection(path) {
         if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
