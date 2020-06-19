@@ -522,7 +522,13 @@ class DBObject {
         return this._getCollectionSeriesKey(path)
     }
 
+    // retitle as '_makeCollectionSeriesKey' 
+    // make a new function 'getPackedCollectionSeriesKey' needs end usage -> send the path through u.packKey -> return this.id + '_' u.pakcKey(path)
     _getCollectionSeriesKey(path) {return this.id + '_' + path}
+
+    getPackedCollectionSeriesKey({path}) {
+        return this.id + '_' + u.packKey(path)
+    }
     
     async emptyCollection({path, credentials}) {
         credentials = credentials || this.credentials
@@ -564,6 +570,7 @@ class DBObject {
         })
     }
     
+    // delete if not used
     getCollectionSeriesKey(path) {return (this.id + '_' + path)}
 
     

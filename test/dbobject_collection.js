@@ -438,13 +438,14 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed4, true)
 
     // // GSI Pagewise
-    // await parentObj.ensureIndexLoaded()
-    // let seriesKey = await parentObj.get({path})
+    await parentObj.ensureIndexLoaded()
+    let seriesKey = await parentObj.getPackedCollectionSeriesKey({path})
     
+    // the different ways to get collections of things
     // the fourth message which was created last will appear first in vanilla, but from the gsi it should appear first bc it has the "most recent" modified date
-    myHandlerForGSI.instantiate({id: 'dbobjRefTestParent_XXparentKey1_x_XXmessages'})
+    myHandlerForGSI.instantiate({id: seriesKey})
     let requestedData = await myHandlerForGSI.batchGetObjectsByPage({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         limit: 4,
         returnData: true,
         includeID: true,
@@ -454,7 +455,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed5, true)
     
     let requestedData1 = await myHandlerForGSI.batchGetObjectsByPage({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         limit: 4,
         attributes: ['body'],
         credentials: {skipPermissionCheck: true}
@@ -463,7 +464,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed6, true)
     
     let requestedData2 = await myHandlerForGSI.batchGetObjectsByTime({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         limit: 4,
         returnData: true,
         startTime: requestedData[0].modifiedDate - 10000,
@@ -475,7 +476,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed7, true)
     
     let requestedData3 = await myHandlerForGSI.batchGetObjectsByTime({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         limit: 4,
         attributes: ['body'],
         startTime: requestedData[0].modifiedDate - 10000,
@@ -487,7 +488,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed8, true)
 
     let requestedData4 = await myHandlerForGSI.getObjects({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         limit: 4,
         attributes: ['body'],
         // for some reason we cant set returnData here and we have to set ascending to true
@@ -499,7 +500,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
 
     // // this will fail bc returndata and attributes arent specified
     // let requestedData5 = await myHandlerForGSI.batchGetObjectsByPage({
-    //     seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+    //     seriesKey: seriesKey,
     //     limit: 4,
     //     credentials: {skipPermissionCheck: true}
     // })
@@ -507,10 +508,10 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     // assert.equal(passed10, true)
 
     let requestedData6 = await myHandlerForGSI.scan({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         params: [
             ['body', '=', 'modified first message', 'OR'],            
-            ['body', '=', 'fourth message', 'OR'],            
+            ['body', '=', 'fourth message', 'OR']           
         ],
         returnData: true,
         ascending: true
@@ -518,6 +519,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed11 = (requestedData6[0].body === 'modified first message') && (requestedData6.length === 2)
     assert.equal(passed11, true)
     
+    // change the sort order
     // Retrieve a DBObject and modify it, see that it is changed, and make sure it moves up the list
     let message2_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
         id: message_2.id
@@ -530,7 +532,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     
     // The third message should be first
     let requestedData7 = await myHandlerForGSI.scan({
-        seriesKey: 'dbobjRefTestParent_XXparentKey1_x_XXmessages',
+        seriesKey: seriesKey,
         params: [
             ['test', '=', 'test']
         ],
