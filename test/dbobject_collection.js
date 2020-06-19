@@ -553,6 +553,14 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     })
     let passed14 = message_4_dbobject.key.ts === newModifiedDate
     assert.equal(passed14, true)
+
+    // Vanilla Pagewise final check on overrided ts
+    let requestedData8 = await parentObj.collection({path, credentials: skip}).getObjects({
+        limit: 5,
+        attributes: ['body']
+    })
+    let passed15 = (requestedData8[4].body === 'modified first message') && (requestedData8[0].body === 'fifth message')
+    assert.equal(passed15, true)
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})
