@@ -282,16 +282,16 @@ class DynamoClient {
 
         let items = data.Items
 
-        // // If we have a LastEvaluatedKey, repeat the query until we've covered everything
-        // let LastEvaluatedKey = data.LastEvaluatedKey
-        // while (LastEvaluatedKey) {
-        //     params.ExclusiveStartKey = LastEvaluatedKey
-        //     let additionalData = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
-        //     LastEvaluatedKey = additionalData.LastEvaluatedKey 
-        //     additionalData.Items.forEach(item=>{
-        //         items.push(item)
-        //     })
-        // }
+        // If we have a LastEvaluatedKey, repeat the query until we've covered everything
+        let LastEvaluatedKey = data.LastEvaluatedKey
+        while (LastEvaluatedKey) {
+            params.ExclusiveStartKey = LastEvaluatedKey
+            let additionalData = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
+            LastEvaluatedKey = additionalData.LastEvaluatedKey 
+            additionalData.Items.forEach(item=>{
+                items.push(item)
+            })
+        }
 
         return items
     }
