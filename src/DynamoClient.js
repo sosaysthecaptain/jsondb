@@ -69,7 +69,13 @@ class DynamoClient {
     }
 
     // Gets all for uid with ts in specified range, ordered only
-    async getRange({tableName, uid, startTime, endTime, ascending}) {
+    async getRange({tableName, indexName, partitionKey, sortKey, uid, startTime, endTime, ascending}) {
+        
+        partitionKey = partitionKey || u.PK
+        sortKey = sortKey || u.SK
+
+        let KeyConditionExpressionString = `${partitionKey} = :0 AND ${sortKey} BETWEEN :1 AND :2`   
+        
         let params = {
             TableName: tableName,
             ExpressionAttributeValues: {
@@ -77,8 +83,12 @@ class DynamoClient {
                 ':1': startTime,
                 ':2' : endTime,
             },
-            KeyConditionExpression: 'uid = :0 AND ts BETWEEN :1 AND :2',
+            KeyConditionExpression: KeyConditionExpressionString,
             ScanIndexForward: ascending,
+        }
+
+        if (indexName) {
+            params.IndexName = indexName
         }
 
         let data = await this.dynamo.query(params).promise().catch((err) => {
@@ -90,14 +100,17 @@ class DynamoClient {
     
     // Gets pagewise for uid, starting at exclusiveFirstSk, limited, in specified order
     // ASSUMES STANDARD uid/ts
-    async getObjects({tableName, uid, limit, exclusiveFirstSk, ascending}) {
+    async getObjects({tableName, indexName, partitionKey, sortKey, uid, limit, exclusiveFirstSk, ascending}) {
         if (exclusiveFirstSk) {exclusiveFirstSk = Number(exclusiveFirstSk)}
         limit = limit || 100
-        
-        let KeyConditionExpression = 'uid = :0 AND ts < :1'
+
+        partitionKey = partitionKey || u.PK
+        sortKey = sortKey || u.SK
+
+        let KeyConditionExpression = `${partitionKey} = :0 AND ${sortKey} < :1`     
         if (ascending) {
             exclusiveFirstSk = exclusiveFirstSk || 0
-            KeyConditionExpression = 'uid = :0 AND ts > :1'
+            KeyConditionExpression = `${partitionKey} = :0 AND ${sortKey} > :1`
         } else {
             exclusiveFirstSk = exclusiveFirstSk || 999999999999999
         }
@@ -111,6 +124,10 @@ class DynamoClient {
             KeyConditionExpression: KeyConditionExpression,
             ScanIndexForward: ascending,
             Limit: limit
+        }
+
+        if (indexName) {
+            params.IndexName = indexName
         }
                 
         let data = await this.dynamo.query(params).promise().catch((err) => {
@@ -242,12 +259,12 @@ class DynamoClient {
         seriesKey,
         indexName,                  // GSI ONLY
         partitionKey,               // GSI ONLY
+        ascending              
     }) {
         let params = scanQueryInstance.write()
 
-        // For GSI use, we can specify partitionKeyseparately
+        // For GSI use, we can specify partitionKey separately
         partitionKey = partitionKey || u.PK
-        
         
         // Add seriesKey as KeyConditionExpression
         params.ExpressionAttributeNames = params.ExpressionAttributeNames || {}
@@ -255,13 +272,28 @@ class DynamoClient {
         params.KeyConditionExpression = `#pk = :pk_string`
         params.ExpressionAttributeNames['#pk'] = partitionKey       // 'uid' or GSI value
         params.ExpressionAttributeValues[':pk_string'] = seriesKey
+        params.ScanIndexForward = ascending || false
+        
+        if (indexName) {
+            params.IndexName = indexName
+        }
 
-        // DO WE NEED TO USE INDEXNAME?
+        const data = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
 
-        const data = await this.dynamo.query(params).promise().catch((err) => {
-            throw(err)
-        })
-        return data.Items
+        let items = data.Items
+
+        // If we have a LastEvaluatedKey, repeat the query until we've covered everything
+        let LastEvaluatedKey = data.LastEvaluatedKey
+        while (LastEvaluatedKey) {
+            params.ExclusiveStartKey = LastEvaluatedKey
+            let additionalData = await this.dynamo.query(params).promise().catch((err) => {throw(err)})
+            LastEvaluatedKey = additionalData.LastEvaluatedKey 
+            additionalData.Items.forEach(item=>{
+                items.push(item)
+            })
+        }
+
+        return items
     }
 
     async checkExists({tableName, key}) {

@@ -3,16 +3,8 @@
 const assert = require('assert')
 const _ = require('lodash')
 const jsondb = require('../index')
-const ScanQuery = require('../src/ScanQuery')
-const DynamoClient = require('../src/DynamoClient')
 const config = require('../config')
 const u = require('../src/u')
-
-let dynamoClient = new DynamoClient({
-    awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
-    awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-    awsRegion: config.AWS_REGION
-})
 
 
 it('DBObject_collection (1) - all basic functionality', async function() {
@@ -34,7 +26,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         awsRegion: config.AWS_REGION,
         tableName: config.tableName,
         subclass: null,
-        timeOrdered: false
+        isTimeOrdered: false
     })
     
     let user = 'testUser@gmail.com'
@@ -190,7 +182,7 @@ it('DBObject_collection (1) - all basic functionality', async function() {
         ],
         returnData: true
     })
-    let passed9 = (read9[0].firstName === 'danny') && (read9[0].friends.includes('irene'))
+    let passed9 = (read9[0].firstName === 'danny') || (read9[0].firstName === 'irene')
     assert.equal(passed9, true)
 
     // INTERSECTS
@@ -288,7 +280,7 @@ it('DBObject_collection (2) - subclasses', async function() {
         awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
         awsRegion: config.AWS_REGION,
         tableName: config.tableName,
-        timeOrdered: false, 
+        isTimeOrdered: false, 
         subclass: TestSubclass
     })
     
@@ -317,6 +309,282 @@ it('DBObject_collection (2) - subclasses', async function() {
     assert.equal(resultOfTest, 'this is the thing')
     
     await parentObj.destroy({user: 'testUser@gmail.com', credentials: skip})
+})
+
+it('DBObject_collection (3) - basic gsi functionality', async function() {
+    this.timeout(u.TEST_TIMEOUT)
+
+    let parentID = 'dbobjRefTestParent'
+    let parentData = {
+        parentKey1: {
+            subKey1: 'this is an object',
+            subKey2: 'with a collection in it',
+            messages: 'collection goes here'
+        },
+        parentKey2: 'innocent bystander'
+    }
+    
+    let myHandler = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: config.tableName,
+        subclass: null,
+        isTimeOrdered: false
+    })
+    
+    let myHandlerForGSI = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: config.tableName,
+        subclass: null,
+        isTimeOrdered: true,
+        indexName: config.indexName,             
+        partitionKey: 'uid',              
+        sortKey: 'XXmodifiedDate',    
+    })
+    
+    let user = 'testUser@gmail.com'
+    let parentObj = await myHandler.createObject({
+        id: parentID,
+        data: parentData,
+        members: {'member@gmail.com': {read: 5, write: 1}},
+        creator: user,
+        allowOverwrite: true,
+        objectPermission: {read: 2, write: 2},
+    })
+    let read0 = await parentObj.get({credentials: high})
+    delete read0.members
+    let passed0 = _.isEqual(parentData, read0)
+    assert.equal(passed0, true)
+    
+    // Create collection, add something to it
+    await parentObj.ensureIndexLoaded()
+    let path = 'parentKey1.messages'
+    await parentObj.createCollection({path, credentials: high})
+    let write0Failed = false
+    try {
+        let writeShouldFail0 = await parentObj.collection({path}).createObject({
+            data: {body: "won't get written cuz no user"}
+        })
+        
+    } catch(err) {write0Failed = true}
+    
+    let write1Failed = false
+    try {
+        let writeShouldFail1 = await parentObj.collection({path, credentials: {user: 'imposter@gmail.com'}}).createObject({
+            data: {body: "won't get written cuz bad user"}
+        })
+    } catch(err) {write1Failed = true}
+    assert.equal(write1Failed, true)
+
+    let message_0 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {
+            body: 'this is a message',
+            modifiedDate: Math.floor((Date.now() + 500)),
+            test: 'test'
+        }
+    })
+    let message_1 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {
+            body: 'second message',
+            modifiedDate: Math.floor((Date.now() + 200)),
+            test: 'test'
+        }
+    })
+    let message_2 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {
+            body: 'third message',
+            modifiedDate: Math.floor((Date.now() + 100)),
+            test: 'test'
+        }
+    })
+    let message_3 = await parentObj.collection({path, credentials: {user}}).createObject({
+        data: {
+            body: 'fourth message',
+            modifiedDate: Math.floor((Date.now())),
+            test: 'test'
+        }
+    })
+    let passed1 = message_3.id.split('-').length === 2    
+    assert.equal(passed1, true)
+
+    // Get a single message
+    let message0_data = await parentObj.collection({path, credentials: {user}}).getObject({
+        id: message_0.id, 
+        returnData: true
+    })
+    let passed2 = (message0_data.body === 'this is a message')
+    assert.equal(passed2, true)
+    
+    // Retrieve a DBObject and modify it, see that it is changed
+    let message0_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
+        id: message_0.id
+    })
+    await message0_dbobject.set({attributes: {body: 'modified first message'}})
+    let read3 = await message0_dbobject.get({path: 'body', user})
+    let passed3 = read3 === 'modified first message'
+    assert.equal(passed3, true)
+    
+    // Vanilla Pagewise
+    let read4 = await parentObj.collection({path, credentials: {user}}).getObjects({
+        limit: 4,
+        attributes: ['body']
+    })
+    let passed4 = (read4[3].body === 'modified first message') && (read4[0].body === 'fourth message')
+    assert.equal(passed4, true)
+
+    // // GSI Pagewise
+    await parentObj.ensureIndexLoaded()
+    let seriesKey = await parentObj.getPackedCollectionSeriesKey({path})
+    
+    // the different ways to get collections of things
+    // the fourth message which was created last will appear first in vanilla, but from the gsi it should appear first bc it has the "most recent" modified date
+    myHandlerForGSI.instantiate({id: seriesKey})
+    let requestedData = await myHandlerForGSI.batchGetObjectsByPage({
+        seriesKey: seriesKey,
+        limit: 4,
+        returnData: true,
+        includeID: true,
+        credentials: {skipPermissionCheck: true},
+    })
+    let passed5 = (requestedData[0].body === 'modified first message') && (requestedData[3].body === 'fourth message')
+    assert.equal(passed5, true)
+    
+    let requestedData1 = await myHandlerForGSI.batchGetObjectsByPage({
+        seriesKey: seriesKey,
+        limit: 4,
+        attributes: ['body'],
+        credentials: {skipPermissionCheck: true}
+    })
+    let passed6 = (requestedData1[0].body === 'modified first message') && (requestedData1[3].body === 'fourth message')
+    assert.equal(passed6, true)
+    
+    let requestedData2 = await myHandlerForGSI.batchGetObjectsByTime({
+        seriesKey: seriesKey,
+        limit: 4,
+        returnData: true,
+        startTime: requestedData[0].modifiedDate - 10000,
+        endTime: requestedData[0].modifiedDate + 10000,
+        credentials: {skipPermissionCheck: true}
+    })
+
+    let passed7 = (requestedData2[0].body === 'modified first message') && (requestedData2[3].body === 'fourth message')
+    assert.equal(passed7, true)
+    
+    let requestedData3 = await myHandlerForGSI.batchGetObjectsByTime({
+        seriesKey: seriesKey,
+        limit: 4,
+        attributes: ['body'],
+        startTime: requestedData[0].modifiedDate - 10000,
+        endTime: requestedData[0].modifiedDate + 10000,
+        credentials: {skipPermissionCheck: true}
+    })
+
+    let passed8 = (requestedData3[0].body === 'modified first message') && (requestedData3[3].body === 'fourth message')
+    assert.equal(passed8, true)
+
+    let requestedData4 = await myHandlerForGSI.getObjects({
+        seriesKey: seriesKey,
+        limit: 4,
+        attributes: ['body'],
+        // for some reason we cant set returnData here and we have to set ascending to true
+        ascending: true,
+        credentials: {skipPermissionCheck: true}
+    })
+    let passed9 = (requestedData4[0].body === 'modified first message') && (requestedData4[3].body === 'fourth message')
+    assert.equal(passed9, true)
+
+    // // this will fail bc returndata and attributes arent specified
+    // let requestedData5 = await myHandlerForGSI.batchGetObjectsByPage({
+    //     seriesKey: seriesKey,
+    //     limit: 4,
+    //     credentials: {skipPermissionCheck: true}
+    // })
+    // let passed10 = (requestedData5[0].body === 'modified first message') && (requestedData5[3].body === 'fourth message')
+    // assert.equal(passed10, true)
+
+    let requestedData6 = await myHandlerForGSI.scan({
+        seriesKey: seriesKey,
+        params: [
+            ['body', '=', 'modified first message', 'OR'],            
+            ['body', '=', 'fourth message', 'OR']           
+        ],
+        returnData: true,
+        ascending: true
+    })
+    let passed11 = (requestedData6[0].body === 'modified first message') && (requestedData6.length === 2)
+    assert.equal(passed11, true)
+    
+    // change the sort order
+    // Retrieve a DBObject and modify it, see that it is changed, and make sure it moves up the list
+    let message2_dbobject = await parentObj.collection({path, credentials: {user}}).getObject({
+        id: message_2.id
+    })
+    let newModifiedDate = Math.floor((Date.now() + 1000000))
+    await message2_dbobject.set({attributes: {modifiedDate: newModifiedDate}})
+    let modifiedCheck = await message2_dbobject.get({path: 'modifiedDate', user})
+    let passed12 = modifiedCheck === newModifiedDate
+    assert.equal(passed12, true)
+    
+    // The third message should be first
+    let requestedData7 = await myHandlerForGSI.scan({
+        seriesKey: seriesKey,
+        params: [
+            ['test', '=', 'test']
+        ],
+        returnData: true
+    })
+    let passed13 = requestedData7[0].body === 'third message'
+    assert.equal(passed13, true)
+
+    // Create a new db object but override the timestamp with our own
+    let message_4 = await parentObj.collection({path, credentials: skip}).createObject({
+        data: {
+            body: 'fifth message',
+            modifiedDate: Math.floor((Date.now())),
+            test: 'test'
+        },
+        overrideTimestamp: newModifiedDate
+    })
+    let message_4_dbobject = await parentObj.collection({path, credentials: skip}).getObject({
+        id: message_4.id
+    })
+    let passed14 = message_4_dbobject.key.ts === newModifiedDate
+    assert.equal(passed14, true)
+
+    // Vanilla Pagewise final check on overrided ts
+    let requestedData8 = await parentObj.collection({path, credentials: skip}).getObjects({
+        limit: 5,
+        attributes: ['body']
+    })
+    let passed15 = (requestedData8[4].body === 'modified first message') && (requestedData8[0].body === 'fifth message')
+    assert.equal(passed15, true)
+
+    // Create a new db object with a specific member
+    let message_5 = await parentObj.collection({path, credentials: skip}).createObject({
+        data: {
+            body: 'sixth message',
+            modifiedDate: Math.floor((Date.now())),
+            test: 'test',
+        },
+        members: {'member@gmail.com': {read: 5, write: 5}},
+        objectPermission: {read: 5, write: 5}
+    })
+    
+    // Vanilla Pagewise final check on objects with permission that we dont have permission on
+    let requestedData9 = await parentObj.collection({path, credentials: {user}}).getObjects({
+        limit: 6,
+        attributes: ['body']
+    })
+    let passed16 = (Object.keys(requestedData9[1]).length === 0)
+    assert.equal(passed16, true)
+    
+    // Destroy parent object and see that collection is destroyed as well
+    await parentObj.destroy({credentials: skip})
+    let message0StillExists = await message0_dbobject.checkExists()
+    assert.equal(message0StillExists, false)
 })
 
 

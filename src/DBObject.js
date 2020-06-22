@@ -32,16 +32,15 @@ class DBObject {
         if (isTimeOrdered) {
             // Case 1: We're creating a new object
             if (id.split('-').length === 1) {
-                let ts = Date.now()
-                id += '-' + ts
-            }
-            // Case 2: We're creating a new object but giving it our own timestamp 
-            if (overrideTimestamp) {
-                let ts = overrideTimestamp
-                id += '-' + ts
-            }
-            // Case 3: We're constructing the class for an object that already exists 
-            if (id.split('-').length === 2) {
+                if (!overrideTimestamp) {
+                    let ts = Date.now()
+                    id += '-' + ts
+                } else {
+                    let ts = overrideTimestamp
+                    id += '-' + ts
+                }
+            // Case 2: We're constructing the class for an object that already exists 
+            } else {
                 id = id
             }
         }
@@ -509,7 +508,7 @@ class DBObject {
         // members = members || {}
 
         this.index.setNodeType(path, u.NT_COLLECTION)
-        this.index.setNodeProperty(path, 'seriesKey', this._getCollectionSeriesKey(path))
+        this.index.setNodeProperty(path, 'seriesKey', this._makeCollectionSeriesKey(path))
         this.index.setNodeProperty(path, 'subclass', subclass)
         // this.index.setNodeProperty(path, 'creator', creator)
         // this.index.setNodeProperty(path, 'members', members)
@@ -520,10 +519,14 @@ class DBObject {
         let attributes = {}
         attributes[path] = '<COLLECTION>'
         await this.set({attributes, credentials})
-        return this._getCollectionSeriesKey(path)
+        return this._makeCollectionSeriesKey(path)
     }
 
-    _getCollectionSeriesKey(path) {return this.id + '_' + path}
+    _makeCollectionSeriesKey(path) {return this.id + '_' + path}
+
+    getPackedCollectionSeriesKey({path}) {
+        return this.id + '_' + u.packKey(path)
+    }
     
     async emptyCollection({path, credentials}) {
         credentials = credentials || this.credentials
@@ -548,7 +551,7 @@ class DBObject {
         this._ensureIsCollection(path)
         this.ensurePermission({path, write: false, credentials})
 
-        let seriesKey = this._getCollectionSeriesKey(path)
+        let seriesKey = this._makeCollectionSeriesKey(path)
         let subclass = this.index.getNodeProperty(path, 'subclass')
         let DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
@@ -564,9 +567,6 @@ class DBObject {
             credentials: credentials
         })
     }
-    
-    getCollectionSeriesKey(path) {return (this.id + '_' + path)}
-
     
     _ensureIsCollection(path) {
         if (this.index.getNodeType(path) !== u.NT_COLLECTION) {
@@ -831,6 +831,7 @@ class DBObject {
     async _read(attributes) {
         let data = await this.dynamoClient.get({
             tableName: this.tableName,
+            indexName: this.indexName,
             key: this.key,
             attributes: attributes
         }).catch((err) => {u.error('failure in DBObject._read', err)})
