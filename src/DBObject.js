@@ -546,6 +546,7 @@ class DBObject {
 
     // Note: permissions passed here are handed to all downstream methods, in addition
     // to operations on the collection itself
+    // tableName, subclass, indexName, partitionKey, sortKey are all optional here
     collection({path, tableName, subclass, indexName, partitionKey, sortKey, credentials}) {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
