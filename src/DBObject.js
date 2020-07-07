@@ -546,13 +546,13 @@ class DBObject {
 
     // Note: permissions passed here are handed to all downstream methods, in addition
     // to operations on the collection itself
-    collection({path, credentials}) {
+    collection({path, tableName, subclass, indexName, partitionKey, sortKey, credentials}) {
         path = u.packKeys(path)
         this._ensureIsCollection(path)
         this.ensurePermission({path, write: false, credentials})
 
         let seriesKey = this._makeCollectionSeriesKey(path)
-        let subclass = this.index.getNodeProperty(path, 'subclass')
+        subclass = subclass || this.index.getNodeProperty(path, 'subclass')
         let DBObjectHandler = require('./DBObjectHandler')
         return new DBObjectHandler({
             seriesKey: seriesKey,
@@ -560,8 +560,11 @@ class DBObject {
             awsSecretAccessKey: this.dynamoClient.awsSecretAccessKey,
             awsRegion: this.dynamoClient.awsRegion,
             bucketName: this.s3Client.bucketName,
-            tableName: this.tableName,
+            tableName: tableName || this.tableName,
             subclass: subclass,
+            indexName: indexName || this.indexName,
+            partitionKey: partitionKey || this.partitionKey,
+            sortKey: sortKey || this.sortKey,
             isTimeOrdered: true, 
             doNotCache: true,
             credentials: credentials

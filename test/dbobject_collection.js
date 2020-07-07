@@ -332,6 +332,10 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         subclass: null,
         isTimeOrdered: false
     })
+
+    let indexName = config.indexName
+    let partitionKey = 'uid'
+    let sortKey = 'XXmodifiedDate'
     
     let myHandlerForGSI = new jsondb.DBObjectHandler({
         awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
@@ -340,9 +344,9 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         tableName: config.tableName,
         subclass: null,
         isTimeOrdered: true,
-        indexName: config.indexName,             
-        partitionKey: 'uid',              
-        sortKey: 'XXmodifiedDate',    
+        indexName,             
+        partitionKey,              
+        sortKey,    
     })
     
     let user = 'testUser@gmail.com'
@@ -437,13 +441,11 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
 
     // // GSI Pagewise
     await parentObj.ensureIndexLoaded()
-    let seriesKey = await parentObj.getPackedCollectionSeriesKey({path})
     
     // the different ways to get collections of things
+
     // the fourth message which was created last will appear first in vanilla, but from the gsi it should appear first bc it has the "most recent" modified date
-    myHandlerForGSI.instantiate({id: seriesKey})
-    let requestedData = await myHandlerForGSI.batchGetObjectsByPage({
-        seriesKey: seriesKey,
+    let requestedData = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).batchGetObjectsByPage({
         limit: 4,
         returnData: true,
         includeID: true,
@@ -452,8 +454,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed5 = (requestedData[0].body === 'modified first message') && (requestedData[3].body === 'fourth message')
     assert.equal(passed5, true)
     
-    let requestedData1 = await myHandlerForGSI.batchGetObjectsByPage({
-        seriesKey: seriesKey,
+    let requestedData1 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).batchGetObjectsByPage({
         limit: 4,
         attributes: ['body'],
         credentials: {skipPermissionCheck: true}
@@ -461,8 +462,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed6 = (requestedData1[0].body === 'modified first message') && (requestedData1[3].body === 'fourth message')
     assert.equal(passed6, true)
     
-    let requestedData2 = await myHandlerForGSI.batchGetObjectsByTime({
-        seriesKey: seriesKey,
+    let requestedData2 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).batchGetObjectsByTime({
         limit: 4,
         returnData: true,
         startTime: requestedData[0].modifiedDate - 10000,
@@ -473,8 +473,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed7 = (requestedData2[0].body === 'modified first message') && (requestedData2[3].body === 'fourth message')
     assert.equal(passed7, true)
     
-    let requestedData3 = await myHandlerForGSI.batchGetObjectsByTime({
-        seriesKey: seriesKey,
+    let requestedData3 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).batchGetObjectsByTime({
         limit: 4,
         attributes: ['body'],
         startTime: requestedData[0].modifiedDate - 10000,
@@ -485,8 +484,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let passed8 = (requestedData3[0].body === 'modified first message') && (requestedData3[3].body === 'fourth message')
     assert.equal(passed8, true)
 
-    let requestedData4 = await myHandlerForGSI.getObjects({
-        seriesKey: seriesKey,
+    let requestedData4 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).getObjects({
         limit: 4,
         attributes: ['body'],
         // for some reason we cant set returnData here and we have to set ascending to true
@@ -498,15 +496,13 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
 
     // // this will fail bc returndata and attributes arent specified
     // let requestedData5 = await myHandlerForGSI.batchGetObjectsByPage({
-    //     seriesKey: seriesKey,
     //     limit: 4,
     //     credentials: {skipPermissionCheck: true}
     // })
     // let passed10 = (requestedData5[0].body === 'modified first message') && (requestedData5[3].body === 'fourth message')
     // assert.equal(passed10, true)
 
-    let requestedData6 = await myHandlerForGSI.scan({
-        seriesKey: seriesKey,
+    let requestedData6 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).scan({
         params: [
             ['body', '=', 'modified first message', 'OR'],            
             ['body', '=', 'fourth message', 'OR']           
@@ -529,8 +525,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     assert.equal(passed12, true)
     
     // The third message should be first
-    let requestedData7 = await myHandlerForGSI.scan({
-        seriesKey: seriesKey,
+    let requestedData7 = await parentObj.collection({path, indexName, partitionKey, sortKey, credentials: {user}}).scan({
         params: [
             ['test', '=', 'test']
         ],

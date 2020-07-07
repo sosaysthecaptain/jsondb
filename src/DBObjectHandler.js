@@ -179,13 +179,13 @@ class DBObjectHandler {
         return dbobjects
     }
 
-    async getObjects({seriesKey, limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID, credentials}={}) {
+    async getObjects({limit, ascending, attributes, returnData, exclusiveFirstTimestamp, includeID, credentials}={}) {
         credentials = credentials || this.credentials
         ascending = ascending || false
         limit = limit || 10000
 
         exclusiveFirstTimestamp = exclusiveFirstTimestamp || this.exclusiveStartTimestamp
-        let data = await this.batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, includeID})
+        let data = await this.batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp, includeID})
         // Figure out what the last timestamp was and store it
         if (data.length) {
             this.exclusiveStartTimestamp = data[data.length-1].timestamp()
@@ -211,7 +211,7 @@ class DBObjectHandler {
         return raw
     }
     
-    async batchGetObjectsByPage({seriesKey, limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, includeID, credentials}) {
+    async batchGetObjectsByPage({limit, ascending, exclusiveFirstTimestamp, attributes, returnData, idOnly, includeID, credentials}) {
         credentials = credentials || this.credentials   
 
         if (returnData && !attributes) {attributes = true}
@@ -223,7 +223,7 @@ class DBObjectHandler {
             indexName: this.indexName,
             partitionKey: this.partitionKey,
             sortKey: this.sortKey,
-            uid: seriesKey || this.seriesKey,
+            uid: this.seriesKey,
             limit,
             ascending,
             exclusiveFirstSk: exclusiveFirstTimestamp,
@@ -234,7 +234,7 @@ class DBObjectHandler {
 
     resetPage() {this.exclusiveStartTimestamp = null}
     
-    async batchGetObjectsByTime({seriesKey, startTime, endTime, ascending, attributes, returnData, includeID, credentials}) {
+    async batchGetObjectsByTime({startTime, endTime, ascending, attributes, returnData, includeID, credentials}) {
         credentials = credentials || this.credentials   
         
         if (!this.isTimeOrdered) {throw new Error('this method is only applicable on timeOrdered DBObjects')}
@@ -243,7 +243,7 @@ class DBObjectHandler {
             indexName: this.indexName,
             partitionKey: this.partitionKey,
             sortKey: this.sortKey,
-            uid: seriesKey || this.seriesKey,
+            uid: this.seriesKey,
             startTime, 
             endTime,
             ascending
@@ -279,7 +279,6 @@ class DBObjectHandler {
         idOnly, 
         includeID,
         credentials,
-        seriesKey,      // query only
         ascending       // query only
     }) {
         credentials = credentials || this.credentials   
@@ -353,7 +352,7 @@ class DBObjectHandler {
         if (this.isTimeOrdered) {
             data = await this.dynamoClient.query({
                 scanQueryInstance: query, 
-                seriesKey: seriesKey || this.seriesKey,
+                seriesKey: this.seriesKey,
                 indexName: this.indexName,
                 partitionKey: this.partitionKey,
                 ascending
