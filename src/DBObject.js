@@ -39,7 +39,7 @@ class DBObject {
                     let ts = overrideTimestamp
                     id += '-' + ts
                 }
-            // Case 2: We're constructing the class for an object that already exists 
+                // Case 2: We're constructing the class for an object that already exists 
             } else {
                 id = id
             }
@@ -522,7 +522,14 @@ class DBObject {
         return this._makeCollectionSeriesKey(path)
     }
 
-    _makeCollectionSeriesKey(path) {return this.id + '_' + path}
+    _makeCollectionSeriesKey(path) {
+        let collectionSeriesKey = this.id + '_' + path
+        // The case of a collection on a collection
+        if (collectionSeriesKey.includes('-')) {
+            collectionSeriesKey = collectionSeriesKey.split('-').join('_')
+        }
+        return collectionSeriesKey
+    }
 
     getPackedCollectionSeriesKey({path}) {
         return this.id + '_' + u.packKey(path)
