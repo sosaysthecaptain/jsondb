@@ -337,18 +337,6 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     let partitionKey = 'uid'
     let sortKey = 'XXmodifiedDate'
     
-    let myHandlerForGSI = new jsondb.DBObjectHandler({
-        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
-        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-        awsRegion: config.AWS_REGION,
-        tableName: config.tableName,
-        subclass: null,
-        isTimeOrdered: true,
-        indexName,             
-        partitionKey,              
-        sortKey,    
-    })
-    
     let user = 'testUser@gmail.com'
     let parentObj = await myHandler.createObject({
         id: parentID,
@@ -580,6 +568,110 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
     await parentObj.destroy({credentials: skip})
     let message0StillExists = await message0_dbobject.checkExists()
     assert.equal(message0StillExists, false)
+})
+
+it('DBObject_collection (4) - collections on collections', async function() {
+    this.timeout(u.TEST_TIMEOUT)
+
+    // Test data
+    let parentID = 'dbobjRefTestParent'
+    let parentData = {
+        parentKey1: {
+            subKey1: 'this is an object',
+            subKey2: 'with a collection in it',
+            messages: 'collection goes here'
+        },
+        parentKey2: 'innocent bystander'
+    }
+    
+    // Test handler
+    let myHandler = new jsondb.DBObjectHandler({
+        awsAccessKeyId: config.AWS_ACCESS_KEY_ID,
+        awsSecretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        awsRegion: config.AWS_REGION,
+        tableName: config.tableName,
+        subclass: null,
+        isTimeOrdered: false
+    })
+    
+    // Creat the test object
+    let user = 'testUser@gmail.com'
+    let parentObj = await myHandler.createObject({
+        id: parentID,
+        data: parentData,
+        members: {'member@gmail.com': {read: 5, write: 5}},
+        creator: user,
+        allowOverwrite: true,
+        objectPermission: {read: 5, write: 5},
+    })
+    let read = await parentObj.get({credentials: high})
+    delete read.members
+    let passed = _.isEqual(parentData, read)
+    assert.equal(passed, true)
+
+    // Instantiate the parent object we just created
+    parentObj = myHandler.instantiate({id: parentObj.id, credentials: {user}})
+    
+    // Create collection, add something to it
+    await parentObj.ensureIndexLoaded()
+    let convosPath = 'convos'
+    await parentObj.createCollection({path: convosPath})
+
+    // Create an object in the collection
+    let convoObj0 = await parentObj.collection({path: convosPath}).createObject({
+        data: {
+            body: 'this is a convo',
+        }
+    })
+    let passed0 = convoObj0.id.split('-').length === 2    
+    assert.equal(passed0, true)
+
+    // Create a collection on the object in the collection
+    await parentObj.ensureIndexLoaded()
+    convoObj0 = parentObj.collection({path: convosPath}).instantiate({id: convoObj0.id, credentials: {user}})
+    await convoObj0.ensureIndexLoaded()
+    let messagesPath = 'messages'
+    await convoObj0.createCollection({path: messagesPath})
+
+    // Create an object within that collection
+    let messageObj0 = await convoObj0.collection({path: messagesPath}).createObject({
+        data: {
+            body: 'this is a message'
+        }
+    })
+    let passed1 = messageObj0.id.split('-').length === 2
+    assert.equal(passed1, true)
+
+    // Instantiate the message object we just created
+    messageObj0 = convoObj0.collection({path: messagesPath}).instantiate({id: messageObj0.id, credentials: {user}})
+    await messageObj0.ensureIndexLoaded()
+    let threadsPath = 'threads'
+    await messageObj0.createCollection({path: threadsPath})
+
+    // Create an object within that collection
+    let threadObj0 = await messageObj0.collection({path: threadsPath}).createObject({
+        data: {
+            body: 'this is a thread'
+        }
+    })
+    let passed2 = threadObj0.id.split('-').length === 2
+    assert.equal(passed2, true)
+
+    // Make sure we can read/write to an objected in a nested, nested collection
+    threadObj0 = messageObj0.collection({path: threadsPath}).instantiate({id: threadObj0.id, credentials: {user}})
+    let attributes = {
+        title: 'this is a title'
+    }
+    await threadObj0.set({attributes})
+    let threadRead = await threadObj0.get()
+    assert.equal(threadRead.title, 'this is a title')
+
+    // Destroy parent object and see that collection is destroyed as well
+    await parentObj.destroy({credentials: skip})
+    let convoStillExists = await convoObj0.checkExists()
+    let messageStillExists = await messageObj0.checkExists()
+    assert.equal(convoStillExists, false)
+    assert.equal(messageStillExists, false)
 })
 
 
