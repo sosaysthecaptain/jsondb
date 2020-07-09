@@ -422,12 +422,23 @@ class DBObjectHandler {
                         obj[attribute] = await dbobject.get({path: attribute, credentials})
                     }
                 }
-                obj.id = dbobject.id
                 let timestamp = dbobject.timestamp()
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
             }
-            if (obj) {data.push(obj)}
+            // If the user specifies attributes, if they're not permissioned on a node, then we remove the node
+            Object.keys(obj).forEach(key => {
+                if (obj[key] === undefined) {
+                    delete obj[key]
+                }
+            })
+            // If the user isn't permissioned on the object, then remove the object
+            if ( 
+                (!includeID && Object.keys(obj).length > 1) ||
+                (includeID && Object.keys(obj).length > 2)
+            ) {
+                data.push(obj)
+            }
         }
 
         return data

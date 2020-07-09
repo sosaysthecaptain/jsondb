@@ -556,13 +556,47 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         objectPermission: {read: 5, write: 5}
     })
     
-    // Vanilla Pagewise final check on objects with permission that we dont have permission on
+    // Permissions check: we should get 6 since; user doesnt have permission on all 6 but 1/6 should be an empty object
     let requestedData9 = await parentObj.collection({path, credentials: {user}}).getObjects({
         limit: 6,
         attributes: ['body']
     })
     let passed16 = (Object.keys(requestedData9[1]).length === 0)
     assert.equal(passed16, true)
+    
+    // Permissions check: we should get 5 since the user doesnt have permission on all 6
+    let requestedData10 = await parentObj.collection({path, credentials: {user}}).batchGetObjectsByPage({
+        limit: 6,
+        returnData: true,
+        includeID: false
+    })
+    let passed17 = (requestedData10.length === 5)
+    assert.equal(passed17, true)
+    
+    let requestedData11 = await parentObj.collection({path, credentials: {user}}).batchGetObjectsByPage({
+        limit: 6,
+        returnData: true,
+        includeID: true
+    })
+    let passed18 = (requestedData11.length === 5)
+    assert.equal(passed18, true)
+    
+    let requestedData12 = await parentObj.collection({path, credentials: {user}}).batchGetObjectsByPage({
+        limit: 6,
+        attributes: ['body'],
+        includeID: false
+    })
+    
+    let passed19 = (requestedData12.length === 5)
+    assert.equal(passed19, true)
+    
+    let requestedData13 = await parentObj.collection({path, credentials: {user}}).batchGetObjectsByPage({
+        limit: 6,
+        attributes: ['body'],
+        includeID: true
+    })
+    let passed20 = (requestedData13.length === 5)
+    assert.equal(passed20, true)
     
     // Destroy parent object and see that collection is destroyed as well
     await parentObj.destroy({credentials: skip})
