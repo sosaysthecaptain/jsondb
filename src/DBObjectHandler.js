@@ -427,7 +427,12 @@ class DBObjectHandler {
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
             }
-            if (obj) {data.push(obj)}
+            if (
+                !(includeID && Object.keys(obj).length <= 2) || 
+                !(!includeID && Object.keys(obj).length <= 1)
+            ) {
+                data.push(obj)
+            }
         }
 
         return data

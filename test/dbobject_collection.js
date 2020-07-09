@@ -561,7 +561,7 @@ it('DBObject_collection (3) - basic gsi functionality', async function() {
         limit: 6,
         attributes: ['body']
     })
-    let passed16 = (Object.keys(requestedData9[1]).length === 0)
+    let passed16 = (Object.keys(requestedData9).length === 1)
     assert.equal(passed16, true)
     
     // Destroy parent object and see that collection is destroyed as well

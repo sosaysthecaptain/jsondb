@@ -532,7 +532,12 @@ class DBObject {
     }
 
     getPackedCollectionSeriesKey({path}) {
-        return this.id + '_' + u.packKey(path)
+        let packedCollectionSeriesKey = this.id + '_' + u.packKey(path)
+        // The case of a collection on a collection
+        if (collectionSeriesKey.includes('-')) {
+            collectionSeriesKey = collectionSeriesKey.split('-').join('_')
+        }
+        return packedCollectionSeriesKey
     }
     
     async emptyCollection({path, credentials}) {
