@@ -434,10 +434,15 @@ class DBObjectHandler {
             })
             // If the user isn't permissioned on the object, then remove the object
             if ( 
+<<<<<<< HEAD
                 (dbobject.timestamp() && !includeID && Object.keys(obj).length > 1) ||
                 (dbobject.timestamp() && includeID && Object.keys(obj).length > 2) ||
                 (!dbobject.timestamp() && !includeID && Object.keys(obj).length > 0) ||
                 (!dbobject.timestamp() && includeID && Object.keys(obj).length > 1)
+=======
+                (!includeID && Object.keys(obj).length > 1) ||
+                (includeID && Object.keys(obj).length > 2)
+>>>>>>> fa9e0ed728d2f573ed84ed66da224843f4fd45ed
             ) {
                 data.push(obj)
             }
