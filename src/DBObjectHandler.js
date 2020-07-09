@@ -422,15 +422,23 @@ class DBObjectHandler {
                         obj[attribute] = await dbobject.get({path: attribute, credentials})
                     }
                 }
-                obj.id = dbobject.id
+                // obj.id = dbobject.id
                 let timestamp = dbobject.timestamp()
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
             }
-            if (
-                !(includeID && Object.keys(obj).length <= 2) || 
-                !(!includeID && Object.keys(obj).length <= 1)
+            console.log(obj)
+            Object.keys(obj).forEach(key => {
+                if (obj[key] === undefined) {
+                    delete obj[key]
+                }
+            })
+            console.log(obj)
+            if ( 
+                (!includeID && Object.keys(obj).length > 1) ||
+                (includeID && Object.keys(obj).length > 2)
             ) {
+                console.log(obj)
                 data.push(obj)
             }
         }
