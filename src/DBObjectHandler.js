@@ -426,19 +426,33 @@ class DBObjectHandler {
                 if (timestamp) {obj.timestamp = timestamp}
                 if (includeID) {obj.id = dbobject.id}
             }
-            // If the user specifies attributes, if they're not permissioned on a node, then we remove the node
-            Object.keys(obj).forEach(key => {
-                if (obj[key] === undefined) {
-                    delete obj[key]
-                }
-            })
+            // Object.keys(obj).forEach(key => {
+            //     if (obj[key] === undefined) {
+            //         delete obj[key]
+            //     }
+            // })
             // If the user isn't permissioned on the object, then remove the object
-            if ( 
-                (dbobject.timestamp() && !includeID && Object.keys(obj).length > 1) ||
-                (dbobject.timestamp() && includeID && Object.keys(obj).length > 2) ||
-                (!dbobject.timestamp() && !includeID && Object.keys(obj).length > 0) ||
-                (!dbobject.timestamp() && includeID && Object.keys(obj).length > 1)
-            ) {
+            // if ( 
+            //     (dbobject.timestamp() && !includeID && Object.keys(obj).length > 1) ||
+            //     (dbobject.timestamp() && includeID && Object.keys(obj).length > 2) ||
+            //     (!dbobject.timestamp() && !includeID && Object.keys(obj).length > 0) ||
+            //     (!dbobject.timestamp() && includeID && Object.keys(obj).length > 1)
+            // ) {
+            //     data.push(obj)
+            // }
+            if (dbobject.timestamp()) {
+                Object.keys(obj).forEach(key => {
+                    if (obj[key] === undefined) {
+                        delete obj[key]
+                    }
+                })
+                if ( 
+                    (!includeID && Object.keys(obj).length > 1) ||
+                    (includeID && Object.keys(obj).length > 2)
+                ) {
+                    data.push(obj)
+                }
+            } else {
                 data.push(obj)
             }
         }
