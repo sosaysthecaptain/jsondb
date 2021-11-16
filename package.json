@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/sosaysthecaptain/jsondb#readme",
   "dependencies": {
-    "aws-sdk": "^2.533.0",
+    "aws-sdk": "^2.814.0",
     "base64url": "^3.0.1",
     "dynamodb-doc": "^1.0.0",
     "dyno-item-size": "^0.3.1",
